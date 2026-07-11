@@ -45,7 +45,6 @@ class GeminiLiveProviderSession {
         this.pendingAudio = [];
         this.inputBytes = 0;
         this.sessionInputBytes = 0;
-        this.activityOpen = false;
     }
 
     async connect(log = () => {}) {
@@ -55,7 +54,7 @@ class GeminiLiveProviderSession {
         }
 
         this.connectPromise = (async () => {
-            const { GoogleGenAI, Modality } = await import('@google/genai');
+            const { ActivityHandling, GoogleGenAI, Modality } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey: this.apiKey });
             const session = await ai.live.connect({
                 model: this.model,
@@ -92,6 +91,14 @@ class GeminiLiveProviderSession {
                     responseModalities: [Modality.AUDIO],
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
+                    realtimeInputConfig: {
+                        automaticActivityDetection: {
+                            disabled: false,
+                            silenceDurationMs: Number(process.env.GEMINI_VAD_SILENCE_MS || 350),
+                            prefixPaddingMs: Number(process.env.GEMINI_VAD_PREFIX_PADDING_MS || 100),
+                        },
+                        activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
+                    },
                     systemInstruction: {
                         parts: [{
                             text: 'You are Lumi, a warm child-safe voice companion. Reply briefly and naturally in the user language.',
@@ -114,9 +121,9 @@ class GeminiLiveProviderSession {
         this.sessionInputBytes += chunk.length;
         if (!this.session) {
             this.pendingAudio.push(chunk);
+            this.connect().catch(() => {});
             return;
         }
-        this.ensureActivityStarted();
         this.sendAudioNow(chunk);
     }
 
@@ -127,7 +134,6 @@ class GeminiLiveProviderSession {
     }
 
     sendAudioNow(buffer) {
-        this.ensureActivityStarted();
         this.session.sendRealtimeInput({
             audio: {
                 data: buffer.toString('base64'),
@@ -136,22 +142,14 @@ class GeminiLiveProviderSession {
         });
     }
 
-    ensureActivityStarted() {
-        if (this.activityOpen || !this.session) return;
-        this.activityOpen = true;
-        this.session.sendRealtimeInput({
-            activityStart: {},
-        });
-    }
-
     async endInput(context) {
         if (this.closed) return;
-        this.active = {
-            ...context,
-            startedAt: Date.now(),
-            audioStarted: false,
-            chunkIndex: 0,
-        };
+        this.active = this.active || {};
+        Object.assign(this.active, context, {
+            startedAt: this.active.startedAt || Date.now(),
+            audioStarted: this.active.audioStarted || false,
+            chunkIndex: this.active.chunkIndex || 0,
+        });
         context.log('gemini_response_waiting', {
             responseId: context.responseId,
             turnId: context.turnId,
@@ -162,17 +160,30 @@ class GeminiLiveProviderSession {
         });
         await this.connect(context.log);
         this.flushPendingAudio();
-        if (this.session) {
-            this.session.sendRealtimeInput({
-                audioStreamEnd: true,
+        // With server-side VAD enabled, input_audio.end is only a UI marker.
+        // Gemini decides turn boundaries from the live audio stream.
+    }
+
+    beginResponse(context) {
+        if (this.closed) return;
+        this.active = {
+            ...context,
+            startedAt: Date.now(),
+            audioStarted: false,
+            chunkIndex: 0,
+        };
+        this.connect(context.log).then(() => {
+            this.flushPendingAudio();
+        }).catch((error) => {
+            context.onEvent({
+                type: 'error',
+                response_id: context.responseId,
+                turn_id: context.turnId,
+                code: 'provider_error',
+                provider: this.name,
+                message: safeErrorMessage(error),
             });
-            if (this.activityOpen) {
-                this.session.sendRealtimeInput({
-                    activityEnd: {},
-                });
-                this.activityOpen = false;
-            }
-        }
+        });
     }
 
     interrupt(reason = 'interrupt') {

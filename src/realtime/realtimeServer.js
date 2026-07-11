@@ -116,8 +116,8 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         cancelCurrent('new_input');
         turnCounter += 1;
         currentTurnId = payload.turn_id || id(`turn${turnCounter}`);
-        currentResponseId = null;
-        currentCancel = null;
+        currentResponseId = id('response');
+        currentCancel = createCancellation();
         inputStartedAt = Date.now();
         inputEndedAt = 0;
         inputBytes = 0;
@@ -125,7 +125,32 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
             type: 'input_audio.start',
             turn_id: currentTurnId,
         });
-        log('input_audio_start', { turnId: currentTurnId });
+        emit({
+            type: 'response.created',
+            response_id: currentResponseId,
+            turn_id: currentTurnId,
+            turn_input_bytes: inputBytes,
+            session_input_bytes: sessionInputBytes,
+        });
+        const responseIdForStream = currentResponseId;
+        const turnIdForStream = currentTurnId;
+        const cancelForStream = currentCancel;
+        if (typeof providerSession.beginResponse === 'function') {
+            providerSession.beginResponse({
+                responseId: responseIdForStream,
+                turnId: turnIdForStream,
+                turnInputBytes: inputBytes,
+                sessionInputBytes,
+                signal: cancelForStream,
+                onEvent: emit,
+                onAudioChunk: emit,
+                log,
+            });
+        }
+        log('input_audio_start', {
+            turnId: currentTurnId,
+            responseId: currentResponseId,
+        });
     }
 
     function endInput() {
@@ -140,8 +165,10 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
 
         inputEndedAt = Date.now();
         const recordingDurationMs = inputEndedAt - inputStartedAt;
-        currentResponseId = id('response');
-        currentCancel = createCancellation();
+        if (!currentResponseId) {
+            currentResponseId = id('response');
+            currentCancel = createCancellation();
+        }
 
         emit({
             type: 'input_audio.end',
@@ -150,13 +177,15 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
             turn_input_bytes: inputBytes,
             session_input_bytes: sessionInputBytes,
         });
-        emit({
-            type: 'response.created',
-            response_id: currentResponseId,
-            turn_id: currentTurnId,
-            turn_input_bytes: inputBytes,
-            session_input_bytes: sessionInputBytes,
-        });
+        if (typeof providerSession.beginResponse !== 'function') {
+            emit({
+                type: 'response.created',
+                response_id: currentResponseId,
+                turn_id: currentTurnId,
+                turn_input_bytes: inputBytes,
+                session_input_bytes: sessionInputBytes,
+            });
+        }
         log('input_audio_end', {
             turnId: currentTurnId,
             durationMs: recordingDurationMs,
@@ -169,7 +198,7 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         const turnIdForStream = currentTurnId;
         const cancelForStream = currentCancel;
 
-        providerSession.endInput({
+        const endInputContext = {
             responseId: responseIdForStream,
             turnId: turnIdForStream,
             turnInputBytes: inputBytes,
@@ -187,7 +216,9 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
             },
             onAudioChunk: emit,
             log,
-        }).catch((error) => {
+        };
+
+        providerSession.endInput(endInputContext).catch((error) => {
             emit({
                 type: 'error',
                 response_id: responseIdForStream,
