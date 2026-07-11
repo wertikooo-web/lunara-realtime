@@ -7,9 +7,14 @@ const INPUT_MIME_TYPE = 'audio/pcm;rate=16000';
 const INPUT_SAMPLE_RATE = 16000;
 const BYTES_PER_PCM16_SAMPLE = 2;
 const MIN_VALID_PCM_BYTES = 4;
+const DEFAULT_TAIL_FRAME_MS = 20;
 
 function makeInstanceId() {
     return `gemini_session_${crypto.randomBytes(6).toString('hex')}`;
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function safeErrorMessage(error) {
@@ -164,44 +169,109 @@ class GeminiLiveProviderSession {
         await this.connect(context.log);
         this.flushPendingAudio();
         if (context.mode === 'push_to_talk') {
-            this.sendSilenceTail(context);
+            await this.sendSilenceTail(context);
         }
         // With server-side VAD enabled, input_audio.end is only a UI marker.
         // Gemini decides turn boundaries from the live audio stream.
     }
 
-    sendSilenceTail(context) {
+    isTailActive(context) {
+        return (
+            !this.closed
+            && this.session
+            && !context.signal?.cancelled
+            && this.active?.generationId === context.generationId
+            && (typeof context.isGenerationActive !== 'function' || context.isGenerationActive())
+        );
+    }
+
+    async sendSilenceTail(context) {
         if (!this.session || this.closed) return;
-        const durationMs = Math.max(0, Number(process.env.PTT_SILENCE_TAIL_MS || 300));
-        if (durationMs <= 0) return;
-        const bytes = Math.floor(INPUT_SAMPLE_RATE * durationMs / 1000) * BYTES_PER_PCM16_SAMPLE;
-        if (bytes <= 0) return;
+        const configuredDurationMs = Math.max(0, Number(process.env.PTT_SILENCE_TAIL_MS || 300));
+        const frameDurationMs = Math.max(1, Number(process.env.PTT_SILENCE_FRAME_MS || DEFAULT_TAIL_FRAME_MS));
+        if (configuredDurationMs <= 0 || frameDurationMs <= 0) return;
+        const frameCount = Math.max(1, Math.ceil(configuredDurationMs / frameDurationMs));
+        const frameBytes = Math.floor(INPUT_SAMPLE_RATE * frameDurationMs / 1000) * BYTES_PER_PCM16_SAMPLE;
+        const totalBytes = frameBytes * frameCount;
+        if (frameBytes <= 0) return;
         context.log('silence_tail_started', {
-            duration_ms: durationMs,
-            bytes,
+            generationId: context.generationId,
+            turnId: context.turnId,
+            configuredDurationMs,
+            sampleRate: INPUT_SAMPLE_RATE,
+            frameDurationMs,
+            frameCount,
+            frameBytes,
+            totalBytes,
             mode: context.mode,
             providerInstanceId: this.instanceId,
         });
         context.onEvent?.({
             type: 'silence_tail_started',
-            response_id: context.responseId,
+            response_id: null,
+            generation_id: context.generationId,
             turn_id: context.turnId,
-            duration_ms: durationMs,
-            bytes,
+            configured_duration_ms: configuredDurationMs,
+            sample_rate: INPUT_SAMPLE_RATE,
+            frame_duration_ms: frameDurationMs,
+            frame_count: frameCount,
+            frame_bytes: frameBytes,
+            total_bytes: totalBytes,
         });
-        this.sendAudioNow(Buffer.alloc(bytes, 0));
+
+        const startedAt = Date.now();
+        let sentFrames = 0;
+        let sentBytes = 0;
+        let aborted = false;
+        let abortReason = null;
+
+        for (let index = 0; index < frameCount; index += 1) {
+            if (!this.isTailActive(context)) {
+                aborted = true;
+                abortReason = context.signal?.reason || 'inactive_generation';
+                break;
+            }
+            this.sendAudioNow(Buffer.alloc(frameBytes, 0));
+            sentFrames += 1;
+            sentBytes += frameBytes;
+            const nextFrameAt = startedAt + (index + 1) * frameDurationMs;
+            await sleep(Math.max(0, nextFrameAt - Date.now()));
+        }
+
+        if (!aborted && this.isTailActive(context)) {
+            try {
+                this.session.sendRealtimeInput({ audioStreamEnd: true });
+            } catch (error) {
+                aborted = true;
+                abortReason = safeErrorMessage(error);
+            }
+        } else if (!aborted) {
+            aborted = true;
+            abortReason = context.signal?.reason || 'inactive_generation';
+        }
+
+        const elapsedMs = Date.now() - startedAt;
         context.log('silence_tail_completed', {
-            duration_ms: durationMs,
-            bytes,
+            generationId: context.generationId,
+            turnId: context.turnId,
+            sentFrames,
+            sentBytes,
+            elapsedMs,
+            aborted,
+            abortReason: abortReason || '',
             mode: context.mode,
             providerInstanceId: this.instanceId,
         });
         context.onEvent?.({
             type: 'silence_tail_completed',
-            response_id: context.responseId,
+            response_id: null,
+            generation_id: context.generationId,
             turn_id: context.turnId,
-            duration_ms: durationMs,
-            bytes,
+            sent_frames: sentFrames,
+            sent_bytes: sentBytes,
+            elapsed_ms: elapsedMs,
+            aborted,
+            abort_reason: abortReason || null,
         });
     }
 

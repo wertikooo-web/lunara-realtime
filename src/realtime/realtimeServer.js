@@ -31,7 +31,7 @@ function createGeneration({ turnId }) {
     return {
         turnId,
         generationId: id('generation'),
-        responseId: id('response'),
+        responseId: null,
         status: 'pending',
         responseCreatedSent: false,
         cancel: createCancellation(),
@@ -137,6 +137,7 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
             droppedProviderEvent(generation, 'response.created', 'terminal_generation');
             return;
         }
+        generation.responseId = generation.responseId || id('response');
         clearGenerationTimeout(generation);
         generation.responseCreatedSent = true;
         generation.status = 'active';
@@ -174,10 +175,10 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
             clearGenerationTimeout(generation);
         }
         return emit({
+            ...payload,
             generation_id: generation.generationId,
             response_id: generation.responseId,
             turn_id: generation.turnId,
-            ...payload,
         });
     }
 
@@ -231,6 +232,7 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
             type: 'input_audio.start',
             turn_id: currentTurnId,
             generation_id: currentGeneration.generationId,
+            response_id: null,
         });
         const generationForStream = currentGeneration;
         const responseIdForStream = currentGeneration.responseId;
@@ -244,6 +246,12 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
                 sessionInputBytes,
                 mode: currentMode,
                 signal: generationForStream.cancel,
+                isGenerationActive: () => (
+                    currentGeneration === generationForStream
+                    && generationForStream.status !== 'cancelled'
+                    && generationForStream.status !== 'completed'
+                    && !generationForStream.cancel.cancelled
+                ),
                 onEvent: (event) => emitProviderEvent(generationForStream, event),
                 onAudioChunk: (event) => emitProviderEvent(generationForStream, event),
                 log,
@@ -302,6 +310,12 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
             sessionInputBytes,
             mode: currentMode,
             signal: generationForStream.cancel,
+            isGenerationActive: () => (
+                currentGeneration === generationForStream
+                && generationForStream.status !== 'cancelled'
+                && generationForStream.status !== 'completed'
+                && !generationForStream.cancel.cancelled
+            ),
             onEvent: (event) => emitProviderEvent(generationForStream, event),
             onAudioChunk: (event) => emitProviderEvent(generationForStream, event),
             log,

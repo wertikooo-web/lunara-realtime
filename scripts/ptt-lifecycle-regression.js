@@ -236,6 +236,8 @@ async function runTurn(client, turnId, bytes, options = {}) {
     client.sendJson({ type: 'input_audio.start', turn_id: turnId, mode: 'push_to_talk' });
     if (bytes > 0) client.sendBinary(Buffer.alloc(bytes, 1));
     client.sendJson({ type: 'input_audio.end' });
+    const inputStart = await client.waitFor('input_audio.start', (event) => event.turn_id === turnId);
+    const inputEnd = await client.waitFor('input_audio.end', (event) => event.turn_id === turnId);
     const userTranscript = await client.waitFor('transcript.user', (event) => event.turn_id === turnId);
     const responseCreated = await client.waitFor('response.created', (event) => event.turn_id === turnId);
     const audioStart = await client.waitFor('audio.start', (event) => event.turn_id === turnId);
@@ -249,7 +251,19 @@ async function runTurn(client, turnId, bytes, options = {}) {
     if (createdCount !== 1) {
         throw new Error(`Expected one response.created for ${turnId}, got ${createdCount}`);
     }
-    return { userTranscript, responseCreated, audioStart, audioChunk, audioEnd };
+    if (inputStart.response_id !== null) {
+        throw new Error(`input_audio.start must not have response_id before model output: ${inputStart.response_id}`);
+    }
+    if (inputEnd.response_id !== null) {
+        throw new Error(`input_audio.end must have response_id=null before model output: ${inputEnd.response_id}`);
+    }
+    if (userTranscript.response_id !== null) {
+        throw new Error(`transcript.user must have response_id=null before model output: ${userTranscript.response_id}`);
+    }
+    if (!responseCreated.response_id) {
+        throw new Error('response.created must create response_id');
+    }
+    return { inputStart, inputEnd, userTranscript, responseCreated, audioStart, audioChunk, audioEnd };
 }
 
 async function main() {
