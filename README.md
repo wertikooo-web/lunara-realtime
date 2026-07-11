@@ -36,8 +36,22 @@ Health check:
 curl http://localhost:3100/health
 ```
 
+Browser lab:
+
+```text
+http://localhost:3100/lab
+```
+
+Realtime endpoint:
+
+```text
+ws://localhost:3100/realtime
+```
+
 ## Project Shape
 
 - `src/server.js` - minimal lab server with health and status endpoints.
+- `src/realtime/` - mock realtime WebSocket protocol and streaming provider.
+- `public/lab.html` - browser lab for microphone, playback, interrupt, reconnect, and latency metrics.
 - `docs/ARCHITECTURE.md` - target architecture and product boundaries.
 - `docs/ROADMAP.md` - phased implementation plan.

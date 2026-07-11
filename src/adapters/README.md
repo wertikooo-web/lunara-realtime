@@ -21,3 +21,5 @@ Rules:
 - adapters must not store child recordings
 - each adapter should expose latency metrics
 
+Next real adapter after the mock stand is verified: `GeminiLiveProvider`.
+Do not leak Google-specific event names into the neutral `/realtime` protocol.

@@ -26,6 +26,7 @@
 - Keep each provider behind the same interface.
 - Log fallback clearly.
 - Compare quality, latency, and cost.
+- First real provider after mock verification: Gemini Live.
 
 ## Phase 4 - New Device Lab Firmware
 
