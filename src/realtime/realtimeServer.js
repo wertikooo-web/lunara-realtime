@@ -56,6 +56,7 @@ function createRealtimeSession(socket, providerSession) {
     let turnCounter = 0;
     let socketClosed = false;
     let providerClosed = false;
+    let readySent = false;
 
     function log(stage, extra = {}) {
         const details = Object.entries(extra)
@@ -66,6 +67,9 @@ function createRealtimeSession(socket, providerSession) {
 
     function emit(payload) {
         if (socketClosed || socket.destroyed) return false;
+        if (payload.type === 'session.ready') {
+            readySent = true;
+        }
         return sendJson(socket, {
             session_id: sessionId,
             server_time_ms: Date.now(),
@@ -206,14 +210,16 @@ function createRealtimeSession(socket, providerSession) {
         }
 
         if (payload.type === 'session.start') {
-            emit({
-                type: 'session.ready',
-                session_id: sessionId,
-                provider: providerSession.name || 'mock',
-                provider_instance_id: providerSession.instanceId || null,
-                config: DEFAULT_CONFIG,
-            });
-            log('session_ready_again');
+            if (!readySent) {
+                emit({
+                    type: 'session.ready',
+                    session_id: sessionId,
+                    provider: providerSession.name || 'mock',
+                    provider_instance_id: providerSession.instanceId || null,
+                    config: DEFAULT_CONFIG,
+                });
+            }
+            log('session_start_received');
         } else if (payload.type === 'input_audio.start') {
             startInput(payload);
         } else if (payload.type === 'input_audio.end') {

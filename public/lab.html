@@ -282,11 +282,31 @@
       statusText.textContent = connected ? 'Connected' : 'Disconnected';
     }
 
+    function audioBase64Bytes(base64) {
+      if (!base64) return 0;
+      const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+      return Math.max(0, Math.floor(base64.length * 3 / 4) - padding);
+    }
+
+    function compactPayload(payload) {
+      if (!payload || typeof payload !== 'object') return payload;
+      if (payload.type !== 'audio.chunk' || !payload.audio_base64) return payload;
+      const copy = { ...payload };
+      copy.bytes = audioBase64Bytes(payload.audio_base64);
+      delete copy.audio_base64;
+      return copy;
+    }
+
     function log(message, payload) {
       const time = new Date().toISOString().slice(11, 23);
-      const suffix = payload ? ` ${JSON.stringify(payload)}` : '';
+      const suffix = payload ? ` ${JSON.stringify(compactPayload(payload))}` : '';
       logEl.textContent += `[${time}] ${message}${suffix}\n`;
       logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function updateButtons() {
+      startBtn.disabled = recording;
+      stopBtn.disabled = !recording;
     }
 
     function socketUrl() {
@@ -389,6 +409,10 @@
     }
 
     async function startSpeech() {
+      if (recording) {
+        log('input_audio.start.ignored', { reason: 'already_recording' });
+        return;
+      }
       if (!micStream) await enableMic();
       if (!ws || ws.readyState !== WebSocket.OPEN) connect();
       clearPlayback();
@@ -398,6 +422,7 @@
       metrics.chunks.textContent = '0';
       recording = true;
       recordingStartedAt = performance.now();
+      updateButtons();
       sendJson({
         type: 'input_audio.start',
         turn_id: `browser_turn_${Date.now()}`,
@@ -408,6 +433,7 @@
     function stopSpeech() {
       if (!recording) return;
       recording = false;
+      updateButtons();
       lastInputEndAt = performance.now();
       metrics.record.textContent = ms(lastInputEndAt - recordingStartedAt);
       sendJson({ type: 'input_audio.end' });
@@ -503,6 +529,7 @@
     interruptBtn.addEventListener('click', interrupt);
 
     setStatus(false);
+    updateButtons();
   </script>
 </body>
 </html>

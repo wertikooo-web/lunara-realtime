@@ -182,6 +182,13 @@ async function main() {
             throw new Error('Provider instances are not isolated per connection');
         }
 
+        clientA.sendJson({ type: 'session.start', deviceId: 'smoke-a' });
+        await sleep(120);
+        const readyCountA = clientA.events.filter((event) => event.type === 'session.ready').length;
+        if (readyCountA !== 1) {
+            throw new Error(`Expected one session.ready, got ${readyCountA}`);
+        }
+
         const audioStartA = await runTurn(clientA, {
             turnId: 'smoke_turn_a',
             bytes: 3200,
