@@ -27,6 +27,17 @@ function createCancellation() {
     };
 }
 
+function createGeneration({ turnId }) {
+    return {
+        turnId,
+        generationId: id('generation'),
+        responseId: id('response'),
+        status: 'pending',
+        responseCreatedSent: false,
+        cancel: createCancellation(),
+    };
+}
+
 function attachRealtimeServer(server, options = {}) {
     const defaultProvider = new MockRealtimeProvider(options.mockConfig || DEFAULT_CONFIG);
     const providerFactory = options.providerFactory || (() => defaultProvider.createSession());
@@ -49,12 +60,12 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
     const sessionId = id('session');
     const connectedAt = Date.now();
     let currentTurnId = null;
-    let currentResponseId = null;
-    let currentCancel = null;
+    let currentGeneration = null;
     let inputStartedAt = 0;
     let inputEndedAt = 0;
     let inputBytes = 0;
     let sessionInputBytes = 0;
+    let currentMode = 'push_to_talk';
     let turnCounter = 0;
     let socketClosed = false;
     let providerClosed = false;
@@ -79,24 +90,80 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         });
     }
 
+    function droppedProviderEvent(generation, eventType, reason) {
+        log('dropped_provider_event', {
+            generationId: generation?.generationId || 'none',
+            responseId: generation?.responseId || 'none',
+            eventType,
+            reason,
+        });
+    }
+
+    function emitResponseCreated(generation, cause) {
+        if (!generation || generation.responseCreatedSent) return;
+        if (generation.status === 'cancelled' || generation.status === 'completed') {
+            droppedProviderEvent(generation, 'response.created', 'terminal_generation');
+            return;
+        }
+        generation.responseCreatedSent = true;
+        generation.status = 'active';
+        emit({
+            type: 'response.created',
+            generation_id: generation.generationId,
+            response_id: generation.responseId,
+            turn_id: generation.turnId,
+            cause,
+            turn_input_bytes: inputBytes,
+            session_input_bytes: sessionInputBytes,
+        });
+    }
+
+    function emitProviderEvent(generation, payload) {
+        if (!generation) return false;
+        const eventType = payload?.type || 'unknown';
+        const modelOutputEvents = new Set(['transcript.model', 'audio.start', 'audio.chunk', 'audio.end']);
+        const startsGenerationEvents = new Set(['transcript.model', 'audio.start', 'audio.chunk']);
+        if (generation.status === 'cancelled' || generation.status === 'completed') {
+            if (modelOutputEvents.has(eventType)) {
+                droppedProviderEvent(generation, eventType, 'terminal_generation');
+            }
+            return false;
+        }
+        if (startsGenerationEvents.has(eventType)) {
+            emitResponseCreated(generation, eventType);
+        }
+        if (eventType === 'audio.end') {
+            generation.status = 'completed';
+        }
+        return emit({
+            generation_id: generation.generationId,
+            response_id: generation.responseId,
+            turn_id: generation.turnId,
+            ...payload,
+        });
+    }
+
     function cancelCurrent(reason) {
-        if (!currentCancel || currentCancel.cancelled) return;
-        currentCancel.cancel(reason);
+        if (!currentGeneration || currentGeneration.status === 'cancelled' || currentGeneration.status === 'completed') return;
+        const cancelRequestedAt = Date.now();
+        currentGeneration.cancel.cancel(reason);
         providerSession.interrupt(reason);
-        const cancelledResponseId = currentResponseId;
-        const cancelledTurnId = currentTurnId;
-        const cancelLatencyMs = Date.now() - currentCancel.cancelledAt;
+        currentGeneration.status = 'cancelled';
+        const cancelLatencyMs = Date.now() - cancelRequestedAt;
         emit({
             type: 'response.cancelled',
-            response_id: cancelledResponseId,
-            turn_id: cancelledTurnId,
+            generation_id: currentGeneration.generationId,
+            response_id: currentGeneration.responseId,
+            turn_id: currentGeneration.turnId,
             reason,
             cancel_latency_ms: cancelLatencyMs,
         });
         log('response_cancelled', {
-            responseId: cancelledResponseId,
-            turnId: cancelledTurnId,
+            generationId: currentGeneration.generationId,
+            responseId: currentGeneration.responseId,
+            turnId: currentGeneration.turnId,
             reason,
+            cancelLatencyMs,
         });
     }
 
@@ -116,40 +183,38 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         cancelCurrent('new_input');
         turnCounter += 1;
         currentTurnId = payload.turn_id || id(`turn${turnCounter}`);
-        currentResponseId = id('response');
-        currentCancel = createCancellation();
+        currentGeneration = createGeneration({ turnId: currentTurnId });
+        currentMode = payload.mode || 'push_to_talk';
         inputStartedAt = Date.now();
         inputEndedAt = 0;
         inputBytes = 0;
         emit({
             type: 'input_audio.start',
             turn_id: currentTurnId,
+            generation_id: currentGeneration.generationId,
         });
-        emit({
-            type: 'response.created',
-            response_id: currentResponseId,
-            turn_id: currentTurnId,
-            turn_input_bytes: inputBytes,
-            session_input_bytes: sessionInputBytes,
-        });
-        const responseIdForStream = currentResponseId;
+        const generationForStream = currentGeneration;
+        const responseIdForStream = currentGeneration.responseId;
         const turnIdForStream = currentTurnId;
-        const cancelForStream = currentCancel;
         if (typeof providerSession.beginResponse === 'function') {
             providerSession.beginResponse({
+                generationId: generationForStream.generationId,
                 responseId: responseIdForStream,
                 turnId: turnIdForStream,
                 turnInputBytes: inputBytes,
                 sessionInputBytes,
-                signal: cancelForStream,
-                onEvent: emit,
-                onAudioChunk: emit,
+                mode: currentMode,
+                signal: generationForStream.cancel,
+                onEvent: (event) => emitProviderEvent(generationForStream, event),
+                onAudioChunk: (event) => emitProviderEvent(generationForStream, event),
                 log,
             });
         }
         log('input_audio_start', {
             turnId: currentTurnId,
-            responseId: currentResponseId,
+            generationId: currentGeneration.generationId,
+            responseId: currentGeneration.responseId,
+            mode: currentMode,
         });
     }
 
@@ -165,64 +230,49 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
 
         inputEndedAt = Date.now();
         const recordingDurationMs = inputEndedAt - inputStartedAt;
-        if (!currentResponseId) {
-            currentResponseId = id('response');
-            currentCancel = createCancellation();
+        if (!currentGeneration) {
+            currentGeneration = createGeneration({ turnId: currentTurnId });
         }
 
         emit({
             type: 'input_audio.end',
             turn_id: currentTurnId,
+            generation_id: currentGeneration.generationId,
+            response_id: currentGeneration.responseId,
             duration_ms: recordingDurationMs,
             turn_input_bytes: inputBytes,
             session_input_bytes: sessionInputBytes,
         });
-        if (typeof providerSession.beginResponse !== 'function') {
-            emit({
-                type: 'response.created',
-                response_id: currentResponseId,
-                turn_id: currentTurnId,
-                turn_input_bytes: inputBytes,
-                session_input_bytes: sessionInputBytes,
-            });
-        }
         log('input_audio_end', {
             turnId: currentTurnId,
             durationMs: recordingDurationMs,
             turnInputBytes: inputBytes,
             sessionInputBytes,
-            responseId: currentResponseId,
+            generationId: currentGeneration.generationId,
+            responseId: currentGeneration.responseId,
         });
 
-        const responseIdForStream = currentResponseId;
-        const turnIdForStream = currentTurnId;
-        const cancelForStream = currentCancel;
+        const generationForStream = currentGeneration;
 
         const endInputContext = {
-            responseId: responseIdForStream,
-            turnId: turnIdForStream,
+            generationId: generationForStream.generationId,
+            responseId: generationForStream.responseId,
+            turnId: generationForStream.turnId,
             turnInputBytes: inputBytes,
             sessionInputBytes,
-            signal: cancelForStream,
-            onEvent(payload) {
-                emit(payload);
-                if (
-                    payload.type === 'audio.end'
-                    && currentResponseId === responseIdForStream
-                    && currentTurnId === turnIdForStream
-                ) {
-                    currentCancel = null;
-                }
-            },
-            onAudioChunk: emit,
+            mode: currentMode,
+            signal: generationForStream.cancel,
+            onEvent: (event) => emitProviderEvent(generationForStream, event),
+            onAudioChunk: (event) => emitProviderEvent(generationForStream, event),
             log,
         };
 
         providerSession.endInput(endInputContext).catch((error) => {
             emit({
                 type: 'error',
-                response_id: responseIdForStream,
-                turn_id: turnIdForStream,
+                generation_id: generationForStream.generationId,
+                response_id: generationForStream.responseId,
+                turn_id: generationForStream.turnId,
                 code: 'provider_error',
                 provider: providerSession.name || 'provider',
                 message: error.message,

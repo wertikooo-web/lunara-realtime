@@ -202,7 +202,15 @@
           <button id="stopBtn">End speech</button>
           <button id="interruptBtn" class="danger">Interrupt</button>
         </div>
+        <label class="pill">
+          Mode
+          <select id="modeSelect">
+            <option value="push_to_talk" selected>Push-to-Talk</option>
+            <option value="full_duplex_vad">Full-Duplex VAD</option>
+          </select>
+        </label>
         <div id="micInfo" class="pill">Mic off</div>
+        <div id="trackInfo" class="pill">Track settings: -</div>
         <div id="providerInfo" class="pill">Provider unknown</div>
         <div id="userTranscript" class="pill">User transcript: -</div>
         <div id="modelTranscript" class="pill">Model transcript: -</div>
@@ -213,7 +221,8 @@
         <div class="metrics">
           <div class="metric"><span>Connection time</span><strong id="mConnect">-</strong></div>
           <div class="metric"><span>Recording duration</span><strong id="mRecord">-</strong></div>
-          <div class="metric"><span>input_audio.end to audio.start</span><strong id="mAudioStart">-</strong></div>
+          <div class="metric"><span>UI-relative latency</span><strong id="mAudioStart">-</strong></div>
+          <div class="metric"><span>Provider latency</span><strong id="mProviderLatency">unavailable</strong></div>
           <div class="metric"><span>Time to first audio chunk</span><strong id="mFirstChunk">-</strong></div>
           <div class="metric"><span>Full response duration</span><strong id="mResponse">-</strong></div>
           <div class="metric"><span>Interrupt cancel time</span><strong id="mCancel">-</strong></div>
@@ -239,11 +248,13 @@
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const interruptBtn = document.getElementById('interruptBtn');
+    const modeSelect = document.getElementById('modeSelect');
     const logEl = document.getElementById('log');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const sessionInfo = document.getElementById('sessionInfo');
     const micInfo = document.getElementById('micInfo');
+    const trackInfo = document.getElementById('trackInfo');
     const providerInfo = document.getElementById('providerInfo');
     const userTranscript = document.getElementById('userTranscript');
     const modelTranscript = document.getElementById('modelTranscript');
@@ -252,6 +263,7 @@
       connect: document.getElementById('mConnect'),
       record: document.getElementById('mRecord'),
       audioStart: document.getElementById('mAudioStart'),
+      providerLatency: document.getElementById('mProviderLatency'),
       firstChunk: document.getElementById('mFirstChunk'),
       response: document.getElementById('mResponse'),
       cancel: document.getElementById('mCancel'),
@@ -272,11 +284,23 @@
     let recordingStartedAt = 0;
     let lastInputEndAt = 0;
     let currentResponseId = '';
+    let currentGenerationId = '';
     let responseStartedAt = 0;
     let chunkCount = 0;
     let staleChunks = 0;
     let activeResponse = false;
     const cancelledResponseIds = new Set();
+    const cancelledGenerationIds = new Set();
+    const timing = {
+      inputAudioStartAt: 0,
+      clientInputEndAt: 0,
+      providerActivityStartAt: 0,
+      providerActivityEndAt: 0,
+      firstValidAudioAt: 0,
+      responseEndAt: 0,
+      cancelRequestedAt: 0,
+      cancelConfirmedAt: 0,
+    };
     let playbackQueue = [];
     let playing = false;
     let activeSources = [];
@@ -383,18 +407,27 @@
 
     async function enableMic() {
       if (micStream) return;
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       audioContext = new AudioContext({ sampleRate: 16000 });
       source = audioContext.createMediaStreamSource(micStream);
       processor = audioContext.createScriptProcessor(2048, 1, 1);
       processor.onaudioprocess = (event) => {
-        if (!recording || !ws || ws.readyState !== WebSocket.OPEN) return;
+        const shouldSend = recording || (modeSelect.value === 'full_duplex_vad' && ws && ws.readyState === WebSocket.OPEN);
+        if (!shouldSend || !ws || ws.readyState !== WebSocket.OPEN) return;
         const input = event.inputBuffer.getChannelData(0);
         ws.send(floatToPcm16(input));
       };
       source.connect(processor);
       processor.connect(audioContext.destination);
       micInfo.textContent = 'Mic ready';
+      const settings = micStream.getAudioTracks()[0]?.getSettings?.() || {};
+      trackInfo.textContent = `Track settings: ${JSON.stringify(settings)}`;
       log('mic.ready');
     }
 
@@ -424,18 +457,33 @@
       }
       if (!micStream) await enableMic();
       if (!ws || ws.readyState !== WebSocket.OPEN) connect();
+      if (modeSelect.value === 'push_to_talk' && activeResponse && currentResponseId) {
+        cancelledResponseIds.add(currentResponseId);
+        if (currentGenerationId) cancelledGenerationIds.add(currentGenerationId);
+        timing.cancelRequestedAt = performance.now();
+        clearPlayback();
+        sendJson({
+          type: 'session.interrupt',
+          reason: 'new_ptt_turn',
+          client_time_ms: Date.now(),
+        });
+      }
       clearPlayback();
       currentResponseId = '';
+      currentGenerationId = '';
       activeResponse = false;
       responseStartedAt = 0;
       chunkCount = 0;
       metrics.chunks.textContent = '0';
+      metrics.providerLatency.textContent = 'unavailable';
       recording = true;
       recordingStartedAt = performance.now();
+      timing.inputAudioStartAt = recordingStartedAt;
       updateButtons();
       sendJson({
         type: 'input_audio.start',
         turn_id: `browser_turn_${Date.now()}`,
+        mode: modeSelect.value,
       });
       log('input_audio.start.sent');
     }
@@ -445,6 +493,7 @@
       recording = false;
       updateButtons();
       lastInputEndAt = performance.now();
+      timing.clientInputEndAt = lastInputEndAt;
       metrics.record.textContent = ms(lastInputEndAt - recordingStartedAt);
       sendJson({ type: 'input_audio.end' });
       log('input_audio.end.sent');
@@ -456,7 +505,9 @@
         return;
       }
       const started = performance.now();
+      timing.cancelRequestedAt = started;
       cancelledResponseIds.add(currentResponseId);
+      if (currentGenerationId) cancelledGenerationIds.add(currentGenerationId);
       activeResponse = false;
       clearPlayback();
       updateButtons();
@@ -478,6 +529,7 @@
         providerInfo.textContent = `Provider ${payload.provider || '-'} / ${payload.model || '-'}`;
       } else if (payload.type === 'response.created') {
         currentResponseId = payload.response_id;
+        currentGenerationId = payload.generation_id || '';
         activeResponse = true;
         responseStartedAt = performance.now();
         userTranscript.textContent = 'User transcript: -';
@@ -485,16 +537,21 @@
         updateButtons();
       } else if (payload.type === 'audio.start') {
         if (payload.response_id !== currentResponseId) return;
+        timing.firstValidAudioAt = performance.now();
         metrics.audioStart.textContent = ms(performance.now() - lastInputEndAt);
+        metrics.providerLatency.textContent = 'unavailable';
       } else if (payload.type === 'audio.chunk') {
         handleAudioChunk(payload);
       } else if (payload.type === 'audio.end') {
         if (payload.response_id !== currentResponseId) return;
         activeResponse = false;
         updateButtons();
+        timing.responseEndAt = performance.now();
         metrics.response.textContent = ms(performance.now() - responseStartedAt);
       } else if (payload.type === 'response.cancelled') {
         if (payload.response_id) cancelledResponseIds.add(payload.response_id);
+        if (payload.generation_id) cancelledGenerationIds.add(payload.generation_id);
+        timing.cancelConfirmedAt = performance.now();
         activeResponse = false;
         clearPlayback();
         updateButtons();
@@ -507,7 +564,11 @@
     }
 
     async function handleAudioChunk(payload) {
-      if (payload.response_id !== currentResponseId || cancelledResponseIds.has(payload.response_id)) {
+      if (
+        payload.response_id !== currentResponseId
+        || cancelledResponseIds.has(payload.response_id)
+        || (payload.generation_id && cancelledGenerationIds.has(payload.generation_id))
+      ) {
         staleChunks += 1;
         metrics.stale.textContent = String(staleChunks);
         return;
@@ -515,6 +576,7 @@
       chunkCount += 1;
       metrics.chunks.textContent = String(chunkCount);
       if (chunkCount === 1) {
+        timing.firstValidAudioAt = performance.now();
         metrics.firstChunk.textContent = ms(performance.now() - lastInputEndAt);
       }
       const audioBuffer = payload.mime_type === 'audio/pcm'
@@ -579,6 +641,7 @@
     startBtn.addEventListener('click', () => startSpeech().catch((error) => log('start.error', { message: error.message })));
     stopBtn.addEventListener('click', stopSpeech);
     interruptBtn.addEventListener('click', interrupt);
+    modeSelect.addEventListener('change', updateButtons);
 
     setStatus(false);
     updateButtons();

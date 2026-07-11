@@ -1,6 +1,6 @@
 'use strict';
 
-const { GeminiLiveProvider, MODEL_ID } = require('../src/realtime/geminiLiveProvider');
+const { GeminiLiveProvider, MIN_VALID_PCM_BYTES, MODEL_ID } = require('../src/realtime/geminiLiveProvider');
 
 async function main() {
     const provider = new GeminiLiveProvider({
@@ -25,6 +25,59 @@ async function main() {
     }
 
     first.sendAudio(Buffer.alloc(320));
+    const emitted = [];
+    first.active = {
+        generationId: 'generation_smoke',
+        responseId: 'response_smoke',
+        turnId: 'turn_smoke',
+        signal: {
+            cancelled: false,
+            cancel(reason) {
+                this.cancelled = true;
+                this.reason = reason;
+            },
+        },
+        startedAt: Date.now(),
+        audioStarted: false,
+        chunkIndex: 0,
+        turnInputBytes: 320,
+        sessionInputBytes: 320,
+        onEvent(event) {
+            emitted.push(event);
+        },
+        onAudioChunk(event) {
+            emitted.push(event);
+        },
+        log() {},
+    };
+    first.handleMessage({
+        serverContent: {
+            modelTurn: {
+                parts: [{
+                    inlineData: {
+                        data: Buffer.alloc(2).toString('base64'),
+                    },
+                }],
+            },
+        },
+    });
+    if (emitted.length !== 0) {
+        throw new Error('2-byte PCM chunk must not emit audio events');
+    }
+    first.handleMessage({
+        serverContent: {
+            modelTurn: {
+                parts: [{
+                    inlineData: {
+                        data: Buffer.alloc(MIN_VALID_PCM_BYTES).toString('base64'),
+                    },
+                }],
+            },
+        },
+    });
+    if (!emitted.find((event) => event.type === 'audio.start')) {
+        throw new Error('Valid PCM chunk must emit audio.start');
+    }
     first.interrupt('smoke');
     first.close();
     second.close();

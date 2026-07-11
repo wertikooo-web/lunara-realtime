@@ -4,6 +4,9 @@ const crypto = require('crypto');
 
 const MODEL_ID = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
 const INPUT_MIME_TYPE = 'audio/pcm;rate=16000';
+const INPUT_SAMPLE_RATE = 16000;
+const BYTES_PER_PCM16_SAMPLE = 2;
+const MIN_VALID_PCM_BYTES = 4;
 
 function makeInstanceId() {
     return `gemini_session_${crypto.randomBytes(6).toString('hex')}`;
@@ -160,8 +163,26 @@ class GeminiLiveProviderSession {
         });
         await this.connect(context.log);
         this.flushPendingAudio();
+        if (context.mode === 'push_to_talk') {
+            this.sendSilenceTail(context);
+        }
         // With server-side VAD enabled, input_audio.end is only a UI marker.
         // Gemini decides turn boundaries from the live audio stream.
+    }
+
+    sendSilenceTail(context) {
+        if (!this.session || this.closed) return;
+        const durationMs = Math.max(0, Number(process.env.PTT_SILENCE_TAIL_MS || 300));
+        if (durationMs <= 0) return;
+        const bytes = Math.floor(INPUT_SAMPLE_RATE * durationMs / 1000) * BYTES_PER_PCM16_SAMPLE;
+        if (bytes <= 0) return;
+        this.sendAudioNow(Buffer.alloc(bytes, 0));
+        context.log('silence_tail_sent', {
+            duration_ms: durationMs,
+            bytes,
+            mode: context.mode,
+            providerInstanceId: this.instanceId,
+        });
     }
 
     beginResponse(context) {
@@ -248,6 +269,17 @@ class GeminiLiveProviderSession {
         for (const part of parts) {
             const audioBase64 = part.inlineData?.data;
             if (!audioBase64 || this.active.signal.cancelled) continue;
+            const audioBytes = Buffer.byteLength(audioBase64, 'base64');
+            if (audioBytes < MIN_VALID_PCM_BYTES || audioBytes % BYTES_PER_PCM16_SAMPLE !== 0) {
+                this.active.log('dropped_provider_event', {
+                    generationId: this.active.generationId,
+                    responseId: this.active.responseId,
+                    eventType: 'audio.chunk',
+                    reason: 'invalid_pcm',
+                    bytes: audioBytes,
+                });
+                continue;
+            }
             if (!this.active.audioStarted) {
                 this.active.audioStarted = true;
                 this.active.onEvent({
@@ -293,4 +325,5 @@ class GeminiLiveProviderSession {
 module.exports = {
     GeminiLiveProvider,
     MODEL_ID,
+    MIN_VALID_PCM_BYTES,
 };

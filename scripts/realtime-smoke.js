@@ -145,10 +145,16 @@ async function runTurn(client, { turnId, bytes }) {
     client.sendJson({ type: 'input_audio.start', turn_id: turnId });
     client.sendBinary(Buffer.alloc(bytes, 1));
     client.sendJson({ type: 'input_audio.end' });
-    await client.waitFor('response.created', (event) => event.turn_id === turnId);
+    const responseCreated = await client.waitFor('response.created', (event) => event.turn_id === turnId);
     const audioStart = await client.waitFor('audio.start', (event) => event.turn_id === turnId);
     await client.waitFor('audio.chunk', (event) => event.turn_id === turnId);
-    return audioStart;
+    const createdCount = client.events.filter((event) => (
+        event.type === 'response.created' && event.turn_id === turnId
+    )).length;
+    if (createdCount !== 1) {
+        throw new Error(`Expected one response.created for ${turnId}, got ${createdCount}`);
+    }
+    return { responseCreated, audioStart };
 }
 
 async function main() {
@@ -189,30 +195,46 @@ async function main() {
             throw new Error(`Expected one session.ready, got ${readyCountA}`);
         }
 
-        const audioStartA = await runTurn(clientA, {
+        const turnA = await runTurn(clientA, {
             turnId: 'smoke_turn_a',
             bytes: 3200,
         });
-        if (audioStartA.turn_input_bytes !== 3200) {
-            throw new Error(`Audio bytes did not reach provider A: ${audioStartA.turn_input_bytes}`);
+        if (turnA.audioStart.turn_input_bytes !== 3200) {
+            throw new Error(`Audio bytes did not reach provider A: ${turnA.audioStart.turn_input_bytes}`);
         }
 
         clientA.sendJson({ type: 'session.interrupt', reason: 'smoke_interrupt' });
         await clientA.waitFor('response.cancelled', (event) => event.turn_id === 'smoke_turn_a');
+        const chunksAtCancel = clientA.events.filter((event) => (
+            event.type === 'audio.chunk' && event.generation_id === turnA.responseCreated.generation_id
+        )).length;
+        await sleep(180);
+        const chunksAfterCancel = clientA.events.filter((event) => (
+            event.type === 'audio.chunk' && event.generation_id === turnA.responseCreated.generation_id
+        )).length;
+        if (chunksAfterCancel !== chunksAtCancel) {
+            throw new Error('Cancelled generation emitted audio chunks after cancellation');
+        }
 
-        const audioStartB = await runTurn(clientB, {
+        const turnB = await runTurn(clientB, {
             turnId: 'smoke_turn_b',
             bytes: 6400,
         });
-        if (audioStartB.turn_input_bytes !== 6400) {
-            throw new Error(`Audio bytes did not reach provider B: ${audioStartB.turn_input_bytes}`);
+        if (turnB.audioStart.turn_input_bytes !== 6400) {
+            throw new Error(`Audio bytes did not reach provider B: ${turnB.audioStart.turn_input_bytes}`);
         }
 
         clientA.socket.end();
-        await runTurn(clientB, {
+        const turnBAfterDisconnect = await runTurn(clientB, {
             turnId: 'smoke_turn_b_after_disconnect',
             bytes: 1600,
         });
+        if (
+            turnBAfterDisconnect.responseCreated.generation_id === turnB.responseCreated.generation_id
+            || turnBAfterDisconnect.responseCreated.response_id === turnB.responseCreated.response_id
+        ) {
+            throw new Error('New turn must get new generation_id and response_id');
+        }
         clientB.socket.end();
         console.log('[RealtimeSmoke] ok');
     } finally {
