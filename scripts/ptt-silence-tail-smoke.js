@@ -45,9 +45,13 @@ function runCase(durationMs) {
     if (bytes !== expectedBytes(durationMs)) {
         throw new Error(`Bad tail size for ${durationMs}ms: ${bytes}`);
     }
-    const logEntry = logs.find((entry) => entry.stage === 'silence_tail_sent');
-    if (!logEntry || logEntry.payload.duration_ms !== durationMs || logEntry.payload.bytes !== bytes) {
-        throw new Error(`Missing silence_tail_sent log for ${durationMs}ms`);
+    const started = logs.find((entry) => entry.stage === 'silence_tail_started');
+    const completed = logs.find((entry) => entry.stage === 'silence_tail_completed');
+    if (!started || started.payload.duration_ms !== durationMs || started.payload.bytes !== bytes) {
+        throw new Error(`Missing silence_tail_started log for ${durationMs}ms`);
+    }
+    if (!completed || completed.payload.duration_ms !== durationMs || completed.payload.bytes !== bytes) {
+        throw new Error(`Missing silence_tail_completed log for ${durationMs}ms`);
     }
 }
 

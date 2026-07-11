@@ -35,6 +35,8 @@ function createGeneration({ turnId }) {
         status: 'pending',
         responseCreatedSent: false,
         cancel: createCancellation(),
+        timeoutTimer: null,
+        timeoutLogged: false,
     };
 }
 
@@ -99,12 +101,43 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         });
     }
 
+    function clearGenerationTimeout(generation) {
+        if (!generation?.timeoutTimer) return;
+        clearTimeout(generation.timeoutTimer);
+        generation.timeoutTimer = null;
+    }
+
+    function armPttTurnTimeout(generation) {
+        if (!generation || currentMode !== 'push_to_talk') return;
+        clearGenerationTimeout(generation);
+        const timeoutMs = Math.max(0, Number(process.env.PTT_TURN_TIMEOUT_MS || 8000));
+        if (timeoutMs <= 0) return;
+        generation.timeoutTimer = setTimeout(() => {
+            if (
+                generation.status === 'pending'
+                && !generation.responseCreatedSent
+                && !generation.cancel.cancelled
+            ) {
+                generation.timeoutLogged = true;
+                log('ptt_turn_timeout', {
+                    generationId: generation.generationId,
+                    responseId: generation.responseId,
+                    turnId: generation.turnId,
+                    timeoutMs,
+                    turnInputBytes: inputBytes,
+                    sessionInputBytes,
+                });
+            }
+        }, timeoutMs);
+    }
+
     function emitResponseCreated(generation, cause) {
         if (!generation || generation.responseCreatedSent) return;
         if (generation.status === 'cancelled' || generation.status === 'completed') {
             droppedProviderEvent(generation, 'response.created', 'terminal_generation');
             return;
         }
+        clearGenerationTimeout(generation);
         generation.responseCreatedSent = true;
         generation.status = 'active';
         emit({
@@ -132,8 +165,13 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         if (startsGenerationEvents.has(eventType)) {
             emitResponseCreated(generation, eventType);
         }
+        if (eventType === 'response.cancelled') {
+            generation.status = 'cancelled';
+            clearGenerationTimeout(generation);
+        }
         if (eventType === 'audio.end') {
             generation.status = 'completed';
+            clearGenerationTimeout(generation);
         }
         return emit({
             generation_id: generation.generationId,
@@ -149,6 +187,7 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         currentGeneration.cancel.cancel(reason);
         providerSession.interrupt(reason);
         currentGeneration.status = 'cancelled';
+        clearGenerationTimeout(currentGeneration);
         const cancelLatencyMs = Date.now() - cancelRequestedAt;
         emit({
             type: 'response.cancelled',
@@ -253,6 +292,7 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         });
 
         const generationForStream = currentGeneration;
+        armPttTurnTimeout(generationForStream);
 
         const endInputContext = {
             generationId: generationForStream.generationId,

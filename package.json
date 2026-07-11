@@ -10,6 +10,7 @@
     "smoke:http": "node scripts/http-smoke.js",
     "smoke:gemini-provider": "node scripts/gemini-provider-smoke.js",
     "smoke:latency": "node scripts/latency-smoke.js",
+    "smoke:ptt-lifecycle": "node scripts/ptt-lifecycle-regression.js",
     "smoke:ptt-tail": "node scripts/ptt-silence-tail-smoke.js",
     "smoke:realtime": "node scripts/realtime-smoke.js"
   },

@@ -283,8 +283,9 @@
           <div class="metric"><span>Full response duration</span><strong id="mResponse">-</strong></div>
           <div class="metric"><span>Interrupt cancel time</span><strong id="mCancel">-</strong></div>
           <div class="metric"><span>Reconnect count</span><strong id="mReconnect">0</strong></div>
-          <div class="metric"><span>Received chunks</span><strong id="mChunks">0</strong></div>
-          <div class="metric"><span>Ignored stale chunks</span><strong id="mStale">0</strong></div>
+          <div class="metric"><span>Provider chunks received</span><strong id="mProviderChunks">0</strong></div>
+          <div class="metric"><span>Chunks played</span><strong id="mChunksPlayed">0</strong></div>
+          <div class="metric"><span>Chunks dropped</span><strong id="mChunksDropped">0</strong></div>
         </div>
       </div>
 
@@ -321,8 +322,9 @@
       response: document.getElementById('mResponse'),
       cancel: document.getElementById('mCancel'),
       reconnect: document.getElementById('mReconnect'),
-      chunks: document.getElementById('mChunks'),
-      stale: document.getElementById('mStale'),
+      providerChunks: document.getElementById('mProviderChunks'),
+      chunksPlayed: document.getElementById('mChunksPlayed'),
+      chunksDropped: document.getElementById('mChunksDropped'),
     };
 
     let ws = null;
@@ -343,8 +345,10 @@
     let currentResponseId = '';
     let currentGenerationId = '';
     let responseStartedAt = 0;
-    let chunkCount = 0;
-    let staleChunks = 0;
+    let providerChunksReceived = 0;
+    let validChunksReceived = 0;
+    let chunksPlayed = 0;
+    let chunksDropped = 0;
     let activeResponse = false;
     const cancelledResponseIds = new Set();
     const cancelledGenerationIds = new Set();
@@ -604,8 +608,11 @@
       aiSpeaking = false;
       waitingForResponse = false;
       responseStartedAt = 0;
-      chunkCount = 0;
-      metrics.chunks.textContent = '0';
+      providerChunksReceived = 0;
+      validChunksReceived = 0;
+      chunksPlayed = 0;
+      metrics.providerChunks.textContent = '0';
+      metrics.chunksPlayed.textContent = '0';
       metrics.providerLatency.textContent = 'unavailable';
       recording = true;
       recordingStartedAt = performance.now();
@@ -685,21 +692,22 @@
     }
 
     async function handleAudioChunk(payload) {
+      providerChunksReceived += 1;
+      metrics.providerChunks.textContent = String(providerChunksReceived);
       if (
         payload.response_id !== currentResponseId
         || cancelledResponseIds.has(payload.response_id)
         || (payload.generation_id && cancelledGenerationIds.has(payload.generation_id))
       ) {
-        staleChunks += 1;
-        metrics.stale.textContent = String(staleChunks);
+        chunksDropped += 1;
+        metrics.chunksDropped.textContent = String(chunksDropped);
         return;
       }
-      chunkCount += 1;
-      metrics.chunks.textContent = String(chunkCount);
+      validChunksReceived += 1;
       aiSpeaking = true;
       waitingForResponse = false;
       updateButtons();
-      if (chunkCount === 1) {
+      if (validChunksReceived === 1) {
         timing.firstValidAudioAt = performance.now();
         metrics.firstChunk.textContent = ms(performance.now() - lastInputEndAt);
       }
@@ -753,6 +761,8 @@
       activeSources.push(node);
       node.onended = () => {
         activeSources = activeSources.filter((item) => item !== node);
+        chunksPlayed += 1;
+        metrics.chunksPlayed.textContent = String(chunksPlayed);
         playing = false;
         if (playbackQueue.length === 0 && activeSources.length === 0 && !activeResponse) {
           aiSpeaking = false;

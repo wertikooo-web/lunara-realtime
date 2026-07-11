@@ -100,7 +100,7 @@ class GeminiLiveProviderSession {
                             silenceDurationMs: Number(process.env.GEMINI_VAD_SILENCE_MS || 350),
                             prefixPaddingMs: Number(process.env.GEMINI_VAD_PREFIX_PADDING_MS || 100),
                         },
-                        activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
+                        activityHandling: ActivityHandling.NO_INTERRUPTION,
                     },
                     systemInstruction: {
                         parts: [{
@@ -176,8 +176,14 @@ class GeminiLiveProviderSession {
         if (durationMs <= 0) return;
         const bytes = Math.floor(INPUT_SAMPLE_RATE * durationMs / 1000) * BYTES_PER_PCM16_SAMPLE;
         if (bytes <= 0) return;
+        context.log('silence_tail_started', {
+            duration_ms: durationMs,
+            bytes,
+            mode: context.mode,
+            providerInstanceId: this.instanceId,
+        });
         this.sendAudioNow(Buffer.alloc(bytes, 0));
-        context.log('silence_tail_sent', {
+        context.log('silence_tail_completed', {
             duration_ms: durationMs,
             bytes,
             mode: context.mode,
