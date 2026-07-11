@@ -30,6 +30,7 @@ function createCancellation() {
 function attachRealtimeServer(server, options = {}) {
     const defaultProvider = new MockRealtimeProvider(options.mockConfig || DEFAULT_CONFIG);
     const providerFactory = options.providerFactory || (() => defaultProvider.createSession());
+    const providerMetadata = options.providerMetadata || { provider: 'mock', model: 'mock' };
 
     server.on('upgrade', (req, socket) => {
         const url = new URL(req.url || '/', 'http://localhost');
@@ -40,11 +41,11 @@ function attachRealtimeServer(server, options = {}) {
         }
 
         if (!acceptWebSocket(req, socket)) return;
-        createRealtimeSession(socket, providerFactory());
+        createRealtimeSession(socket, providerFactory(), providerMetadata);
     });
 }
 
-function createRealtimeSession(socket, providerSession) {
+function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
     const sessionId = id('session');
     const connectedAt = Date.now();
     let currentTurnId = null;
@@ -53,6 +54,7 @@ function createRealtimeSession(socket, providerSession) {
     let inputStartedAt = 0;
     let inputEndedAt = 0;
     let inputBytes = 0;
+    let sessionInputBytes = 0;
     let turnCounter = 0;
     let socketClosed = false;
     let providerClosed = false;
@@ -145,18 +147,21 @@ function createRealtimeSession(socket, providerSession) {
             type: 'input_audio.end',
             turn_id: currentTurnId,
             duration_ms: recordingDurationMs,
-            bytes: inputBytes,
+            turn_input_bytes: inputBytes,
+            session_input_bytes: sessionInputBytes,
         });
         emit({
             type: 'response.created',
             response_id: currentResponseId,
             turn_id: currentTurnId,
-            input_bytes: inputBytes,
+            turn_input_bytes: inputBytes,
+            session_input_bytes: sessionInputBytes,
         });
         log('input_audio_end', {
             turnId: currentTurnId,
             durationMs: recordingDurationMs,
-            bytes: inputBytes,
+            turnInputBytes: inputBytes,
+            sessionInputBytes,
             responseId: currentResponseId,
         });
 
@@ -167,6 +172,8 @@ function createRealtimeSession(socket, providerSession) {
         providerSession.endInput({
             responseId: responseIdForStream,
             turnId: turnIdForStream,
+            turnInputBytes: inputBytes,
+            sessionInputBytes,
             signal: cancelForStream,
             onEvent(payload) {
                 emit(payload);
@@ -216,6 +223,7 @@ function createRealtimeSession(socket, providerSession) {
                     session_id: sessionId,
                     provider: providerSession.name || 'mock',
                     provider_instance_id: providerSession.instanceId || null,
+                    model: providerMetadata.model || null,
                     config: DEFAULT_CONFIG,
                 });
             }
@@ -244,11 +252,13 @@ function createRealtimeSession(socket, providerSession) {
         onText: handleCommand,
         onBinary(payload) {
             inputBytes += payload.length;
+            sessionInputBytes += payload.length;
             providerSession.sendAudio(payload);
             log('input_audio_frame', {
                 turnId: currentTurnId || 'none',
                 bytes: payload.length,
-                totalBytes: inputBytes,
+                turnInputBytes: inputBytes,
+                sessionInputBytes,
                 provider: providerSession.name || 'provider',
                 providerInstanceId: providerSession.instanceId || 'unknown',
             });
@@ -285,6 +295,7 @@ function createRealtimeSession(socket, providerSession) {
         session_id: sessionId,
         provider: providerSession.name || 'mock',
         provider_instance_id: providerSession.instanceId || null,
+        model: providerMetadata.model || null,
         config: DEFAULT_CONFIG,
     });
     log('session_ready', {

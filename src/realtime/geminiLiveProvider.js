@@ -1,0 +1,285 @@
+'use strict';
+
+const crypto = require('crypto');
+
+const MODEL_ID = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
+const INPUT_MIME_TYPE = 'audio/pcm;rate=16000';
+
+function makeInstanceId() {
+    return `gemini_session_${crypto.randomBytes(6).toString('hex')}`;
+}
+
+function safeErrorMessage(error) {
+    return String(error?.message || error || 'Gemini Live error')
+        .replace(/key=[^&\s]+/gi, 'key=[redacted]')
+        .replace(/api[_-]?key["']?\s*[:=]\s*["']?[^"',\s]+/gi, 'apiKey=[redacted]');
+}
+
+class GeminiLiveProvider {
+    constructor(options = {}) {
+        this.name = 'gemini';
+        this.model = options.model || MODEL_ID;
+        this.apiKey = options.apiKey || process.env.GEMINI_API_KEY || '';
+    }
+
+    createSession() {
+        return new GeminiLiveProviderSession({
+            apiKey: this.apiKey,
+            model: this.model,
+            instanceId: makeInstanceId(),
+        });
+    }
+}
+
+class GeminiLiveProviderSession {
+    constructor({ apiKey, model, instanceId }) {
+        this.name = 'gemini';
+        this.model = model;
+        this.apiKey = apiKey;
+        this.instanceId = instanceId;
+        this.closed = false;
+        this.ready = false;
+        this.session = null;
+        this.connectPromise = null;
+        this.active = null;
+        this.pendingAudio = [];
+        this.inputBytes = 0;
+        this.sessionInputBytes = 0;
+        this.activityOpen = false;
+    }
+
+    async connect(log = () => {}) {
+        if (this.connectPromise) return this.connectPromise;
+        if (!this.apiKey) {
+            throw new Error('GEMINI_API_KEY is required for REALTIME_PROVIDER=gemini');
+        }
+
+        this.connectPromise = (async () => {
+            const { GoogleGenAI, Modality } = await import('@google/genai');
+            const ai = new GoogleGenAI({ apiKey: this.apiKey });
+            const session = await ai.live.connect({
+                model: this.model,
+                callbacks: {
+                    onopen: () => {
+                        this.ready = true;
+                        log('gemini_open', {
+                            providerInstanceId: this.instanceId,
+                            model: this.model,
+                        });
+                    },
+                    onmessage: (message) => this.handleMessage(message),
+                    onerror: (error) => {
+                        const message = safeErrorMessage(error);
+                        this.active?.onEvent?.({
+                            type: 'error',
+                            response_id: this.active?.responseId,
+                            turn_id: this.active?.turnId,
+                            code: 'provider_error',
+                            provider: this.name,
+                            message,
+                        });
+                        log('gemini_error', { providerInstanceId: this.instanceId, message });
+                    },
+                    onclose: (event) => {
+                        this.ready = false;
+                        log('gemini_close', {
+                            providerInstanceId: this.instanceId,
+                            reason: safeErrorMessage(event?.reason || 'closed'),
+                        });
+                    },
+                },
+                config: {
+                    responseModalities: [Modality.AUDIO],
+                    inputAudioTranscription: {},
+                    outputAudioTranscription: {},
+                    systemInstruction: {
+                        parts: [{
+                            text: 'You are Lumi, a warm child-safe voice companion. Reply briefly and naturally in the user language.',
+                        }],
+                    },
+                },
+            });
+            this.session = session;
+            this.flushPendingAudio();
+            return session;
+        })();
+
+        return this.connectPromise;
+    }
+
+    sendAudio(buffer) {
+        if (this.closed) return;
+        const chunk = Buffer.from(buffer);
+        this.inputBytes += chunk.length;
+        this.sessionInputBytes += chunk.length;
+        if (!this.session) {
+            this.pendingAudio.push(chunk);
+            return;
+        }
+        this.ensureActivityStarted();
+        this.sendAudioNow(chunk);
+    }
+
+    flushPendingAudio() {
+        while (!this.closed && this.session && this.pendingAudio.length > 0) {
+            this.sendAudioNow(this.pendingAudio.shift());
+        }
+    }
+
+    sendAudioNow(buffer) {
+        this.ensureActivityStarted();
+        this.session.sendRealtimeInput({
+            audio: {
+                data: buffer.toString('base64'),
+                mimeType: INPUT_MIME_TYPE,
+            },
+        });
+    }
+
+    ensureActivityStarted() {
+        if (this.activityOpen || !this.session) return;
+        this.activityOpen = true;
+        this.session.sendRealtimeInput({
+            activityStart: {},
+        });
+    }
+
+    async endInput(context) {
+        if (this.closed) return;
+        this.active = {
+            ...context,
+            startedAt: Date.now(),
+            audioStarted: false,
+            chunkIndex: 0,
+        };
+        context.log('gemini_response_waiting', {
+            responseId: context.responseId,
+            turnId: context.turnId,
+            providerInstanceId: this.instanceId,
+            turnInputBytes: context.turnInputBytes,
+            sessionInputBytes: context.sessionInputBytes,
+            model: this.model,
+        });
+        await this.connect(context.log);
+        this.flushPendingAudio();
+        if (this.session) {
+            this.session.sendRealtimeInput({
+                audioStreamEnd: true,
+            });
+            if (this.activityOpen) {
+                this.session.sendRealtimeInput({
+                    activityEnd: {},
+                });
+                this.activityOpen = false;
+            }
+        }
+    }
+
+    interrupt(reason = 'interrupt') {
+        if (this.active?.signal && !this.active.signal.cancelled) {
+            this.active.signal.cancel(reason);
+        }
+        this.active = null;
+        if (this.session?.sendRealtimeInput) {
+            try {
+                this.session.sendRealtimeInput({ text: '[Interrupted by user]' });
+            } catch (error) {
+                // Ignore provider interrupt best-effort failures.
+            }
+        }
+    }
+
+    close() {
+        this.closed = true;
+        this.interrupt('close');
+        this.pendingAudio = [];
+        if (this.session?.close) {
+            this.session.close();
+        }
+    }
+
+    handleMessage(message) {
+        if (!this.active || this.closed || this.active.signal.cancelled) return;
+        const content = message?.serverContent;
+        if (!content) return;
+
+        if (content.interrupted) {
+            this.active.onEvent({
+                type: 'response.cancelled',
+                response_id: this.active.responseId,
+                turn_id: this.active.turnId,
+                reason: 'provider_interrupted',
+                provider: this.name,
+            });
+            this.active = null;
+            return;
+        }
+
+        if (content.inputTranscription?.text) {
+            this.active.onEvent({
+                type: 'transcript.user',
+                response_id: this.active.responseId,
+                turn_id: this.active.turnId,
+                text: content.inputTranscription.text,
+            });
+        }
+
+        if (content.outputTranscription?.text) {
+            this.active.onEvent({
+                type: 'transcript.model',
+                response_id: this.active.responseId,
+                turn_id: this.active.turnId,
+                text: content.outputTranscription.text,
+            });
+        }
+
+        const parts = content.modelTurn?.parts || [];
+        for (const part of parts) {
+            const audioBase64 = part.inlineData?.data;
+            if (!audioBase64 || this.active.signal.cancelled) continue;
+            if (!this.active.audioStarted) {
+                this.active.audioStarted = true;
+                this.active.onEvent({
+                    type: 'audio.start',
+                    response_id: this.active.responseId,
+                    turn_id: this.active.turnId,
+                    elapsed_ms: Date.now() - this.active.startedAt,
+                    format: 'audio/pcm',
+                    sample_rate: 24000,
+                    provider_instance_id: this.instanceId,
+                    turn_input_bytes: this.active.turnInputBytes,
+                    session_input_bytes: this.active.sessionInputBytes,
+                });
+            }
+
+            const chunkIndex = this.active.chunkIndex;
+            this.active.chunkIndex += 1;
+            this.active.onAudioChunk({
+                type: 'audio.chunk',
+                response_id: this.active.responseId,
+                turn_id: this.active.turnId,
+                chunk_index: chunkIndex,
+                mime_type: 'audio/pcm',
+                sample_rate: 24000,
+                audio_base64: audioBase64,
+                elapsed_ms: Date.now() - this.active.startedAt,
+            });
+        }
+
+        if (content.turnComplete) {
+            this.active.onEvent({
+                type: 'audio.end',
+                response_id: this.active.responseId,
+                turn_id: this.active.turnId,
+                elapsed_ms: Date.now() - this.active.startedAt,
+            });
+            this.active = null;
+            this.inputBytes = 0;
+        }
+    }
+}
+
+module.exports = {
+    GeminiLiveProvider,
+    MODEL_ID,
+};

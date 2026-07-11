@@ -91,14 +91,15 @@ class MockRealtimeProviderSession {
         this.interrupt('close');
     }
 
-    async endInput({ responseId, turnId, signal, onEvent, onAudioChunk, log }) {
+    async endInput({ responseId, turnId, turnInputBytes, sessionInputBytes, signal, onEvent, onAudioChunk, log }) {
         this.activeSignal = signal;
         const startedAt = Date.now();
         log('response_processing_started', {
             responseId,
             turnId,
             providerInstanceId: this.instanceId,
-            providerInputBytes: this.inputBytes,
+            turnInputBytes,
+            sessionInputBytes,
         });
         await sleep(this.config.processingDelayMs);
         if (this.closed || signal.cancelled) return;
@@ -110,7 +111,8 @@ class MockRealtimeProviderSession {
             elapsed_ms: Date.now() - startedAt,
             format: 'audio/wav',
             provider_instance_id: this.instanceId,
-            provider_input_bytes: this.inputBytes,
+            turn_input_bytes: turnInputBytes,
+            session_input_bytes: sessionInputBytes,
         });
         log('audio_start', { responseId, turnId, elapsedMs: Date.now() - startedAt });
 
@@ -144,6 +146,7 @@ class MockRealtimeProviderSession {
         });
         log('audio_end', { responseId, turnId, elapsedMs: Date.now() - startedAt });
         this.activeSignal = null;
+        this.inputBytes = 0;
     }
 }
 

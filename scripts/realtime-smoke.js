@@ -193,8 +193,8 @@ async function main() {
             turnId: 'smoke_turn_a',
             bytes: 3200,
         });
-        if (audioStartA.provider_input_bytes !== 3200) {
-            throw new Error(`Audio bytes did not reach provider A: ${audioStartA.provider_input_bytes}`);
+        if (audioStartA.turn_input_bytes !== 3200) {
+            throw new Error(`Audio bytes did not reach provider A: ${audioStartA.turn_input_bytes}`);
         }
 
         clientA.sendJson({ type: 'session.interrupt', reason: 'smoke_interrupt' });
@@ -204,8 +204,8 @@ async function main() {
             turnId: 'smoke_turn_b',
             bytes: 6400,
         });
-        if (audioStartB.provider_input_bytes !== 6400) {
-            throw new Error(`Audio bytes did not reach provider B: ${audioStartB.provider_input_bytes}`);
+        if (audioStartB.turn_input_bytes !== 6400) {
+            throw new Error(`Audio bytes did not reach provider B: ${audioStartB.turn_input_bytes}`);
         }
 
         clientA.socket.end();

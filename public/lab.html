@@ -179,7 +179,7 @@
 <body>
   <main>
     <h1>Lunara Realtime Lab</h1>
-    <p>Local mock stand for full-duplex mechanics. No paid AI provider is used.</p>
+    <p>Realtime stand for full-duplex mechanics. Provider is selected on the server.</p>
 
     <section class="grid">
       <div class="panel">
@@ -203,6 +203,9 @@
           <button id="interruptBtn" class="danger">Interrupt</button>
         </div>
         <div id="micInfo" class="pill">Mic off</div>
+        <div id="providerInfo" class="pill">Provider unknown</div>
+        <div id="userTranscript" class="pill">User transcript: -</div>
+        <div id="modelTranscript" class="pill">Model transcript: -</div>
       </div>
 
       <div class="panel wide">
@@ -241,6 +244,9 @@
     const statusText = document.getElementById('statusText');
     const sessionInfo = document.getElementById('sessionInfo');
     const micInfo = document.getElementById('micInfo');
+    const providerInfo = document.getElementById('providerInfo');
+    const userTranscript = document.getElementById('userTranscript');
+    const modelTranscript = document.getElementById('modelTranscript');
 
     const metrics = {
       connect: document.getElementById('mConnect'),
@@ -269,6 +275,8 @@
     let responseStartedAt = 0;
     let chunkCount = 0;
     let staleChunks = 0;
+    let activeResponse = false;
+    const cancelledResponseIds = new Set();
     let playbackQueue = [];
     let playing = false;
     let activeSources = [];
@@ -307,6 +315,7 @@
     function updateButtons() {
       startBtn.disabled = recording;
       stopBtn.disabled = !recording;
+      interruptBtn.disabled = recording || !activeResponse || !currentResponseId;
     }
 
     function socketUrl() {
@@ -417,6 +426,7 @@
       if (!ws || ws.readyState !== WebSocket.OPEN) connect();
       clearPlayback();
       currentResponseId = '';
+      activeResponse = false;
       responseStartedAt = 0;
       chunkCount = 0;
       metrics.chunks.textContent = '0';
@@ -441,8 +451,15 @@
     }
 
     function interrupt() {
+      if (!activeResponse || !currentResponseId || recording) {
+        log('session.interrupt.ignored', { reason: 'no_active_response' });
+        return;
+      }
       const started = performance.now();
+      cancelledResponseIds.add(currentResponseId);
+      activeResponse = false;
       clearPlayback();
+      updateButtons();
       sendJson({
         type: 'session.interrupt',
         reason: 'manual_button',
@@ -458,9 +475,14 @@
       if (payload.type === 'session.ready') {
         sessionId = payload.session_id;
         sessionInfo.textContent = `Session ${sessionId} (${payload.provider})`;
+        providerInfo.textContent = `Provider ${payload.provider || '-'} / ${payload.model || '-'}`;
       } else if (payload.type === 'response.created') {
         currentResponseId = payload.response_id;
+        activeResponse = true;
         responseStartedAt = performance.now();
+        userTranscript.textContent = 'User transcript: -';
+        modelTranscript.textContent = 'Model transcript: -';
+        updateButtons();
       } else if (payload.type === 'audio.start') {
         if (payload.response_id !== currentResponseId) return;
         metrics.audioStart.textContent = ms(performance.now() - lastInputEndAt);
@@ -468,15 +490,24 @@
         handleAudioChunk(payload);
       } else if (payload.type === 'audio.end') {
         if (payload.response_id !== currentResponseId) return;
+        activeResponse = false;
+        updateButtons();
         metrics.response.textContent = ms(performance.now() - responseStartedAt);
       } else if (payload.type === 'response.cancelled') {
+        if (payload.response_id) cancelledResponseIds.add(payload.response_id);
+        activeResponse = false;
         clearPlayback();
+        updateButtons();
         metrics.cancel.textContent = payload.cancel_latency_ms != null ? ms(payload.cancel_latency_ms) : metrics.cancel.textContent;
+      } else if (payload.type === 'transcript.user') {
+        userTranscript.textContent = `User transcript: ${payload.text || '-'}`;
+      } else if (payload.type === 'transcript.model') {
+        modelTranscript.textContent = `Model transcript: ${payload.text || '-'}`;
       }
     }
 
     async function handleAudioChunk(payload) {
-      if (payload.response_id !== currentResponseId) {
+      if (payload.response_id !== currentResponseId || cancelledResponseIds.has(payload.response_id)) {
         staleChunks += 1;
         metrics.stale.textContent = String(staleChunks);
         return;
@@ -486,9 +517,30 @@
       if (chunkCount === 1) {
         metrics.firstChunk.textContent = ms(performance.now() - lastInputEndAt);
       }
-      const audioBuffer = await decodeBase64Wav(payload.audio_base64);
+      const audioBuffer = payload.mime_type === 'audio/pcm'
+        ? decodeBase64Pcm16(payload.audio_base64, payload.sample_rate || 24000)
+        : await decodeBase64Wav(payload.audio_base64);
       playbackQueue.push(audioBuffer);
       playNext();
+    }
+
+    function decodeBase64Pcm16(base64, sampleRate) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      if (!audioContext) {
+        audioContext = new AudioContext();
+      }
+      const samples = Math.floor(bytes.length / 2);
+      const audioBuffer = audioContext.createBuffer(1, samples, sampleRate);
+      const channel = audioBuffer.getChannelData(0);
+      const view = new DataView(bytes.buffer);
+      for (let index = 0; index < samples; index += 1) {
+        channel[index] = view.getInt16(index * 2, true) / 32768;
+      }
+      return audioBuffer;
     }
 
     async function decodeBase64Wav(base64) {

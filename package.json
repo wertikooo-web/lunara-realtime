@@ -8,11 +8,14 @@
     "start": "node src/server.js",
     "dev": "node src/server.js",
     "smoke:http": "node scripts/http-smoke.js",
+    "smoke:gemini-provider": "node scripts/gemini-provider-smoke.js",
     "smoke:latency": "node scripts/latency-smoke.js",
     "smoke:realtime": "node scripts/realtime-smoke.js"
   },
   "engines": {
     "node": ">=20"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@google/genai": "^2.11.0"
+  }
 }
