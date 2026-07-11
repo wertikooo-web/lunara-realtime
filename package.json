@@ -6,7 +6,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js"
+    "dev": "node src/server.js",
+    "smoke:latency": "node scripts/latency-smoke.js"
   },
   "engines": {
     "node": ">=20"
