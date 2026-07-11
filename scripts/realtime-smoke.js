@@ -111,11 +111,13 @@ function connectWs() {
                     sendBinary(payload) {
                         socket.write(encodeClientFrame(0x2, payload));
                     },
-                    waitFor(type, timeoutMs = TIMEOUT_MS) {
+                    waitFor(type, predicate = null, timeoutMs = TIMEOUT_MS) {
                         return new Promise((eventResolve, eventReject) => {
                             const startedAt = Date.now();
                             const interval = setInterval(() => {
-                                const match = events.find((event) => event.type === type);
+                                const match = events.find((event) => (
+                                    event.type === type && (!predicate || predicate(event))
+                                ));
                                 if (match) {
                                     clearInterval(interval);
                                     eventResolve(match);
@@ -139,6 +141,16 @@ function connectWs() {
     });
 }
 
+async function runTurn(client, { turnId, bytes }) {
+    client.sendJson({ type: 'input_audio.start', turn_id: turnId });
+    client.sendBinary(Buffer.alloc(bytes, 1));
+    client.sendJson({ type: 'input_audio.end' });
+    await client.waitFor('response.created', (event) => event.turn_id === turnId);
+    const audioStart = await client.waitFor('audio.start', (event) => event.turn_id === turnId);
+    await client.waitFor('audio.chunk', (event) => event.turn_id === turnId);
+    return audioStart;
+}
+
 async function main() {
     const child = spawn(process.execPath, ['src/server.js'], {
         cwd: process.cwd(),
@@ -158,17 +170,43 @@ async function main() {
 
     try {
         await sleep(250);
-        const client = await connectWs();
-        await client.waitFor('session.ready');
-        client.sendJson({ type: 'input_audio.start', turn_id: 'smoke_turn_1' });
-        client.sendBinary(Buffer.alloc(3200, 1));
-        client.sendJson({ type: 'input_audio.end' });
-        await client.waitFor('response.created');
-        await client.waitFor('audio.start');
-        await client.waitFor('audio.chunk');
-        client.sendJson({ type: 'session.interrupt', reason: 'smoke_interrupt' });
-        await client.waitFor('response.cancelled');
-        client.socket.end();
+        const clientA = await connectWs();
+        const clientB = await connectWs();
+        const readyA = await clientA.waitFor('session.ready');
+        const readyB = await clientB.waitFor('session.ready');
+
+        if (!readyA.provider_instance_id || !readyB.provider_instance_id) {
+            throw new Error('Missing provider instance ids');
+        }
+        if (readyA.provider_instance_id === readyB.provider_instance_id) {
+            throw new Error('Provider instances are not isolated per connection');
+        }
+
+        const audioStartA = await runTurn(clientA, {
+            turnId: 'smoke_turn_a',
+            bytes: 3200,
+        });
+        if (audioStartA.provider_input_bytes !== 3200) {
+            throw new Error(`Audio bytes did not reach provider A: ${audioStartA.provider_input_bytes}`);
+        }
+
+        clientA.sendJson({ type: 'session.interrupt', reason: 'smoke_interrupt' });
+        await clientA.waitFor('response.cancelled', (event) => event.turn_id === 'smoke_turn_a');
+
+        const audioStartB = await runTurn(clientB, {
+            turnId: 'smoke_turn_b',
+            bytes: 6400,
+        });
+        if (audioStartB.provider_input_bytes !== 6400) {
+            throw new Error(`Audio bytes did not reach provider B: ${audioStartB.provider_input_bytes}`);
+        }
+
+        clientA.socket.end();
+        await runTurn(clientB, {
+            turnId: 'smoke_turn_b_after_disconnect',
+            bytes: 1600,
+        });
+        clientB.socket.end();
         console.log('[RealtimeSmoke] ok');
     } finally {
         child.kill();

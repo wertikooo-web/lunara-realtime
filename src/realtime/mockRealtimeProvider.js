@@ -49,13 +49,59 @@ class MockRealtimeProvider {
             ...DEFAULT_CONFIG,
             ...config,
         };
+        this.name = 'mock';
+        this.instanceCounter = 0;
     }
 
-    async streamResponse({ responseId, turnId, signal, onEvent, onAudioChunk, log }) {
+    createSession() {
+        this.instanceCounter += 1;
+        return new MockRealtimeProviderSession({
+            config: this.config,
+            providerName: this.name,
+            instanceId: `mock_session_${this.instanceCounter}`,
+        });
+    }
+}
+
+class MockRealtimeProviderSession {
+    constructor({ config, providerName, instanceId }) {
+        this.config = config;
+        this.name = providerName;
+        this.instanceId = instanceId;
+        this.closed = false;
+        this.activeSignal = null;
+        this.inputBytes = 0;
+    }
+
+    sendAudio(buffer) {
+        if (this.closed) return;
+        this.inputBytes += Buffer.isBuffer(buffer) ? buffer.length : 0;
+    }
+
+    interrupt(reason = 'interrupt') {
+        if (this.activeSignal && !this.activeSignal.cancelled) {
+            this.activeSignal.cancelled = true;
+            this.activeSignal.reason = reason;
+            this.activeSignal.cancelledAt = Date.now();
+        }
+    }
+
+    close() {
+        this.closed = true;
+        this.interrupt('close');
+    }
+
+    async endInput({ responseId, turnId, signal, onEvent, onAudioChunk, log }) {
+        this.activeSignal = signal;
         const startedAt = Date.now();
-        log('response_processing_started', { responseId, turnId });
+        log('response_processing_started', {
+            responseId,
+            turnId,
+            providerInstanceId: this.instanceId,
+            providerInputBytes: this.inputBytes,
+        });
         await sleep(this.config.processingDelayMs);
-        if (signal.cancelled) return;
+        if (this.closed || signal.cancelled) return;
 
         onEvent({
             type: 'audio.start',
@@ -63,11 +109,13 @@ class MockRealtimeProvider {
             turn_id: turnId,
             elapsed_ms: Date.now() - startedAt,
             format: 'audio/wav',
+            provider_instance_id: this.instanceId,
+            provider_input_bytes: this.inputBytes,
         });
         log('audio_start', { responseId, turnId, elapsedMs: Date.now() - startedAt });
 
         for (let index = 0; index < this.config.chunkCount; index += 1) {
-            if (signal.cancelled) return;
+            if (this.closed || signal.cancelled) return;
             const tone = makeWavTone({
                 sampleRate: this.config.sampleRate,
                 durationMs: this.config.chunkDurationMs,
@@ -87,7 +135,7 @@ class MockRealtimeProvider {
             await sleep(this.config.chunkIntervalMs);
         }
 
-        if (signal.cancelled) return;
+        if (this.closed || signal.cancelled) return;
         onEvent({
             type: 'audio.end',
             response_id: responseId,
@@ -95,6 +143,7 @@ class MockRealtimeProvider {
             elapsed_ms: Date.now() - startedAt,
         });
         log('audio_end', { responseId, turnId, elapsedMs: Date.now() - startedAt });
+        this.activeSignal = null;
     }
 }
 
@@ -102,4 +151,3 @@ module.exports = {
     MockRealtimeProvider,
     DEFAULT_CONFIG,
 };
-

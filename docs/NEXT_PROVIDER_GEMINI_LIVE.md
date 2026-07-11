@@ -23,6 +23,13 @@ Gemini events must be translated inside the provider adapter into the neutral Lu
 - `response.cancelled`
 - `error`
 
+The adapter should implement the existing provider-session contract only:
+
+- `sendAudio(buffer)`
+- `endInput(context)`
+- `interrupt(reason)`
+- `close()`
+
 ## Not In This Phase
 
 Do not add OpenAI, MiniMax, or SiliconFlow before the Gemini Live adapter is evaluated.
@@ -34,4 +41,3 @@ Do not connect hardware before browser testing covers:
 - Russian conversation
 - Romanian conversation
 - reconnect behavior
-

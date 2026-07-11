@@ -2,15 +2,16 @@
 
 Each provider adapter must hide provider-specific details behind one internal contract.
 
-Required shape:
+Provider factory creates one provider session per WebSocket connection.
+
+Required session shape:
 
 ```js
 {
-  name,
-  startSession(options),
-  sendAudioFrame(session, frame),
-  sendText(session, text),
-  closeSession(session)
+  sendAudio(buffer),
+  endInput(context),
+  interrupt(reason),
+  close()
 }
 ```
 

@@ -17,16 +17,19 @@ function id(prefix) {
 function createCancellation() {
     return {
         cancelled: false,
+        reason: null,
         cancelledAt: 0,
-        cancel() {
+        cancel(reason) {
             this.cancelled = true;
+            this.reason = reason;
             this.cancelledAt = Date.now();
         },
     };
 }
 
 function attachRealtimeServer(server, options = {}) {
-    const provider = options.provider || new MockRealtimeProvider(options.mockConfig || DEFAULT_CONFIG);
+    const defaultProvider = new MockRealtimeProvider(options.mockConfig || DEFAULT_CONFIG);
+    const providerFactory = options.providerFactory || (() => defaultProvider.createSession());
 
     server.on('upgrade', (req, socket) => {
         const url = new URL(req.url || '/', 'http://localhost');
@@ -37,11 +40,11 @@ function attachRealtimeServer(server, options = {}) {
         }
 
         if (!acceptWebSocket(req, socket)) return;
-        createRealtimeSession(socket, provider);
+        createRealtimeSession(socket, providerFactory());
     });
 }
 
-function createRealtimeSession(socket, provider) {
+function createRealtimeSession(socket, providerSession) {
     const sessionId = id('session');
     const connectedAt = Date.now();
     let currentTurnId = null;
@@ -51,6 +54,8 @@ function createRealtimeSession(socket, provider) {
     let inputEndedAt = 0;
     let inputBytes = 0;
     let turnCounter = 0;
+    let socketClosed = false;
+    let providerClosed = false;
 
     function log(stage, extra = {}) {
         const details = Object.entries(extra)
@@ -60,6 +65,7 @@ function createRealtimeSession(socket, provider) {
     }
 
     function emit(payload) {
+        if (socketClosed || socket.destroyed) return false;
         return sendJson(socket, {
             session_id: sessionId,
             server_time_ms: Date.now(),
@@ -69,7 +75,8 @@ function createRealtimeSession(socket, provider) {
 
     function cancelCurrent(reason) {
         if (!currentCancel || currentCancel.cancelled) return;
-        currentCancel.cancel();
+        currentCancel.cancel(reason);
+        providerSession.interrupt(reason);
         const cancelledResponseId = currentResponseId;
         const cancelledTurnId = currentTurnId;
         const cancelLatencyMs = Date.now() - currentCancel.cancelledAt;
@@ -84,6 +91,18 @@ function createRealtimeSession(socket, provider) {
             responseId: cancelledResponseId,
             turnId: cancelledTurnId,
             reason,
+        });
+    }
+
+    function closeProvider(reason) {
+        if (providerClosed) return;
+        providerClosed = true;
+        cancelCurrent(reason);
+        providerSession.close();
+        log('provider_session_closed', {
+            reason,
+            provider: providerSession.name || 'provider',
+            providerInstanceId: providerSession.instanceId || 'unknown',
         });
     }
 
@@ -141,7 +160,7 @@ function createRealtimeSession(socket, provider) {
         const turnIdForStream = currentTurnId;
         const cancelForStream = currentCancel;
 
-        provider.streamResponse({
+        providerSession.endInput({
             responseId: responseIdForStream,
             turnId: turnIdForStream,
             signal: cancelForStream,
@@ -162,10 +181,14 @@ function createRealtimeSession(socket, provider) {
                 type: 'error',
                 response_id: responseIdForStream,
                 turn_id: turnIdForStream,
-                code: 'mock_provider_error',
+                code: 'provider_error',
+                provider: providerSession.name || 'provider',
                 message: error.message,
             });
-            log('provider_error', { message: error.message });
+            log('provider_error', {
+                provider: providerSession.name || 'provider',
+                message: error.message,
+            });
         });
     }
 
@@ -186,7 +209,8 @@ function createRealtimeSession(socket, provider) {
             emit({
                 type: 'session.ready',
                 session_id: sessionId,
-                provider: provider.name || 'mock',
+                provider: providerSession.name || 'mock',
+                provider_instance_id: providerSession.instanceId || null,
                 config: DEFAULT_CONFIG,
             });
             log('session_ready_again');
@@ -214,17 +238,20 @@ function createRealtimeSession(socket, provider) {
         onText: handleCommand,
         onBinary(payload) {
             inputBytes += payload.length;
+            providerSession.sendAudio(payload);
             log('input_audio_frame', {
                 turnId: currentTurnId || 'none',
                 bytes: payload.length,
                 totalBytes: inputBytes,
+                provider: providerSession.name || 'provider',
+                providerInstanceId: providerSession.instanceId || 'unknown',
             });
         },
         onPing(payload) {
             sendPong(socket, payload);
         },
         onClose() {
-            cancelCurrent('client_close');
+            closeProvider('client_close');
             sendClose(socket);
         },
         onError(error) {
@@ -238,21 +265,26 @@ function createRealtimeSession(socket, provider) {
 
     socket.on('data', (chunk) => parser.push(chunk));
     socket.on('error', (error) => {
-        cancelCurrent('socket_error');
+        closeProvider('socket_error');
         log('socket_error', { message: error.message });
     });
     socket.on('close', () => {
-        cancelCurrent('disconnect');
+        socketClosed = true;
+        closeProvider('disconnect');
         log('disconnect', { connectedMs: Date.now() - connectedAt });
     });
 
     emit({
         type: 'session.ready',
         session_id: sessionId,
-        provider: provider.name || 'mock',
+        provider: providerSession.name || 'mock',
+        provider_instance_id: providerSession.instanceId || null,
         config: DEFAULT_CONFIG,
     });
-    log('session_ready', { provider: provider.name || 'mock' });
+    log('session_ready', {
+        provider: providerSession.name || 'mock',
+        providerInstanceId: providerSession.instanceId || 'unknown',
+    });
 }
 
 module.exports = {
