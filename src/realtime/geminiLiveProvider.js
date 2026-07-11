@@ -182,12 +182,26 @@ class GeminiLiveProviderSession {
             mode: context.mode,
             providerInstanceId: this.instanceId,
         });
+        context.onEvent?.({
+            type: 'silence_tail_started',
+            response_id: context.responseId,
+            turn_id: context.turnId,
+            duration_ms: durationMs,
+            bytes,
+        });
         this.sendAudioNow(Buffer.alloc(bytes, 0));
         context.log('silence_tail_completed', {
             duration_ms: durationMs,
             bytes,
             mode: context.mode,
             providerInstanceId: this.instanceId,
+        });
+        context.onEvent?.({
+            type: 'silence_tail_completed',
+            response_id: context.responseId,
+            turn_id: context.turnId,
+            duration_ms: durationMs,
+            bytes,
         });
     }
 

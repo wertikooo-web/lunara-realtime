@@ -58,7 +58,7 @@ async function main() {
         }
 
         const lab = await get('/lab');
-        if (lab.statusCode !== 200 || !lab.body.includes('Lunara Realtime Lab')) {
+        if (lab.statusCode !== 200 || !lab.body.includes('PTT Lunara Realtime')) {
             throw new Error(`Bad /lab response: ${lab.statusCode}`);
         }
 
