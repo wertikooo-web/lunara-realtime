@@ -14,6 +14,10 @@ function id(prefix) {
     return `${prefix}_${crypto.randomBytes(8).toString('hex')}`;
 }
 
+function normalizeProviderVoiceName(voiceName) {
+    return String(voiceName || '').trim();
+}
+
 function createCancellation() {
     return {
         cancelled: false,
@@ -65,7 +69,14 @@ function attachRealtimeServer(server, options = {}) {
 function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     const sessionId = id('session');
     const connectedAt = Date.now();
-    let providerSession = providerFactory();
+    const sessionVoiceName = normalizeProviderVoiceName(providerMetadata.defaultVoiceName || providerMetadata.voiceName);
+    const sessionVoiceConfigSource = sessionVoiceName
+        ? (providerMetadata.defaultVoiceConfigSource || (providerMetadata.defaultVoiceName ? 'default' : 'metadata'))
+        : 'provider_default';
+    let providerSession = providerFactory({
+        voiceName: sessionVoiceName || undefined,
+        voiceConfigSource: sessionVoiceConfigSource,
+    });
     let currentTurnId = null;
     let currentGeneration = null;
     let inputStartedAt = 0;
@@ -141,6 +152,15 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             reason,
             provider: providerSession.name || 'provider',
             providerInstanceId: providerSession.instanceId || 'unknown',
+            voiceName: providerSession.voiceName || sessionVoiceName || 'none',
+        });
+        log('provider_voice_config', {
+            clientSessionId: sessionId,
+            providerInstanceId: providerSession.instanceId || 'unknown',
+            voiceName: providerSession.voiceName || sessionVoiceName || 'none',
+            configSource: providerSession.voiceConfigSource || sessionVoiceConfigSource,
+            inheritedFromPreviousProvider: reason !== 'initial',
+            rotationReason: reason,
         });
         emit({
             type: 'provider.ready',
@@ -376,6 +396,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     function rotateProviderSession(reason) {
         const oldProviderSession = providerSession;
         const oldProviderInstanceId = oldProviderSession?.instanceId || 'unknown';
+        const oldProviderVoiceName = oldProviderSession?.voiceName || sessionVoiceName || 'none';
         try {
             if (typeof oldProviderSession.destroySession === 'function') {
                 oldProviderSession.destroySession(reason);
@@ -389,12 +410,18 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 message: error.message,
             });
         }
-        providerSession = providerFactory();
+        providerSession = providerFactory({
+            voiceName: sessionVoiceName || undefined,
+            voiceConfigSource: sessionVoiceConfigSource,
+        });
         log('provider_session_rotated', {
             reason,
             oldProviderInstanceId,
             newProviderInstanceId: providerSession.instanceId || 'unknown',
             provider: providerSession.name || 'provider',
+            oldProviderVoiceName,
+            newProviderVoiceName: providerSession.voiceName || sessionVoiceName || 'none',
+            voicePreserved: oldProviderVoiceName === (providerSession.voiceName || sessionVoiceName || 'none'),
         });
         emit({
             type: 'provider.rotated',
@@ -402,6 +429,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             old_provider_instance_id: oldProviderInstanceId,
             new_provider_instance_id: providerSession.instanceId || null,
             provider: providerSession.name || 'provider',
+            old_provider_voice_name: oldProviderVoiceName,
+            new_provider_voice_name: providerSession.voiceName || sessionVoiceName || null,
+            voice_preserved: oldProviderVoiceName === (providerSession.voiceName || sessionVoiceName || 'none'),
         });
     }
 

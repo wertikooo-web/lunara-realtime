@@ -151,20 +151,22 @@ class RegressionProvider {
         this.sessions = [];
     }
 
-    createSession() {
+    createSession(options = {}) {
         this.counter += 1;
-        const session = new RegressionProviderSession(`regression_session_${this.counter}`);
+        const session = new RegressionProviderSession(`regression_session_${this.counter}`, options);
         this.sessions.push(session);
         return session;
     }
 }
 
 class RegressionProviderSession {
-    constructor(instanceId) {
+    constructor(instanceId, options = {}) {
         this.name = 'regression';
         this.rotateOnInterrupt = true;
         this.rotateAfterOutputComplete = true;
         this.instanceId = instanceId;
+        this.voiceName = options.voiceName || 'RegressionFemale';
+        this.voiceConfigSource = options.voiceConfigSource || 'test';
         this.audioBytes = 0;
         this.activeSignal = null;
         this.activeContext = null;
@@ -337,8 +339,8 @@ async function main() {
         res.end();
     });
     attachRealtimeServer(server, {
-        providerFactory: () => provider.createSession(),
-        providerMetadata: { provider: 'regression', model: 'regression' },
+        providerFactory: (sessionOptions) => provider.createSession(sessionOptions),
+        providerMetadata: { provider: 'regression', model: 'regression', defaultVoiceName: 'RegressionFemale' },
     });
 
     await new Promise((resolve) => server.listen(PORT, HOST, resolve));
@@ -357,6 +359,9 @@ async function main() {
         );
         if (normalRotation.old_provider_instance_id === normalRotation.new_provider_instance_id) {
             throw new Error('Completed output must rotate provider session');
+        }
+        if (!normalRotation.voice_preserved || normalRotation.old_provider_voice_name !== 'RegressionFemale' || normalRotation.new_provider_voice_name !== 'RegressionFemale') {
+            throw new Error('Completed output rotation must preserve voiceName');
         }
         if (!provider.sessions.find((session) => (
             session.instanceId === normalRotation.old_provider_instance_id && session.closed
@@ -386,6 +391,9 @@ async function main() {
         const rotation = await client.waitFor('provider.rotated', (event) => event.reason === 'manual_regression');
         if (rotation.old_provider_instance_id === rotation.new_provider_instance_id) {
             throw new Error('Provider rotation must create a new provider instance');
+        }
+        if (!rotation.voice_preserved || rotation.old_provider_voice_name !== 'RegressionFemale' || rotation.new_provider_voice_name !== 'RegressionFemale') {
+            throw new Error('Manual interrupt rotation must preserve voiceName');
         }
         if (provider.sessions.length < 2 || !provider.sessions[0].closed) {
             throw new Error('Old provider session must be hard-closed after manual interruption');
@@ -452,6 +460,9 @@ async function main() {
         if (timeoutRotation.old_provider_instance_id === timeoutRotation.new_provider_instance_id) {
             throw new Error('Timeout recovery must rotate provider session');
         }
+        if (!timeoutRotation.voice_preserved || timeoutRotation.old_provider_voice_name !== 'RegressionFemale' || timeoutRotation.new_provider_voice_name !== 'RegressionFemale') {
+            throw new Error('Timeout recovery rotation must preserve voiceName');
+        }
         if (!logs.some((line) => line.includes('stage=turn_timeout_recovery_started'))) {
             throw new Error('Missing turn_timeout_recovery_started log');
         }
@@ -480,6 +491,9 @@ async function main() {
         );
         if (noOutputRotation.old_provider_instance_id === noOutputRotation.new_provider_instance_id) {
             throw new Error('No-output provider failure must rotate provider session');
+        }
+        if (!noOutputRotation.voice_preserved || noOutputRotation.old_provider_voice_name !== 'RegressionFemale' || noOutputRotation.new_provider_voice_name !== 'RegressionFemale') {
+            throw new Error('No-output provider failure rotation must preserve voiceName');
         }
 
         const afterTimeout = await runTurn(client, 'after_timeout_ptt', 2048, { waitForEnd: true });

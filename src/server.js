@@ -5,7 +5,7 @@ const http = require('http');
 const path = require('path');
 const { attachRealtimeServer } = require('./realtime/realtimeServer');
 const { MockRealtimeProvider, DEFAULT_CONFIG } = require('./realtime/mockRealtimeProvider');
-const { GeminiLiveProvider, MODEL_ID: GEMINI_MODEL_ID } = require('./realtime/geminiLiveProvider');
+const { GeminiLiveProvider, MODEL_ID: GEMINI_MODEL_ID, DEFAULT_GEMINI_LIVE_VOICE } = require('./realtime/geminiLiveProvider');
 
 const PORT = Number(process.env.PORT || 3100);
 const provider = process.env.REALTIME_PROVIDER || 'mock';
@@ -18,8 +18,10 @@ function createProviderFactory() {
             metadata: {
                 provider,
                 model: GEMINI_MODEL_ID,
+                defaultVoiceName: DEFAULT_GEMINI_LIVE_VOICE,
+                defaultVoiceConfigSource: process.env.GEMINI_LIVE_VOICE ? 'env' : 'default',
             },
-            createSession: () => geminiProvider.createSession(),
+            createSession: (sessionOptions = {}) => geminiProvider.createSession(sessionOptions),
         };
     }
 

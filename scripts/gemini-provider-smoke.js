@@ -1,6 +1,6 @@
 'use strict';
 
-const { GeminiLiveProvider, MIN_VALID_PCM_BYTES, MODEL_ID } = require('../src/realtime/geminiLiveProvider');
+const { GeminiLiveProvider, MIN_VALID_PCM_BYTES, MODEL_ID, DEFAULT_GEMINI_LIVE_VOICE } = require('../src/realtime/geminiLiveProvider');
 
 async function main() {
     const provider = new GeminiLiveProvider({
@@ -17,6 +17,9 @@ async function main() {
     }
     if (first.instanceId === second.instanceId) {
         throw new Error('Gemini provider sessions must be unique');
+    }
+    if (first.voiceName !== DEFAULT_GEMINI_LIVE_VOICE || second.voiceName !== DEFAULT_GEMINI_LIVE_VOICE) {
+        throw new Error('Gemini provider sessions must pin the configured voice');
     }
     for (const method of ['sendAudio', 'endInput', 'interrupt', 'close']) {
         if (typeof first[method] !== 'function') {

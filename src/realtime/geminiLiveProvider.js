@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 
 const MODEL_ID = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
+const DEFAULT_GEMINI_LIVE_VOICE = (process.env.GEMINI_LIVE_VOICE || 'Kore').trim() || 'Kore';
 const INPUT_MIME_TYPE = 'audio/pcm;rate=16000';
 const INPUT_SAMPLE_RATE = 16000;
 const BYTES_PER_PCM16_SAMPLE = 2;
@@ -12,6 +13,10 @@ const MAX_PENDING_AUDIO_BYTES = Number(process.env.GEMINI_PENDING_AUDIO_MAX_BYTE
 
 function makeInstanceId() {
     return `gemini_session_${crypto.randomBytes(6).toString('hex')}`;
+}
+
+function normalizeVoiceName(voiceName) {
+    return String(voiceName || '').trim() || DEFAULT_GEMINI_LIVE_VOICE;
 }
 
 function sleep(ms) {
@@ -115,23 +120,30 @@ class GeminiLiveProvider {
         this.name = 'gemini';
         this.model = options.model || MODEL_ID;
         this.apiKey = options.apiKey || process.env.GEMINI_API_KEY || '';
+        this.voiceName = normalizeVoiceName(options.voiceName || DEFAULT_GEMINI_LIVE_VOICE);
+        this.voiceConfigSource = options.voiceName ? 'constructor' : (process.env.GEMINI_LIVE_VOICE ? 'env' : 'default');
     }
 
-    createSession() {
+    createSession(options = {}) {
+        const voiceName = normalizeVoiceName(options.voiceName || this.voiceName || DEFAULT_GEMINI_LIVE_VOICE);
         return new GeminiLiveProviderSession({
             apiKey: this.apiKey,
             model: this.model,
             instanceId: makeInstanceId(),
+            voiceName,
+            voiceConfigSource: options.voiceConfigSource || this.voiceConfigSource || 'default',
         });
     }
 }
 
 class GeminiLiveProviderSession {
-    constructor({ apiKey, model, instanceId }) {
+    constructor({ apiKey, model, instanceId, voiceName, voiceConfigSource }) {
         this.name = 'gemini';
         this.rotateOnInterrupt = true;
         this.rotateAfterOutputComplete = true;
         this.model = model;
+        this.voiceName = normalizeVoiceName(voiceName);
+        this.voiceConfigSource = voiceConfigSource || 'default';
         this.apiKey = apiKey;
         this.instanceId = instanceId;
         this.closed = false;
@@ -158,6 +170,8 @@ class GeminiLiveProviderSession {
             log('provider_connect_started', {
                 providerInstanceId: this.instanceId,
                 model: this.model,
+                voiceName: this.voiceName,
+                voiceConfigSource: this.voiceConfigSource,
             });
             const { ActivityHandling, GoogleGenAI, Modality } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey: this.apiKey });
@@ -170,6 +184,8 @@ class GeminiLiveProviderSession {
                         log('gemini_open', {
                             providerInstanceId: this.instanceId,
                             model: this.model,
+                            voiceName: this.voiceName,
+                            voiceConfigSource: this.voiceConfigSource,
                         });
                     },
                     onmessage: (message) => this.handleMessage(message),
@@ -197,6 +213,7 @@ class GeminiLiveProviderSession {
                 },
                 config: {
                     responseModalities: [Modality.AUDIO],
+                    speechConfig: this.voiceName,
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
                     realtimeInputConfig: {
@@ -227,6 +244,14 @@ class GeminiLiveProviderSession {
             log('provider_ready', {
                 providerInstanceId: this.instanceId,
                 model: this.model,
+                voiceName: this.voiceName,
+                voiceConfigSource: this.voiceConfigSource,
+            });
+            log('provider_voice_config', {
+                providerInstanceId: this.instanceId,
+                provider: this.name,
+                voiceName: this.voiceName,
+                voiceConfigSource: this.voiceConfigSource,
             });
             this.flushPendingAudio();
             return session;
@@ -699,5 +724,6 @@ class GeminiLiveProviderSession {
 module.exports = {
     GeminiLiveProvider,
     MODEL_ID,
+    DEFAULT_GEMINI_LIVE_VOICE,
     MIN_VALID_PCM_BYTES,
 };
