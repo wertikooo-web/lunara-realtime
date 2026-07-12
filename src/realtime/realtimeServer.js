@@ -46,6 +46,18 @@ const LANGUAGE_PATTERNS = [
     { language: 'en', pattern: /\b(the|and|you|hello|please|story|game|speak|english|what|why|how)\b/i, weight: 2 },
     { language: 'ro', pattern: /\b(spune|vreau|buna|salut|joc|poveste|romana|vorbeste)\b/i, weight: 3 },
 ];
+const MIN_LANGUAGE_SWITCH_SIGNIFICANT_WORDS = Number(process.env.LANGUAGE_SWITCH_MIN_WORDS || 3);
+const LANGUAGE_SWITCH_CONFIRMATIONS = Number(process.env.LANGUAGE_SWITCH_CONFIRMATIONS || 2);
+const LANGUAGE_NOISE_WORDS = new Set([
+    'ok', 'okay', 'yes', 'yeah', 'no', 'not', 'the', 'and', 'you', 'please',
+    '\u0434\u0430', '\u043d\u0435\u0442', '\u0430\u0433\u0430', '\u0443\u0433\u0443', '\u043d\u0443', '\u043e\u0439', '\u044d\u0439', '\u0430\u043b\u043b\u043e',
+    'lumi', 'lunara', 'google', 'gemini',
+]);
+
+function languageSignificantWords(text) {
+    return (String(text || '').toLowerCase().match(/[\p{L}]+/gu) || [])
+        .filter((word) => word.length >= 3 && !LANGUAGE_NOISE_WORDS.has(word));
+}
 
 function detectLikelyLanguage(text) {
     const sample = String(text || '').trim();
@@ -65,6 +77,17 @@ function detectLikelyLanguage(text) {
     if (ranked.length === 0 || ranked[0][1] < 3) return null;
     if (ranked[1] && ranked[0][1] - ranked[1][1] < 2) return null;
     return ranked[0][0];
+}
+
+function detectLanguageSignal(text) {
+    const language = detectLikelyLanguage(text);
+    if (!language) return null;
+    const significantWordCount = languageSignificantWords(text).length;
+    return {
+        language,
+        significantWordCount,
+        confident: significantWordCount >= MIN_LANGUAGE_SWITCH_SIGNIFICANT_WORDS,
+    };
 }
 
 function createCancellation() {
@@ -143,6 +166,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let lateProviderEventsDropped = 0;
     let sessionLanguage = null;
     let pendingLanguageSwitch = null;
+    let pendingLanguageCandidate = null;
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
 
     function log(stage, extra = {}) {
@@ -239,44 +263,103 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         });
     }
 
-    function noteUserLanguage(text, generation) {
-        const detectedLanguage = detectLikelyLanguage(text);
-        if (!detectedLanguage) return;
-        const previousLanguage = sessionLanguage;
-        if (!previousLanguage) {
-            sessionLanguage = detectedLanguage;
-            log('language_detected', {
-                generationId: generation?.generationId || 'none',
-                turnId: generation?.turnId || 'none',
-                language: detectedLanguage,
-                action: 'set_initial',
-            });
-            return;
-        }
-        if (previousLanguage === detectedLanguage) return;
-        sessionLanguage = detectedLanguage;
+    function scheduleLanguageSwitch(previousLanguage, nextLanguage, generation, signal, reason, confirmationCount) {
+        sessionLanguage = nextLanguage;
         pendingLanguageSwitch = {
             from: previousLanguage,
-            to: detectedLanguage,
+            to: nextLanguage,
             detectedAt: Date.now(),
             generationId: generation?.generationId || null,
             turnId: generation?.turnId || null,
         };
+        pendingLanguageCandidate = null;
         log('language_switch_detected', {
             generationId: generation?.generationId || 'none',
             turnId: generation?.turnId || 'none',
             from: previousLanguage,
-            to: detectedLanguage,
+            to: nextLanguage,
+            significantWordCount: signal.significantWordCount,
+            confirmationCount,
+            reason,
             action: 'rotate_before_next_turn',
         });
         emit({
             type: 'language.switch_detected',
             from_language: previousLanguage,
-            to_language: detectedLanguage,
+            to_language: nextLanguage,
             generation_id: generation?.generationId || null,
             turn_id: generation?.turnId || null,
+            significant_word_count: signal.significantWordCount,
+            confirmation_count: confirmationCount,
+            reason,
             action: 'rotate_before_next_turn',
         });
+    }
+
+    function noteUserLanguage(text, generation) {
+        const signal = detectLanguageSignal(text);
+        if (!signal) return;
+        const detectedLanguage = signal.language;
+        const previousLanguage = sessionLanguage;
+        if (!previousLanguage) {
+            if (!signal.confident) {
+                pendingLanguageCandidate = pendingLanguageCandidate?.language === detectedLanguage
+                    ? { language: detectedLanguage, count: pendingLanguageCandidate.count + 1 }
+                    : { language: detectedLanguage, count: 1 };
+                if (pendingLanguageCandidate.count < LANGUAGE_SWITCH_CONFIRMATIONS) {
+                    log('language_candidate_waiting', {
+                        generationId: generation?.generationId || 'none',
+                        turnId: generation?.turnId || 'none',
+                        language: detectedLanguage,
+                        significantWordCount: signal.significantWordCount,
+                        confirmationCount: pendingLanguageCandidate.count,
+                        action: 'wait_for_confirmation',
+                    });
+                    return;
+                }
+            }
+            sessionLanguage = detectedLanguage;
+            pendingLanguageCandidate = null;
+            log('language_detected', {
+                generationId: generation?.generationId || 'none',
+                turnId: generation?.turnId || 'none',
+                language: detectedLanguage,
+                significantWordCount: signal.significantWordCount,
+                confirmationCount: signal.confident ? 1 : LANGUAGE_SWITCH_CONFIRMATIONS,
+                action: signal.confident ? 'set_initial' : 'set_initial_confirmed',
+            });
+            return;
+        }
+        if (previousLanguage === detectedLanguage) {
+            pendingLanguageCandidate = null;
+            return;
+        }
+        if (signal.confident) {
+            scheduleLanguageSwitch(previousLanguage, detectedLanguage, generation, signal, 'confident_transcript', 1);
+            return;
+        }
+        pendingLanguageCandidate = pendingLanguageCandidate?.from === previousLanguage && pendingLanguageCandidate?.to === detectedLanguage
+            ? { from: previousLanguage, to: detectedLanguage, count: pendingLanguageCandidate.count + 1 }
+            : { from: previousLanguage, to: detectedLanguage, count: 1 };
+        log('language_switch_candidate', {
+            generationId: generation?.generationId || 'none',
+            turnId: generation?.turnId || 'none',
+            from: previousLanguage,
+            to: detectedLanguage,
+            significantWordCount: signal.significantWordCount,
+            confirmationCount: pendingLanguageCandidate.count,
+            action: 'wait_for_confirmation',
+        });
+        if (pendingLanguageCandidate.count >= LANGUAGE_SWITCH_CONFIRMATIONS) {
+            scheduleLanguageSwitch(
+                previousLanguage,
+                detectedLanguage,
+                generation,
+                signal,
+                'consecutive_confirmation',
+                pendingLanguageCandidate.count,
+            );
+        }
     }
 
     function applyPendingLanguageSwitchBeforeInput() {

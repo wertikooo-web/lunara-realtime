@@ -243,6 +243,8 @@ class RegressionProviderSession {
         const transcriptByTurn = {
             language_ru_ptt: '\u041f\u0440\u0438\u0432\u0435\u0442, \u0434\u0430\u0432\u0430\u0439 \u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c \u043f\u043e-\u0440\u0443\u0441\u0441\u043a\u0438',
             language_en_ptt: 'hello please speak english now',
+            language_en_short_ptt: 'speak english',
+            language_en_short_confirm_ptt: 'speak english',
         };
         context.onEvent({
             type: 'transcript.user',
@@ -571,16 +573,34 @@ async function main() {
             throw new Error('Initial language detection must not rotate provider session');
         }
 
-        const languageEn = await runTurn(errorsOnlyClient, 'language_en_ptt', 1500, { waitForEnd: true });
+        const shortLanguageSwitchCandidate = await runTurn(errorsOnlyClient, 'language_en_short_ptt', 1500, { waitForEnd: true });
+        expectedAudioBytes += 1500;
+        if (!shortLanguageSwitchCandidate.userTranscript.text.includes('english')) {
+            throw new Error('Short Language EN fixture did not emit the expected transcript');
+        }
+        if (errorsOnlyClient.events.some((event) => event.type === 'language.switch_detected' && event.from_language === 'ru' && event.to_language === 'en')) {
+            throw new Error('Single short language candidate must not schedule language switch');
+        }
+        if (provider.sessions.length !== sessionsBeforeErrorsOnly) {
+            throw new Error('Single short language candidate must not rotate provider session');
+        }
+        if (!logs.some((line) => line.includes('stage=language_switch_candidate') && line.includes('from=ru') && line.includes('to=en') && line.includes('confirmationCount=1'))) {
+            throw new Error('Missing language_switch_candidate log for short transcript');
+        }
+
+        const languageEn = await runTurn(errorsOnlyClient, 'language_en_short_confirm_ptt', 1500, { waitForEnd: true });
         expectedAudioBytes += 1500;
         if (!languageEn.userTranscript.text.includes('english')) {
-            throw new Error('Language EN fixture did not emit the expected transcript');
+            throw new Error('Confirmed Language EN fixture did not emit the expected transcript');
         }
         const languageSwitchEvent = await errorsOnlyClient.waitFor(
             'language.switch_detected',
             (event) => event.from_language === 'ru' && event.to_language === 'en',
             2000,
         );
+        if (languageSwitchEvent.reason !== 'consecutive_confirmation' || languageSwitchEvent.confirmation_count !== 2) {
+            throw new Error('Short language switch must require two consecutive confirmations');
+        }
         if (languageSwitchEvent.action !== 'rotate_before_next_turn') {
             throw new Error('Language switch must be scheduled before the next turn');
         }
