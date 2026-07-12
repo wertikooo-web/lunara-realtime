@@ -39,6 +39,34 @@ function normalizeRotationMode(value) {
     return DEFAULT_ROTATION_MODE;
 }
 
+const LANGUAGE_PATTERNS = [
+    { language: 'uk', pattern: /[\u0404\u0406\u0407\u0490\u0454\u0456\u0457\u0491]/u, weight: 5 },
+    { language: 'ru', pattern: /[\u0400-\u04FF]/u, weight: 3 },
+    { language: 'ro', pattern: /[\u0103\u00E2\u00EE\u0219\u021B\u0102\u00C2\u00CE\u0218\u021A]/u, weight: 4 },
+    { language: 'en', pattern: /\b(the|and|you|hello|please|story|game|speak|english|what|why|how)\b/i, weight: 2 },
+    { language: 'ro', pattern: /\b(spune|vreau|buna|salut|joc|poveste|romana|vorbeste)\b/i, weight: 3 },
+];
+
+function detectLikelyLanguage(text) {
+    const sample = String(text || '').trim();
+    if (sample.length < 4) return null;
+    const scores = new Map();
+    for (const { language, pattern, weight } of LANGUAGE_PATTERNS) {
+        if (pattern.test(sample)) {
+            scores.set(language, (scores.get(language) || 0) + weight);
+        }
+    }
+    const asciiLetters = sample.match(/[a-z]/gi)?.length || 0;
+    const cyrillicLetters = sample.match(/[\u0400-\u04FF]/gu)?.length || 0;
+    if (asciiLetters >= 8 && asciiLetters > cyrillicLetters * 2) {
+        scores.set('en', (scores.get('en') || 0) + 2);
+    }
+    const ranked = Array.from(scores.entries()).sort((a, b) => b[1] - a[1]);
+    if (ranked.length === 0 || ranked[0][1] < 3) return null;
+    if (ranked[1] && ranked[0][1] - ranked[1][1] < 2) return null;
+    return ranked[0][0];
+}
+
 function createCancellation() {
     return {
         cancelled: false,
@@ -113,6 +141,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let providerRotationCount = 0;
     let promptApplyCount = 0;
     let lateProviderEventsDropped = 0;
+    let sessionLanguage = null;
+    let pendingLanguageSwitch = null;
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
 
     function log(stage, extra = {}) {
@@ -146,6 +176,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             ...promptBlocks,
             currentContext: {
                 mode: currentMode,
+                sessionLanguage: sessionLanguage || 'auto',
+                languageInstruction: sessionLanguage
+                    ? `Continue in the last clearly understood child language: ${sessionLanguage}. Keep the same voice identity.`
+                    : 'No stable child language has been established yet. Follow the last clearly understood child utterance.',
                 recentTurns,
             },
         });
@@ -202,6 +236,66 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             parentRulesHash: prompt.meta.parentRules.hash,
             currentContextChars: prompt.meta.currentContext.chars,
             currentContextHash: prompt.meta.currentContext.hash,
+        });
+    }
+
+    function noteUserLanguage(text, generation) {
+        const detectedLanguage = detectLikelyLanguage(text);
+        if (!detectedLanguage) return;
+        const previousLanguage = sessionLanguage;
+        if (!previousLanguage) {
+            sessionLanguage = detectedLanguage;
+            log('language_detected', {
+                generationId: generation?.generationId || 'none',
+                turnId: generation?.turnId || 'none',
+                language: detectedLanguage,
+                action: 'set_initial',
+            });
+            return;
+        }
+        if (previousLanguage === detectedLanguage) return;
+        sessionLanguage = detectedLanguage;
+        pendingLanguageSwitch = {
+            from: previousLanguage,
+            to: detectedLanguage,
+            detectedAt: Date.now(),
+            generationId: generation?.generationId || null,
+            turnId: generation?.turnId || null,
+        };
+        log('language_switch_detected', {
+            generationId: generation?.generationId || 'none',
+            turnId: generation?.turnId || 'none',
+            from: previousLanguage,
+            to: detectedLanguage,
+            action: 'rotate_before_next_turn',
+        });
+        emit({
+            type: 'language.switch_detected',
+            from_language: previousLanguage,
+            to_language: detectedLanguage,
+            generation_id: generation?.generationId || null,
+            turn_id: generation?.turnId || null,
+            action: 'rotate_before_next_turn',
+        });
+    }
+
+    function applyPendingLanguageSwitchBeforeInput() {
+        if (!pendingLanguageSwitch) return;
+        const languageSwitch = pendingLanguageSwitch;
+        pendingLanguageSwitch = null;
+        log('language_switch_rotation_started', {
+            from: languageSwitch.from,
+            to: languageSwitch.to,
+            previousGenerationId: languageSwitch.generationId || 'none',
+            previousTurnId: languageSwitch.turnId || 'none',
+            providerInstanceId: providerSession?.instanceId || 'unknown',
+        });
+        rotateProviderSession('language_switch');
+        warmProviderSession('language_switch').catch((error) => {
+            log('provider_warm_error', {
+                reason: 'language_switch',
+                message: error.message,
+            });
         });
     }
 
@@ -425,6 +519,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         }
         if (eventType === 'transcript.user' && generation.inputEndedAt && !generation.firstInputTranscriptionAt) {
             rememberTurn('user', payload.text);
+            noteUserLanguage(payload.text, generation);
             generation.firstInputTranscriptionAt = Date.now();
             log('provider_input_transcription_received', {
                 generationId: generation.generationId,
@@ -616,6 +711,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function startInput(payload = {}) {
+        applyPendingLanguageSwitchBeforeInput();
         const cancelledActiveGeneration = cancelCurrent('new_input');
         if (cancelledActiveGeneration && shouldRotateProviderOnInterrupt()) {
             rotateProviderSession('new_input_after_cancel');
@@ -894,4 +990,5 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
 
 module.exports = {
     attachRealtimeServer,
+    detectLikelyLanguage,
 };

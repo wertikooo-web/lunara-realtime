@@ -240,11 +240,15 @@ class RegressionProviderSession {
             });
             return;
         }
+        const transcriptByTurn = {
+            language_ru_ptt: '\u041f\u0440\u0438\u0432\u0435\u0442, \u0434\u0430\u0432\u0430\u0439 \u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c \u043f\u043e-\u0440\u0443\u0441\u0441\u043a\u0438',
+            language_en_ptt: 'hello please speak english now',
+        };
         context.onEvent({
             type: 'transcript.user',
             response_id: context.responseId,
             turn_id: context.turnId,
-            text: `heard ${context.turnInputBytes}`,
+            text: transcriptByTurn[context.turnId] || `heard ${context.turnInputBytes}`,
         });
         await sleep(context.turnInputBytes <= 2 ? 5 : 25);
         if (this.closed || context.signal.cancelled) return;
@@ -556,6 +560,64 @@ async function main() {
         }
         if (!logs.some((line) => line.includes('stage=provider_session_reused') && line.includes('providerSessionReuseCount=20'))) {
             throw new Error('Missing provider_session_reused count for 20 same-session turns');
+        }
+
+        const languageRu = await runTurn(errorsOnlyClient, 'language_ru_ptt', 1400, { waitForEnd: true });
+        expectedAudioBytes += 1400;
+        if (!languageRu.userTranscript.text.includes('\u0440\u0443\u0441\u0441\u043a')) {
+            throw new Error('Language RU fixture did not emit the expected transcript');
+        }
+        if (provider.sessions.length !== sessionsBeforeErrorsOnly) {
+            throw new Error('Initial language detection must not rotate provider session');
+        }
+
+        const languageEn = await runTurn(errorsOnlyClient, 'language_en_ptt', 1500, { waitForEnd: true });
+        expectedAudioBytes += 1500;
+        if (!languageEn.userTranscript.text.includes('english')) {
+            throw new Error('Language EN fixture did not emit the expected transcript');
+        }
+        const languageSwitchEvent = await errorsOnlyClient.waitFor(
+            'language.switch_detected',
+            (event) => event.from_language === 'ru' && event.to_language === 'en',
+            2000,
+        );
+        if (languageSwitchEvent.action !== 'rotate_before_next_turn') {
+            throw new Error('Language switch must be scheduled before the next turn');
+        }
+        if (provider.sessions.length !== sessionsBeforeErrorsOnly) {
+            throw new Error('Language switch detection must not interrupt the current response');
+        }
+
+        const beforeLanguageRotationSessions = provider.sessions.length;
+        const languageSwitchOldProvider = provider.sessions[provider.sessions.length - 1];
+        const afterLanguageSwitchTurn = runTurn(errorsOnlyClient, 'language_after_switch_ptt', 1600, { waitForEnd: true });
+        const languageRotation = await errorsOnlyClient.waitFor(
+            'provider.rotated',
+            (event) => event.reason === 'language_switch',
+            2000,
+        );
+        if (languageRotation.old_provider_instance_id !== languageSwitchOldProvider.instanceId) {
+            throw new Error('Language switch rotation must rotate the provider active before the next turn');
+        }
+        if (languageRotation.old_provider_instance_id === languageRotation.new_provider_instance_id) {
+            throw new Error('Language switch rotation must create a fresh provider session');
+        }
+        if (!languageRotation.voice_preserved || languageRotation.new_provider_voice_name !== 'RegressionFemale') {
+            throw new Error('Language switch rotation must preserve voiceName');
+        }
+        if (provider.sessions.length !== beforeLanguageRotationSessions + 1) {
+            throw new Error('Language switch must create exactly one provider session');
+        }
+        await afterLanguageSwitchTurn;
+        const languageSwitchNewProvider = provider.sessions[provider.sessions.length - 1];
+        if (languageSwitchNewProvider.audioBytes !== 1600) {
+            throw new Error('Post-language-switch audio must be routed to the new provider session');
+        }
+        if (languageSwitchOldProvider.audioBytes !== expectedAudioBytes) {
+            throw new Error('Old provider received audio after language switch rotation');
+        }
+        if (!logs.some((line) => line.includes('stage=language_switch_rotation_started') && line.includes('from=ru') && line.includes('to=en'))) {
+            throw new Error('Missing language_switch_rotation_started log');
         }
         errorsOnlyClient.close();
 
