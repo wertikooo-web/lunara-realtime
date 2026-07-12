@@ -1,6 +1,12 @@
 'use strict';
 
-const { GeminiLiveProvider, MIN_VALID_PCM_BYTES, MODEL_ID, DEFAULT_GEMINI_LIVE_VOICE } = require('../src/realtime/geminiLiveProvider');
+const {
+    GeminiLiveProvider,
+    MIN_VALID_PCM_BYTES,
+    MODEL_ID,
+    DEFAULT_GEMINI_LIVE_VOICE,
+    buildGeminiSpeechConfig,
+} = require('../src/realtime/geminiLiveProvider');
 
 async function main() {
     const provider = new GeminiLiveProvider({
@@ -20,6 +26,22 @@ async function main() {
     }
     if (first.voiceName !== DEFAULT_GEMINI_LIVE_VOICE || second.voiceName !== DEFAULT_GEMINI_LIVE_VOICE) {
         throw new Error('Gemini provider sessions must pin the configured voice');
+    }
+    const speechConfig = buildGeminiSpeechConfig(DEFAULT_GEMINI_LIVE_VOICE);
+    if (typeof speechConfig !== 'object' || Array.isArray(speechConfig)) {
+        throw new Error('Gemini speechConfig must be an object');
+    }
+    if (typeof speechConfig.voiceConfig !== 'object' || Array.isArray(speechConfig.voiceConfig)) {
+        throw new Error('Gemini voiceConfig must be an object, not a string');
+    }
+    if (
+        typeof speechConfig.voiceConfig.prebuiltVoiceConfig !== 'object'
+        || Array.isArray(speechConfig.voiceConfig.prebuiltVoiceConfig)
+    ) {
+        throw new Error('Gemini prebuiltVoiceConfig must be an object');
+    }
+    if (speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName !== 'Kore') {
+        throw new Error(`Expected Gemini voiceName=Kore, got ${speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName}`);
     }
     for (const method of ['sendAudio', 'endInput', 'interrupt', 'close']) {
         if (typeof first[method] !== 'function') {

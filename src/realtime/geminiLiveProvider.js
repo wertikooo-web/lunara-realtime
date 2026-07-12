@@ -19,6 +19,29 @@ function normalizeVoiceName(voiceName) {
     return String(voiceName || '').trim() || DEFAULT_GEMINI_LIVE_VOICE;
 }
 
+function buildGeminiSpeechConfig(voiceName) {
+    return {
+        voiceConfig: {
+            prebuiltVoiceConfig: {
+                voiceName: normalizeVoiceName(voiceName),
+            },
+        },
+    };
+}
+
+function describeSpeechConfigShape(speechConfig) {
+    return [
+        `speechConfig:${typeof speechConfig}`,
+        `voiceConfig:${typeof speechConfig?.voiceConfig}`,
+        `prebuiltVoiceConfig:${typeof speechConfig?.voiceConfig?.prebuiltVoiceConfig}`,
+        `voiceName:${typeof speechConfig?.voiceConfig?.prebuiltVoiceConfig?.voiceName}`,
+    ].join('/');
+}
+
+function hashText(text) {
+    return crypto.createHash('sha256').update(String(text || ''), 'utf8').digest('hex').slice(0, 12);
+}
+
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -167,6 +190,7 @@ class GeminiLiveProviderSession {
         }
 
         this.connectPromise = (async () => {
+            this.sessionLog = log;
             log('provider_connect_started', {
                 providerInstanceId: this.instanceId,
                 model: this.model,
@@ -175,13 +199,22 @@ class GeminiLiveProviderSession {
             });
             const { ActivityHandling, GoogleGenAI, Modality } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey: this.apiKey });
+            const systemPrompt = 'You are Lumi, a warm child-safe voice companion. Reply briefly and naturally in the user language.';
+            const speechConfig = buildGeminiSpeechConfig(this.voiceName);
+            log('gemini_connect_config', {
+                providerInstanceId: this.instanceId,
+                model: this.model,
+                voiceName: this.voiceName,
+                speechConfigShape: describeSpeechConfigShape(speechConfig),
+                promptChars: systemPrompt.length,
+                promptHash: hashText(systemPrompt),
+            });
             const session = await ai.live.connect({
                 model: this.model,
                 callbacks: {
                     onopen: () => {
                         if (this.closed) return;
-                        this.ready = true;
-                        log('gemini_open', {
+                        log('gemini_socket_open', {
                             providerInstanceId: this.instanceId,
                             model: this.model,
                             voiceName: this.voiceName,
@@ -213,7 +246,7 @@ class GeminiLiveProviderSession {
                 },
                 config: {
                     responseModalities: [Modality.AUDIO],
-                    speechConfig: this.voiceName,
+                    speechConfig,
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
                     realtimeInputConfig: {
@@ -226,7 +259,7 @@ class GeminiLiveProviderSession {
                     },
                     systemInstruction: {
                         parts: [{
-                            text: 'You are Lumi, a warm child-safe voice companion. Reply briefly and naturally in the user language.',
+                            text: systemPrompt,
                         }],
                     },
                 },
@@ -573,10 +606,11 @@ class GeminiLiveProviderSession {
             logRawProviderMessage(summarizeRawProviderMessage(message, this.rawTraceSeq, this.instanceId));
         }
         if (message?.setupComplete) {
-            const log = this.active?.log || (() => {});
-            log('provider_setup_complete', {
+            const log = this.active?.log || this.sessionLog || (() => {});
+            log('gemini_setup_complete', {
                 providerInstanceId: this.instanceId,
                 model: this.model,
+                voiceName: this.voiceName,
             });
         }
         const content = message?.serverContent;
@@ -725,5 +759,7 @@ module.exports = {
     GeminiLiveProvider,
     MODEL_ID,
     DEFAULT_GEMINI_LIVE_VOICE,
+    buildGeminiSpeechConfig,
+    describeSpeechConfigShape,
     MIN_VALID_PCM_BYTES,
 };
