@@ -21,8 +21,22 @@ function id(prefix) {
     return `${prefix}_${crypto.randomBytes(8).toString('hex')}`;
 }
 
+const VALID_ROTATION_MODES = new Set(['per_turn', 'errors_only']);
+const DEFAULT_ROTATION_MODE = 'per_turn';
+let warnedInvalidRotationMode = false;
+
 function normalizeProviderVoiceName(voiceName) {
     return String(voiceName || '').trim();
+}
+
+function normalizeRotationMode(value) {
+    const mode = String(value || process.env.GEMINI_ROTATION_MODE || DEFAULT_ROTATION_MODE).trim().toLowerCase();
+    if (VALID_ROTATION_MODES.has(mode)) return mode;
+    if (!warnedInvalidRotationMode) {
+        warnedInvalidRotationMode = true;
+        console.warn('[Realtime] Unknown GEMINI_ROTATION_MODE=' + JSON.stringify(mode) + '. Falling back to ' + DEFAULT_ROTATION_MODE + '.');
+    }
+    return DEFAULT_ROTATION_MODE;
 }
 
 function createCancellation() {
@@ -94,6 +108,11 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let socketClosed = false;
     let providerClosed = false;
     let readySent = false;
+    const rotationMode = normalizeRotationMode(providerMetadata.rotationMode);
+    let providerSessionReuseCount = 0;
+    let providerRotationCount = 0;
+    let promptApplyCount = 0;
+    let lateProviderEventsDropped = 0;
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
 
     function log(stage, extra = {}) {
@@ -141,6 +160,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             systemInstructionMeta: prompt.meta,
             promptSource,
             rotationReason,
+            rotationMode,
         };
     }
 
@@ -186,11 +206,13 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function droppedProviderEvent(generation, eventType, reason) {
+        lateProviderEventsDropped += 1;
         log('dropped_provider_event', {
             generationId: generation?.generationId || 'none',
             responseId: generation?.responseId || 'none',
             eventType,
             reason,
+            lateProviderEventsDropped,
         });
     }
 
@@ -225,11 +247,14 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     async function warmProviderSession(reason) {
         if (typeof providerSession?.connect !== 'function') return;
         await providerSession.connect(log);
+        promptApplyCount += 1;
         log('provider_ready', {
             reason,
             provider: providerSession.name || 'provider',
             providerInstanceId: providerSession.instanceId || 'unknown',
             voiceName: providerSession.voiceName || sessionVoiceName || 'none',
+            rotationMode,
+            promptApplyCount,
         });
         log('provider_voice_config', {
             clientSessionId: sessionId,
@@ -238,6 +263,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             configSource: providerSession.voiceConfigSource || sessionVoiceConfigSource,
             inheritedFromPreviousProvider: reason !== 'initial',
             rotationReason: reason,
+            rotationMode,
+            providerRotationCount,
+            promptApplyCount,
         });
         log('provider_prompt_config', {
             clientSessionId: sessionId,
@@ -252,6 +280,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             childContextHash: providerSession.systemInstructionMeta?.childContext?.hash || 'none',
             parentRulesChars: providerSession.systemInstructionMeta?.parentRules?.chars || 0,
             parentRulesHash: providerSession.systemInstructionMeta?.parentRules?.hash || 'none',
+            rotationMode,
+            providerRotationCount,
+            promptApplyCount,
             currentContextChars: providerSession.systemInstructionMeta?.currentContext?.chars || 0,
             currentContextHash: providerSession.systemInstructionMeta?.currentContext?.hash || 'none',
         });
@@ -449,6 +480,17 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     message: error.message,
                 });
             });
+        } else if (eventType === 'audio.end' && generation === currentGeneration && rotationMode === 'errors_only') {
+            providerSessionReuseCount += 1;
+            log('provider_session_reused', {
+                reason: payload.cause || 'audio_end',
+                providerInstanceId: providerSession?.instanceId || 'unknown',
+                providerSessionReuseCount,
+                providerRotationCount,
+                promptApplyCount,
+                turnCount: turnCounter,
+                lateProviderEventsDropped,
+            });
         }
         return emitted;
     }
@@ -491,6 +533,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function rotateProviderSession(reason) {
+        providerRotationCount += 1;
         const oldProviderSession = providerSession;
         const oldProviderInstanceId = oldProviderSession?.instanceId || 'unknown';
         const oldProviderVoiceName = oldProviderSession?.voiceName || sessionVoiceName || 'none';
@@ -523,6 +566,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             corePromptPreserved: oldPromptMeta.corePrompt?.hash === newPromptMeta.corePrompt?.hash,
             childContextPreserved: oldPromptMeta.childContext?.hash === newPromptMeta.childContext?.hash,
             parentRulesPreserved: oldPromptMeta.parentRules?.hash === newPromptMeta.parentRules?.hash,
+            rotationMode,
+            providerRotationCount,
+            providerSessionReuseCount,
+            promptApplyCount,
         });
         emit({
             type: 'provider.rotated',
@@ -541,6 +588,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             core_prompt_preserved: oldPromptMeta.corePrompt?.hash === newPromptMeta.corePrompt?.hash,
             child_context_preserved: oldPromptMeta.childContext?.hash === newPromptMeta.childContext?.hash,
             parent_rules_preserved: oldPromptMeta.parentRules?.hash === newPromptMeta.parentRules?.hash,
+            rotation_mode: rotationMode,
+            provider_rotation_count: providerRotationCount,
+            provider_session_reuse_count: providerSessionReuseCount,
+            prompt_apply_count: promptApplyCount,
         });
     }
 
@@ -549,7 +600,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function shouldRotateProviderAfterOutputComplete() {
-        return Boolean(providerSession?.rotateAfterOutputComplete);
+        return rotationMode === 'per_turn' && Boolean(providerSession?.rotateAfterOutputComplete);
     }
 
     function closeProvider(reason) {
@@ -611,6 +662,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             generationId: currentGeneration.generationId,
             responseId: currentGeneration.responseId,
             mode: currentMode,
+            rotationMode,
+            turnCount: turnCounter,
         });
     }
 
@@ -827,6 +880,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         session_id: sessionId,
         provider: providerSession.name || 'mock',
         provider_instance_id: providerSession.instanceId || null,
+        rotation_mode: rotationMode,
         model: providerMetadata.model || null,
         config: DEFAULT_CONFIG,
         lab_prompt: safePromptPayload(),
@@ -834,6 +888,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     log('session_ready', {
         provider: providerSession.name || 'mock',
         providerInstanceId: providerSession.instanceId || 'unknown',
+        rotationMode,
     });
 }
 

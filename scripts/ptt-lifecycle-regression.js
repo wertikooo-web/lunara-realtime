@@ -162,8 +162,9 @@ class RegressionProvider {
 class RegressionProviderSession {
     constructor(instanceId, options = {}) {
         this.name = 'regression';
+        this.rotationMode = options.rotationMode || process.env.GEMINI_ROTATION_MODE || 'per_turn';
         this.rotateOnInterrupt = true;
-        this.rotateAfterOutputComplete = true;
+        this.rotateAfterOutputComplete = this.rotationMode === 'per_turn';
         this.instanceId = instanceId;
         this.voiceName = options.voiceName || 'RegressionFemale';
         this.voiceConfigSource = options.voiceConfigSource || 'test';
@@ -329,7 +330,9 @@ async function runTurn(client, turnId, bytes, options = {}) {
 
 async function main() {
     const originalTimeout = process.env.PTT_TURN_TIMEOUT_MS;
+    const originalRotationMode = process.env.GEMINI_ROTATION_MODE;
     process.env.PTT_TURN_TIMEOUT_MS = '200';
+    process.env.GEMINI_ROTATION_MODE = 'per_turn';
     const logs = [];
     const originalLog = console.log;
     console.log = (message, ...args) => {
@@ -516,13 +519,53 @@ async function main() {
         if (!afterTimeout.responseCreated.response_id) {
             throw new Error('Following turn after timeout recovery did not succeed');
         }
+        client.close();
+
+        process.env.GEMINI_ROTATION_MODE = 'errors_only';
+        const errorsOnlyClient = await connectWs();
+        await errorsOnlyClient.waitFor('session.ready', (event) => event.rotation_mode === 'errors_only');
+        const sessionsBeforeErrorsOnly = provider.sessions.length;
+        const errorsOnlyProvider = provider.sessions[provider.sessions.length - 1];
+        const expectedProviderInstanceId = errorsOnlyProvider.instanceId;
+        let expectedAudioBytes = 0;
+        for (let index = 0; index < 20; index += 1) {
+            const bytes = 1024 + index;
+            expectedAudioBytes += bytes;
+            const turn = await runTurn(errorsOnlyClient, 'errors_only_' + index, bytes, { waitForEnd: true });
+            if (!turn.responseCreated.response_id) {
+                throw new Error('errors_only turn did not receive response at index ' + index);
+            }
+            if (provider.sessions.length !== sessionsBeforeErrorsOnly) {
+                throw new Error('errors_only normal output must keep one provider session');
+            }
+            if (provider.sessions[provider.sessions.length - 1].instanceId !== expectedProviderInstanceId) {
+                throw new Error('errors_only providerInstanceId changed during normal turns');
+            }
+            errorsOnlyClient.sendBinary(Buffer.alloc(32, 9));
+            await sleep(5);
+            if (errorsOnlyProvider.audioBytes !== expectedAudioBytes) {
+                throw new Error('Old/stray audio reached reused provider session between turns');
+            }
+        }
+        const outputRotation = errorsOnlyClient.events.find((event) => (
+            event.type === 'provider.rotated'
+            && (event.reason === 'output_generation_complete' || event.reason === 'output_turn_complete')
+        ));
+        if (outputRotation) {
+            throw new Error('errors_only mode must not rotate after normal output');
+        }
+        if (!logs.some((line) => line.includes('stage=provider_session_reused') && line.includes('providerSessionReuseCount=20'))) {
+            throw new Error('Missing provider_session_reused count for 20 same-session turns');
+        }
+        errorsOnlyClient.close();
 
         console.log('[PttLifecycleRegression] ok');
-        client.close();
     } finally {
         console.log = originalLog;
         if (originalTimeout === undefined) delete process.env.PTT_TURN_TIMEOUT_MS;
         else process.env.PTT_TURN_TIMEOUT_MS = originalTimeout;
+        if (originalRotationMode === undefined) delete process.env.GEMINI_ROTATION_MODE;
+        else process.env.GEMINI_ROTATION_MODE = originalRotationMode;
         await new Promise((resolve) => {
             server.close(() => resolve());
             setTimeout(resolve, 250);

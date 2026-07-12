@@ -10,6 +10,19 @@ const BYTES_PER_PCM16_SAMPLE = 2;
 const MIN_VALID_PCM_BYTES = 4;
 const DEFAULT_TAIL_FRAME_MS = 20;
 const MAX_PENDING_AUDIO_BYTES = Number(process.env.GEMINI_PENDING_AUDIO_MAX_BYTES || 512 * 1024);
+const VALID_ROTATION_MODES = new Set(['per_turn', 'errors_only']);
+const DEFAULT_ROTATION_MODE = 'per_turn';
+let warnedInvalidRotationMode = false;
+
+function normalizeRotationMode(value) {
+    const mode = String(value || process.env.GEMINI_ROTATION_MODE || DEFAULT_ROTATION_MODE).trim().toLowerCase();
+    if (VALID_ROTATION_MODES.has(mode)) return mode;
+    if (!warnedInvalidRotationMode) {
+        warnedInvalidRotationMode = true;
+        console.warn('[GeminiLiveProvider] Unknown GEMINI_ROTATION_MODE=' + JSON.stringify(mode) + '. Falling back to ' + DEFAULT_ROTATION_MODE + '.');
+    }
+    return DEFAULT_ROTATION_MODE;
+}
 
 function makeInstanceId() {
     return `gemini_session_${crypto.randomBytes(6).toString('hex')}`;
@@ -163,6 +176,7 @@ class GeminiLiveProvider {
             systemInstructionMeta: options.systemInstructionMeta,
             promptSource: options.promptSource,
             rotationReason: options.rotationReason,
+            rotationMode: normalizeRotationMode(options.rotationMode),
         });
     }
 }
@@ -178,10 +192,12 @@ class GeminiLiveProviderSession {
         systemInstructionMeta,
         promptSource,
         rotationReason,
+        rotationMode,
     }) {
         this.name = 'gemini';
+        this.rotationMode = normalizeRotationMode(rotationMode);
         this.rotateOnInterrupt = true;
-        this.rotateAfterOutputComplete = true;
+        this.rotateAfterOutputComplete = this.rotationMode === 'per_turn';
         this.model = model;
         this.voiceName = normalizeVoiceName(voiceName);
         this.voiceConfigSource = voiceConfigSource || 'default';
@@ -205,6 +221,7 @@ class GeminiLiveProviderSession {
         this.bufferingLogged = false;
         this.inputBytes = 0;
         this.sessionInputBytes = 0;
+        this.promptApplyCount = 0;
         this.rawTraceSeq = 0;
     }
 
@@ -221,11 +238,14 @@ class GeminiLiveProviderSession {
                 model: this.model,
                 voiceName: this.voiceName,
                 voiceConfigSource: this.voiceConfigSource,
+                rotationMode: this.rotationMode,
+                promptApplyCount: this.promptApplyCount,
             });
             const { ActivityHandling, GoogleGenAI, Modality } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey: this.apiKey });
             const systemPrompt = this.systemInstructionText;
             const speechConfig = buildGeminiSpeechConfig(this.voiceName);
+            this.promptApplyCount += 1;
             log('gemini_connect_config', {
                 providerInstanceId: this.instanceId,
                 model: this.model,
@@ -238,6 +258,8 @@ class GeminiLiveProviderSession {
                 childContextHash: this.systemInstructionMeta.childContext?.hash || 'none',
                 parentRulesHash: this.systemInstructionMeta.parentRules?.hash || 'none',
                 currentContextHash: this.systemInstructionMeta.currentContext?.hash || 'none',
+                rotationMode: this.rotationMode,
+                promptApplyCount: this.promptApplyCount,
             });
             const session = await ai.live.connect({
                 model: this.model,
@@ -249,6 +271,8 @@ class GeminiLiveProviderSession {
                             model: this.model,
                             voiceName: this.voiceName,
                             voiceConfigSource: this.voiceConfigSource,
+                            rotationMode: this.rotationMode,
+                            promptApplyCount: this.promptApplyCount,
                         });
                     },
                     onmessage: (message) => this.handleMessage(message),
@@ -309,12 +333,16 @@ class GeminiLiveProviderSession {
                 model: this.model,
                 voiceName: this.voiceName,
                 voiceConfigSource: this.voiceConfigSource,
+                rotationMode: this.rotationMode,
+                promptApplyCount: this.promptApplyCount,
             });
             log('provider_voice_config', {
                 providerInstanceId: this.instanceId,
                 provider: this.name,
                 voiceName: this.voiceName,
                 voiceConfigSource: this.voiceConfigSource,
+                rotationMode: this.rotationMode,
+                promptApplyCount: this.promptApplyCount,
             });
             log('provider_prompt_config', {
                 providerInstanceId: this.instanceId,
@@ -331,6 +359,8 @@ class GeminiLiveProviderSession {
                 parentRulesHash: this.systemInstructionMeta.parentRules?.hash || 'none',
                 currentContextChars: this.systemInstructionMeta.currentContext?.chars || 0,
                 currentContextHash: this.systemInstructionMeta.currentContext?.hash || 'none',
+                rotationMode: this.rotationMode,
+                promptApplyCount: this.promptApplyCount,
             });
             this.flushPendingAudio();
             return session;
@@ -807,5 +837,6 @@ module.exports = {
     DEFAULT_GEMINI_LIVE_VOICE,
     buildGeminiSpeechConfig,
     describeSpeechConfigShape,
+    normalizeRotationMode,
     MIN_VALID_PCM_BYTES,
 };
