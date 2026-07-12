@@ -515,7 +515,9 @@
     }
 
     function canPressPtt() {
-      return ws && ws.readyState === WebSocket.OPEN && (
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      if (lifecycleState === STATES.LISTENING && (isRecording || pointerHeld)) return true;
+      return (
         lifecycleState === STATES.IDLE
         || lifecycleState === STATES.PLAYING
         || lifecycleState === STATES.ERROR

@@ -35,6 +35,7 @@ const pointerUp = sectionBetween('function onPointerUp(event)', 'function onPoin
 const pointerCancel = sectionBetween('function onPointerCancel(event)', 'function onLostPointerCapture(event)');
 const finishPointerTurn = sectionBetween('function finishPointerTurn(event, endReason)', 'function onPointerDown(event)');
 const endTurn = sectionBetween('function endTurn(reason, pointerInfo = {})', 'function manualInterrupt()');
+const canPressPtt = sectionBetween('function canPressPtt()', 'function updateIds()');
 
 requireSectionIncludes(pointerDown, 'event.preventDefault();', 'pointerdown must prevent default browser selection/dragging');
 requireSectionIncludes(pointerDown, 'capturePointer(event);', 'pointerdown must capture the pointer');
@@ -55,6 +56,8 @@ requireSectionIncludes(endTurn, 'if (pttEndSent) return;', 'input_audio.end must
 requireSectionIncludes(endTurn, "type: 'input_audio.end'", 'endTurn must send input_audio.end');
 requireSectionIncludes(endTurn, 'end_reason: reason', 'input_audio.end must carry safe end_reason diagnostics');
 requireSectionIncludes(endTurn, "logLine('ptt_end_sent'", 'endTurn must log ptt_end_sent');
+requireSectionIncludes(canPressPtt, 'lifecycleState === STATES.LISTENING', 'PTT must stay enabled during active LISTENING hold');
+requireSectionIncludes(canPressPtt, 'isRecording || pointerHeld', 'LISTENING button enablement must require active recording/held pointer');
 
 requireNotIncludes("addEventListener('pointerleave'", 'pointerleave must not end Hold-to-Talk');
 requireNotIncludes('addEventListener("pointerleave"', 'pointerleave must not end Hold-to-Talk');
