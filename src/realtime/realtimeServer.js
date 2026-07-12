@@ -311,16 +311,29 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             generation.status = 'cancelled';
             clearGenerationTimeout(generation);
         }
+        const shouldRotateAfterAudioEnd = eventType === 'audio.end' && shouldRotateProviderAfterOutputComplete();
         if (eventType === 'audio.end') {
             generation.status = 'completed';
             clearGenerationTimeout(generation);
         }
-        return emit({
+        const emitted = emit({
             ...payload,
             generation_id: generation.generationId,
             response_id: generation.responseId,
             turn_id: generation.turnId,
         });
+        if (shouldRotateAfterAudioEnd && generation === currentGeneration) {
+            rotateProviderSession(payload.cause === 'turnComplete'
+                ? 'output_turn_complete'
+                : 'output_generation_complete');
+            warmProviderSession('output_complete').catch((error) => {
+                log('provider_warm_error', {
+                    reason: 'output_complete',
+                    message: error.message,
+                });
+            });
+        }
+        return emitted;
     }
 
     function cancelCurrent(reason) {
@@ -394,6 +407,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
 
     function shouldRotateProviderOnInterrupt() {
         return Boolean(providerSession?.rotateOnInterrupt);
+    }
+
+    function shouldRotateProviderAfterOutputComplete() {
+        return Boolean(providerSession?.rotateAfterOutputComplete);
     }
 
     function closeProvider(reason) {
@@ -585,6 +602,23 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     const parser = createFrameParser({
         onText: handleCommand,
         onBinary(payload) {
+            if (
+                !currentGeneration
+                || !inputStartedAt
+                || inputEndedAt
+                || currentGeneration.status === 'completed'
+                || currentGeneration.status === 'cancelled'
+                || currentGeneration.status === 'failed'
+            ) {
+                log('dropped_input_audio_frame', {
+                    reason: 'no_active_input',
+                    bytes: payload.length,
+                    turnId: currentTurnId || 'none',
+                    generationId: currentGeneration?.generationId || 'none',
+                    providerInstanceId: providerSession?.instanceId || 'unknown',
+                });
+                return;
+            }
             inputBytes += payload.length;
             sessionInputBytes += payload.length;
             providerSession.sendAudio(payload);

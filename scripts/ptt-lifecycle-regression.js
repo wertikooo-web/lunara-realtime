@@ -163,6 +163,7 @@ class RegressionProviderSession {
     constructor(instanceId) {
         this.name = 'regression';
         this.rotateOnInterrupt = true;
+        this.rotateAfterOutputComplete = true;
         this.instanceId = instanceId;
         this.audioBytes = 0;
         this.activeSignal = null;
@@ -350,6 +351,27 @@ async function main() {
         if (normal.responseCreated.turn_input_bytes !== 3200) {
             throw new Error('Normal PTT turn did not preserve input bytes');
         }
+        const normalRotation = await client.waitFor(
+            'provider.rotated',
+            (event) => event.reason === 'output_generation_complete',
+        );
+        if (normalRotation.old_provider_instance_id === normalRotation.new_provider_instance_id) {
+            throw new Error('Completed output must rotate provider session');
+        }
+        if (!provider.sessions.find((session) => (
+            session.instanceId === normalRotation.old_provider_instance_id && session.closed
+        ))) {
+            throw new Error('Completed output must hard-close the old provider session');
+        }
+        client.sendBinary(Buffer.alloc(512, 9));
+        await sleep(40);
+        const rotatedIdleSession = provider.sessions.find((session) => (
+            session.instanceId === normalRotation.new_provider_instance_id
+        ));
+        if (!rotatedIdleSession || rotatedIdleSession.audioBytes !== 0) {
+            throw new Error('Stray audio between turns must not reach the fresh provider session');
+        }
+
         const short = await runTurn(client, 'short_ptt', 2, { waitForEnd: true });
         if (!short.userTranscript.text) {
             throw new Error('Short PTT turn did not emit transcript.user');
@@ -371,8 +393,11 @@ async function main() {
         client.sendJson({ type: 'input_audio.end' });
         const turnB = await client.waitFor('response.created', (event) => event.turn_id === 'after_interrupt_ptt');
         await client.waitFor('audio.end', (event) => event.turn_id === 'after_interrupt_ptt');
-        if (provider.sessions[1].audioBytes !== 4096) {
-            throw new Error(`Turn B audio must be routed to the new provider session, got ${provider.sessions[1].audioBytes}`);
+        const turnBProviderSession = provider.sessions.find((session) => (
+            session.instanceId === rotation.new_provider_instance_id
+        ));
+        if (!turnBProviderSession || turnBProviderSession.audioBytes !== 4096) {
+            throw new Error(`Turn B audio must be routed to the new provider session, got ${turnBProviderSession?.audioBytes}`);
         }
         const turnBCancelled = client.events.find((event) => (
             event.type === 'response.cancelled' && event.turn_id === 'after_interrupt_ptt'
@@ -412,7 +437,13 @@ async function main() {
 
         client.sendJson({ type: 'input_audio.start', turn_id: 'timeout_ptt', mode: 'push_to_talk' });
         client.sendBinary(Buffer.alloc(1024, 3));
+        const timeoutProviderSession = provider.sessions[provider.sessions.length - 1];
         client.sendJson({ type: 'input_audio.end' });
+        client.sendBinary(Buffer.alloc(256, 8));
+        await sleep(40);
+        if (timeoutProviderSession.audioBytes !== 1024) {
+            throw new Error('Late audio after input_audio.end must not reach provider');
+        }
         const failed = await client.waitFor('response.failed', (event) => event.turn_id === 'timeout_ptt', 2000);
         if (failed.reason !== 'provider_timeout') {
             throw new Error(`Timeout failure reason mismatch: ${failed.reason}`);

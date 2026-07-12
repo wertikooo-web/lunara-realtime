@@ -130,6 +130,7 @@ class GeminiLiveProviderSession {
     constructor({ apiKey, model, instanceId }) {
         this.name = 'gemini';
         this.rotateOnInterrupt = true;
+        this.rotateAfterOutputComplete = true;
         this.model = model;
         this.apiKey = apiKey;
         this.instanceId = instanceId;
