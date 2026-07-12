@@ -121,6 +121,60 @@ async function main() {
     if (first.active?.generationId !== 'generation_new' || first.active.signal.cancelled) {
         throw new Error('Provider interrupt ack must not cancel the new active generation');
     }
+    const originalTraceFlag = process.env.GEMINI_RAW_TRACE;
+    const originalTracePreviewFlag = process.env.GEMINI_RAW_TRACE_PREVIEW;
+    const originalConsoleLog = console.log;
+    const traceLines = [];
+    const secretTranscript = 'Sensitive child transcript must not be logged';
+    const audioPayload = Buffer.alloc(MIN_VALID_PCM_BYTES).toString('base64');
+    try {
+        process.env.GEMINI_RAW_TRACE = 'true';
+        delete process.env.GEMINI_RAW_TRACE_PREVIEW;
+        console.log = (line) => traceLines.push(String(line));
+        const traceSession = provider.createSession();
+        traceSession.handleMessage({
+            serverContent: {
+                modelTurn: {
+                    parts: [{
+                        inlineData: {
+                            mimeType: 'audio/pcm;rate=24000',
+                            data: audioPayload,
+                        },
+                    }],
+                },
+                inputTranscription: {
+                    text: secretTranscript,
+                },
+                outputTranscription: {
+                    text: 'short model text',
+                },
+                interrupted: true,
+                turnComplete: true,
+                generationComplete: true,
+                waitingForInput: false,
+                turnCompleteReason: 'TURN_COMPLETE_REASON_UNSPECIFIED',
+            },
+        });
+    } finally {
+        console.log = originalConsoleLog;
+        if (originalTraceFlag === undefined) delete process.env.GEMINI_RAW_TRACE;
+        else process.env.GEMINI_RAW_TRACE = originalTraceFlag;
+        if (originalTracePreviewFlag === undefined) delete process.env.GEMINI_RAW_TRACE_PREVIEW;
+        else process.env.GEMINI_RAW_TRACE_PREVIEW = originalTracePreviewFlag;
+    }
+    const rawTrace = traceLines.find((line) => line.includes('provider_raw_message'));
+    if (!rawTrace) {
+        throw new Error('GEMINI_RAW_TRACE=true must emit provider_raw_message');
+    }
+    if (!rawTrace.includes('audio_bytes_total=4') || !rawTrace.includes('audio_parts_count=1')) {
+        throw new Error(`Raw trace did not include audio metadata: ${rawTrace}`);
+    }
+    if (!rawTrace.includes('input_transcription_chars=45') || !rawTrace.includes('output_transcription_chars=16')) {
+        throw new Error(`Raw trace did not include transcript lengths: ${rawTrace}`);
+    }
+    if (rawTrace.includes(audioPayload) || rawTrace.includes(secretTranscript)) {
+        throw new Error('Raw trace must not include base64 audio or full transcript');
+    }
     first.close();
     second.close();
     console.log('[GeminiProviderSmoke] ok');

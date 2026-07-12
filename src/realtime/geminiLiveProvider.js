@@ -17,6 +17,92 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+
+function isRawTraceEnabled() {
+    return /^(1|true|yes)$/i.test(String(process.env.GEMINI_RAW_TRACE || ''));
+}
+
+function shouldLogRawTracePreview() {
+    return /^(1|true|yes)$/i.test(String(process.env.GEMINI_RAW_TRACE_PREVIEW || ''));
+}
+
+function sanitizePreview(text) {
+    return String(text || '')
+        .replace(/[\r\n\t]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/[^\p{L}\p{N}\p{P}\p{Zs}]/gu, '')
+        .trim()
+        .slice(0, 48);
+}
+
+function formatTraceValue(value) {
+    if (Array.isArray(value)) return `[${value.join(',')}]`;
+    if (value === null || value === undefined) return 'null';
+    if (typeof value === 'string') return JSON.stringify(value);
+    return String(value);
+}
+
+function summarizeRawProviderMessage(message, seq, providerInstanceId) {
+    const serverContent = message?.serverContent || null;
+    const parts = Array.isArray(serverContent?.modelTurn?.parts) ? serverContent.modelTurn.parts : [];
+    const audioParts = [];
+    let audioBytesTotal = 0;
+
+    parts.forEach((part, index) => {
+        const inlineData = part?.inlineData;
+        if (!inlineData?.data) return;
+        const bytes = Buffer.byteLength(String(inlineData.data), 'base64');
+        audioBytesTotal += bytes;
+        audioParts.push({
+            path: `serverContent.modelTurn.parts[${index}].inlineData`,
+            bytes,
+            mimeType: inlineData.mimeType || null,
+        });
+    });
+
+    const inputText = serverContent?.inputTranscription?.text || '';
+    const outputText = serverContent?.outputTranscription?.text || '';
+    const interimInputText = serverContent?.interimInputTranscription?.text || '';
+    const trace = {
+        seq,
+        received_at: new Date().toISOString(),
+        provider_instance_id: providerInstanceId,
+        top_level_keys: Object.keys(message || {}),
+        server_content_keys: serverContent ? Object.keys(serverContent) : [],
+        has_model_turn: Boolean(serverContent?.modelTurn),
+        has_audio: audioParts.length > 0,
+        audio_parts_count: audioParts.length,
+        audio_bytes_total: audioBytesTotal,
+        audio_paths: audioParts.map((part) => part.path),
+        audio_mime_types: Array.from(new Set(audioParts.map((part) => part.mimeType).filter(Boolean))),
+        has_input_transcription: inputText.length > 0,
+        input_transcription_chars: inputText.length,
+        has_output_transcription: outputText.length > 0,
+        output_transcription_chars: outputText.length,
+        has_interim_input_transcription: interimInputText.length > 0,
+        interim_input_transcription_chars: interimInputText.length,
+        interrupted: Boolean(serverContent?.interrupted),
+        turn_complete: Boolean(serverContent?.turnComplete),
+        generation_complete: Boolean(serverContent?.generationComplete),
+        waiting_for_input: Boolean(serverContent?.waitingForInput),
+        turn_complete_reason: serverContent?.turnCompleteReason || null,
+    };
+
+    if (shouldLogRawTracePreview()) {
+        trace.input_transcription_preview = sanitizePreview(inputText);
+        trace.output_transcription_preview = sanitizePreview(outputText);
+        trace.interim_input_transcription_preview = sanitizePreview(interimInputText);
+    }
+
+    return trace;
+}
+
+function logRawProviderMessage(summary) {
+    const fields = Object.entries(summary)
+        .map(([key, value]) => `${key}=${formatTraceValue(value)}`)
+        .join(' ');
+    console.log(`provider_raw_message ${fields}`);
+}
 function safeErrorMessage(error) {
     return String(error?.message || error || 'Gemini Live error')
         .replace(/key=[^&\s]+/gi, 'key=[redacted]')
@@ -54,6 +140,7 @@ class GeminiLiveProviderSession {
         this.pendingAudio = [];
         this.inputBytes = 0;
         this.sessionInputBytes = 0;
+        this.rawTraceSeq = 0;
     }
 
     async connect(log = () => {}) {
@@ -379,6 +466,10 @@ class GeminiLiveProviderSession {
 
     handleMessage(message) {
         if (this.closed) return;
+        if (isRawTraceEnabled()) {
+            this.rawTraceSeq += 1;
+            logRawProviderMessage(summarizeRawProviderMessage(message, this.rawTraceSeq, this.instanceId));
+        }
         const content = message?.serverContent;
         if (!content) return;
 
