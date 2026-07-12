@@ -218,6 +218,9 @@ class RegressionProviderSession {
         if (this.closed) return;
         this.activeSignal = context.signal;
         this.activeContext = context;
+        if (context.turnId === 'timeout_ptt') {
+            return;
+        }
         context.onEvent({
             type: 'transcript.user',
             response_id: context.responseId,
@@ -307,6 +310,8 @@ async function runTurn(client, turnId, bytes, options = {}) {
 }
 
 async function main() {
+    const originalTimeout = process.env.PTT_TURN_TIMEOUT_MS;
+    process.env.PTT_TURN_TIMEOUT_MS = '200';
     const logs = [];
     const originalLog = console.log;
     console.log = (message, ...args) => {
@@ -394,10 +399,35 @@ async function main() {
             throw new Error('Missing provider_session_rotated log for manual interruption');
         }
 
+        client.sendJson({ type: 'input_audio.start', turn_id: 'timeout_ptt', mode: 'push_to_talk' });
+        client.sendBinary(Buffer.alloc(1024, 3));
+        client.sendJson({ type: 'input_audio.end' });
+        const failed = await client.waitFor('response.failed', (event) => event.turn_id === 'timeout_ptt', 2000);
+        if (failed.reason !== 'provider_timeout') {
+            throw new Error(`Timeout failure reason mismatch: ${failed.reason}`);
+        }
+        const timeoutRotation = await client.waitFor('provider.rotated', (event) => event.reason === 'provider_timeout', 2000);
+        if (timeoutRotation.old_provider_instance_id === timeoutRotation.new_provider_instance_id) {
+            throw new Error('Timeout recovery must rotate provider session');
+        }
+        if (!logs.some((line) => line.includes('stage=turn_timeout_recovery_started'))) {
+            throw new Error('Missing turn_timeout_recovery_started log');
+        }
+        if (!logs.some((line) => line.includes('stage=turn_timeout_recovery_completed'))) {
+            throw new Error('Missing turn_timeout_recovery_completed log');
+        }
+
+        const afterTimeout = await runTurn(client, 'after_timeout_ptt', 2048, { waitForEnd: true });
+        if (!afterTimeout.responseCreated.response_id) {
+            throw new Error('Following turn after timeout recovery did not succeed');
+        }
+
         console.log('[PttLifecycleRegression] ok');
         client.close();
     } finally {
         console.log = originalLog;
+        if (originalTimeout === undefined) delete process.env.PTT_TURN_TIMEOUT_MS;
+        else process.env.PTT_TURN_TIMEOUT_MS = originalTimeout;
         await new Promise((resolve) => {
             server.close(() => resolve());
             setTimeout(resolve, 250);

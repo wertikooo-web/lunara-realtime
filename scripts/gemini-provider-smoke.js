@@ -78,6 +78,68 @@ async function main() {
     if (!emitted.find((event) => event.type === 'audio.start')) {
         throw new Error('Valid PCM chunk must emit audio.start');
     }
+    first.handleMessage({
+        serverContent: {
+            generationComplete: true,
+        },
+    });
+    const generationEnd = emitted.find((event) => event.type === 'audio.end' && event.cause === 'generationComplete');
+    if (!generationEnd) {
+        throw new Error('generationComplete must emit audio.end for active model output');
+    }
+    const lateEvents = [];
+    first.active = {
+        generationId: 'generation_late',
+        responseId: null,
+        turnId: 'turn_late',
+        signal: { cancelled: false },
+        startedAt: Date.now(),
+        audioStarted: false,
+        modelOutputStarted: false,
+        chunkIndex: 0,
+        onEvent(event) {
+            lateEvents.push(event);
+        },
+        onAudioChunk(event) {
+            lateEvents.push(event);
+        },
+        log() {},
+    };
+    first.handleMessage({
+        serverContent: {
+            turnComplete: true,
+        },
+    });
+    if (lateEvents.length !== 0 || first.active?.generationId !== 'generation_late') {
+        throw new Error('turnComplete without model output must not finish the current active turn');
+    }
+    const buffered = provider.createSession();
+    const bufferLogs = [];
+    buffered.active = {
+        log(stage, fields) {
+            bufferLogs.push({ stage, fields });
+        },
+    };
+    buffered.sendAudio(Buffer.alloc(12));
+    if (buffered.pendingAudio.length !== 1 || buffered.pendingAudioBytes !== 12) {
+        throw new Error('Audio sent before setupComplete must be buffered');
+    }
+    const sentPayloads = [];
+    buffered.session = {
+        sendRealtimeInput(payload) {
+            sentPayloads.push(payload);
+        },
+    };
+    buffered.flushPendingAudio();
+    if (sentPayloads.length !== 1 || buffered.pendingAudioBytes !== 0) {
+        throw new Error('Buffered audio must flush after provider session is ready');
+    }
+    if (!bufferLogs.find((entry) => entry.stage === 'input_buffer_started')) {
+        throw new Error('Buffering must log input_buffer_started');
+    }
+    if (!bufferLogs.find((entry) => entry.stage === 'input_buffer_flushed')) {
+        throw new Error('Buffering must log input_buffer_flushed');
+    }
     first.interrupt('smoke');
     const ackEvents = [];
     first.active = {

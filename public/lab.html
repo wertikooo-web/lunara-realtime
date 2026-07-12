@@ -734,7 +734,7 @@
           wait_ms: Math.round(performance.now() - startedAt),
           bytes_sent: bytesSentThisTurn,
         });
-        setError('PTT turn timeout. Try again or reconnect.');
+        stateHint.textContent = 'Provider is still thinking...';
       }, 5000);
     }
 
@@ -812,6 +812,16 @@
         clearPlayback('response_cancelled');
         if (payload.cancel_latency_ms != null) metrics.interrupt.textContent = ms(payload.cancel_latency_ms);
         if (lifecycleState !== STATES.LISTENING) setState(STATES.IDLE);
+      } else if (payload.type === 'response.failed') {
+        if (payload.generation_id) cancelledGenerations.add(payload.generation_id);
+        if (payload.response_id) cancelledResponses.add(payload.response_id);
+        clearPttTimeout();
+        clearPlayback('response_failed');
+        logLine('response.failed', payload);
+        setState(STATES.IDLE, 'Provider timeout. Ready to try again.');
+        return;
+      } else if (payload.type === 'provider.ready') {
+        if (!isRecording && lifecycleState !== STATES.PLAYING) setState(STATES.IDLE);
       } else if (payload.type === 'transcript.model') {
         if (isLateEvent(payload)) {
           dropProviderEvent(payload, 'late_model_transcript_after_cancellation');

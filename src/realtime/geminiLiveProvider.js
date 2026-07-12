@@ -8,6 +8,7 @@ const INPUT_SAMPLE_RATE = 16000;
 const BYTES_PER_PCM16_SAMPLE = 2;
 const MIN_VALID_PCM_BYTES = 4;
 const DEFAULT_TAIL_FRAME_MS = 20;
+const MAX_PENDING_AUDIO_BYTES = Number(process.env.GEMINI_PENDING_AUDIO_MAX_BYTES || 512 * 1024);
 
 function makeInstanceId() {
     return `gemini_session_${crypto.randomBytes(6).toString('hex')}`;
@@ -139,6 +140,8 @@ class GeminiLiveProviderSession {
         this.active = null;
         this.pendingInterrupt = null;
         this.pendingAudio = [];
+        this.pendingAudioBytes = 0;
+        this.bufferingLogged = false;
         this.inputBytes = 0;
         this.sessionInputBytes = 0;
         this.rawTraceSeq = 0;
@@ -151,6 +154,10 @@ class GeminiLiveProviderSession {
         }
 
         this.connectPromise = (async () => {
+            log('provider_connect_started', {
+                providerInstanceId: this.instanceId,
+                model: this.model,
+            });
             const { ActivityHandling, GoogleGenAI, Modality } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey: this.apiKey });
             const session = await ai.live.connect({
@@ -215,6 +222,11 @@ class GeminiLiveProviderSession {
                 return session;
             }
             this.session = session;
+            this.ready = true;
+            log('provider_ready', {
+                providerInstanceId: this.instanceId,
+                model: this.model,
+            });
             this.flushPendingAudio();
             return session;
         })();
@@ -228,7 +240,24 @@ class GeminiLiveProviderSession {
         this.inputBytes += chunk.length;
         this.sessionInputBytes += chunk.length;
         if (!this.session) {
+            if (this.pendingAudioBytes + chunk.length > MAX_PENDING_AUDIO_BYTES) {
+                this.active?.log?.('input_buffer_dropped', {
+                    providerInstanceId: this.instanceId,
+                    bytes: chunk.length,
+                    pendingBytes: this.pendingAudioBytes,
+                    maxPendingBytes: MAX_PENDING_AUDIO_BYTES,
+                });
+                return;
+            }
+            if (!this.bufferingLogged) {
+                this.bufferingLogged = true;
+                this.active?.log?.('input_buffer_started', {
+                    providerInstanceId: this.instanceId,
+                    maxPendingBytes: MAX_PENDING_AUDIO_BYTES,
+                });
+            }
             this.pendingAudio.push(chunk);
+            this.pendingAudioBytes += chunk.length;
             this.connect().catch(() => {});
             return;
         }
@@ -236,8 +265,19 @@ class GeminiLiveProviderSession {
     }
 
     flushPendingAudio() {
+        const chunkCount = this.pendingAudio.length;
+        const bytes = this.pendingAudioBytes;
         while (!this.closed && this.session && this.pendingAudio.length > 0) {
-            this.sendAudioNow(this.pendingAudio.shift());
+            const chunk = this.pendingAudio.shift();
+            this.pendingAudioBytes -= chunk.length;
+            this.sendAudioNow(chunk);
+        }
+        if (chunkCount > 0) {
+            this.active?.log?.('input_buffer_flushed', {
+                providerInstanceId: this.instanceId,
+                chunks: chunkCount,
+                bytes,
+            });
         }
     }
 
@@ -257,6 +297,7 @@ class GeminiLiveProviderSession {
         Object.assign(this.active, context, {
             startedAt: this.active.startedAt || Date.now(),
             audioStarted: this.active.audioStarted || false,
+            modelOutputStarted: this.active.modelOutputStarted || false,
             chunkIndex: this.active.chunkIndex || 0,
         });
         context.log('gemini_response_waiting', {
@@ -382,6 +423,7 @@ class GeminiLiveProviderSession {
             ...context,
             startedAt: Date.now(),
             audioStarted: false,
+            modelOutputStarted: false,
             chunkIndex: 0,
         };
         this.connect(context.log).then(() => {
@@ -480,6 +522,8 @@ class GeminiLiveProviderSession {
         this.active = null;
         this.pendingInterrupt = null;
         this.pendingAudio = [];
+        this.pendingAudioBytes = 0;
+        this.bufferingLogged = false;
         const ws = this.session?.conn?.ws;
         try {
             if (ws?.removeAllListeners) ws.removeAllListeners();
@@ -499,6 +543,13 @@ class GeminiLiveProviderSession {
         if (isRawTraceEnabled()) {
             this.rawTraceSeq += 1;
             logRawProviderMessage(summarizeRawProviderMessage(message, this.rawTraceSeq, this.instanceId));
+        }
+        if (message?.setupComplete) {
+            const log = this.active?.log || (() => {});
+            log('provider_setup_complete', {
+                providerInstanceId: this.instanceId,
+                model: this.model,
+            });
         }
         const content = message?.serverContent;
         if (!content) return;
@@ -520,6 +571,7 @@ class GeminiLiveProviderSession {
         }
 
         if (content.outputTranscription?.text) {
+            this.active.modelOutputStarted = true;
             this.active.onEvent({
                 type: 'transcript.model',
                 response_id: this.active.responseId,
@@ -545,6 +597,7 @@ class GeminiLiveProviderSession {
             }
             if (!this.active.audioStarted) {
                 this.active.audioStarted = true;
+                this.active.modelOutputStarted = true;
                 this.active.onEvent({
                     type: 'audio.start',
                     response_id: this.active.responseId,
@@ -572,16 +625,47 @@ class GeminiLiveProviderSession {
             });
         }
 
-        if (content.turnComplete) {
-            this.active.onEvent({
-                type: 'audio.end',
-                response_id: this.active.responseId,
-                turn_id: this.active.turnId,
-                elapsed_ms: Date.now() - this.active.startedAt,
-            });
-            this.active = null;
-            this.inputBytes = 0;
+        if (content.generationComplete) {
+            this.emitOutputEnd('generationComplete');
+            return;
         }
+
+        if (content.turnComplete) {
+            if (!this.active.modelOutputStarted) {
+                this.active.log('dropped_provider_event', {
+                    generationId: this.active.generationId,
+                    responseId: this.active.responseId,
+                    eventType: 'audio.end',
+                    reason: 'turn_complete_without_model_output',
+                    providerInstanceId: this.instanceId,
+                });
+                return;
+            }
+            this.emitOutputEnd('turnComplete');
+        }
+    }
+
+    emitOutputEnd(cause) {
+        if (!this.active) return;
+        if (!this.active.modelOutputStarted) {
+            this.active.log('dropped_provider_event', {
+                generationId: this.active.generationId,
+                responseId: this.active.responseId,
+                eventType: 'audio.end',
+                reason: `${cause}_without_model_output`,
+                providerInstanceId: this.instanceId,
+            });
+            return;
+        }
+        this.active.onEvent({
+            type: 'audio.end',
+            response_id: this.active.responseId,
+            turn_id: this.active.turnId,
+            elapsed_ms: Date.now() - this.active.startedAt,
+            cause,
+        });
+        this.active = null;
+        this.inputBytes = 0;
     }
 }
 

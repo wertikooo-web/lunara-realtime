@@ -37,6 +37,10 @@ function createGeneration({ turnId }) {
         cancel: createCancellation(),
         timeoutTimer: null,
         timeoutLogged: false,
+        inputEndedAt: 0,
+        firstInputTranscriptionAt: 0,
+        firstModelEventAt: 0,
+        firstValidAudioAt: 0,
     };
 }
 
@@ -119,17 +123,73 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 && !generation.responseCreatedSent
                 && !generation.cancel.cancelled
             ) {
-                generation.timeoutLogged = true;
-                log('ptt_turn_timeout', {
-                    generationId: generation.generationId,
-                    responseId: generation.responseId,
-                    turnId: generation.turnId,
-                    timeoutMs,
-                    turnInputBytes: inputBytes,
-                    sessionInputBytes,
+                recoverFromTurnTimeout(generation, timeoutMs).catch((error) => {
+                    log('turn_timeout_recovery_error', {
+                        generationId: generation.generationId,
+                        turnId: generation.turnId,
+                        message: error.message,
+                    });
                 });
             }
         }, timeoutMs);
+    }
+
+    async function warmProviderSession(reason) {
+        if (typeof providerSession?.connect !== 'function') return;
+        await providerSession.connect(log);
+        log('provider_ready', {
+            reason,
+            provider: providerSession.name || 'provider',
+            providerInstanceId: providerSession.instanceId || 'unknown',
+        });
+        emit({
+            type: 'provider.ready',
+            reason,
+            provider: providerSession.name || 'provider',
+            provider_instance_id: providerSession.instanceId || null,
+        });
+    }
+
+    async function recoverFromTurnTimeout(generation, timeoutMs) {
+        if (generation !== currentGeneration) {
+            droppedProviderEvent(generation, 'ptt_turn_timeout', 'stale_generation');
+            return;
+        }
+        generation.timeoutLogged = true;
+        generation.status = 'failed';
+        generation.cancel.cancel('provider_timeout');
+        clearGenerationTimeout(generation);
+        log('ptt_turn_timeout', {
+            generationId: generation.generationId,
+            responseId: generation.responseId,
+            turnId: generation.turnId,
+            timeoutMs,
+            turnInputBytes: inputBytes,
+            sessionInputBytes,
+        });
+        emit({
+            type: 'response.failed',
+            generation_id: generation.generationId,
+            response_id: generation.responseId,
+            turn_id: generation.turnId,
+            reason: 'provider_timeout',
+            timeout_ms: timeoutMs,
+        });
+
+        const startedAt = Date.now();
+        const oldProviderInstanceId = providerSession?.instanceId || 'unknown';
+        log('turn_timeout_recovery_started', {
+            failedGenerationId: generation.generationId,
+            oldProviderInstanceId,
+        });
+        rotateProviderSession('provider_timeout');
+        await warmProviderSession('provider_timeout');
+        log('turn_timeout_recovery_completed', {
+            failedGenerationId: generation.generationId,
+            oldProviderInstanceId,
+            newProviderInstanceId: providerSession?.instanceId || 'unknown',
+            elapsedMs: Date.now() - startedAt,
+        });
     }
 
     function emitResponseCreated(generation, cause) {
@@ -161,11 +221,36 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         if (eventType === 'provider_interrupt_ack') {
             return emit(payload);
         }
-        if (generation.status === 'cancelled' || generation.status === 'completed') {
+        if (generation.status === 'cancelled' || generation.status === 'completed' || generation.status === 'failed') {
             if (modelOutputEvents.has(eventType)) {
                 droppedProviderEvent(generation, eventType, 'terminal_generation');
             }
             return false;
+        }
+        if (eventType === 'transcript.user' && generation.inputEndedAt && !generation.firstInputTranscriptionAt) {
+            generation.firstInputTranscriptionAt = Date.now();
+            log('provider_input_transcription_received', {
+                generationId: generation.generationId,
+                turnId: generation.turnId,
+                inputEndToInputTranscriptionMs: generation.firstInputTranscriptionAt - generation.inputEndedAt,
+            });
+        }
+        if (startsGenerationEvents.has(eventType) && generation.inputEndedAt && !generation.firstModelEventAt) {
+            generation.firstModelEventAt = Date.now();
+            log('provider_first_model_event', {
+                generationId: generation.generationId,
+                turnId: generation.turnId,
+                eventType,
+                inputEndToFirstModelEventMs: generation.firstModelEventAt - generation.inputEndedAt,
+            });
+        }
+        if (eventType === 'audio.start' && generation.inputEndedAt && !generation.firstValidAudioAt) {
+            generation.firstValidAudioAt = Date.now();
+            log('provider_first_valid_audio', {
+                generationId: generation.generationId,
+                turnId: generation.turnId,
+                inputEndToFirstValidAudioMs: generation.firstValidAudioAt - generation.inputEndedAt,
+            });
         }
         if (startsGenerationEvents.has(eventType)) {
             emitResponseCreated(generation, eventType);
@@ -187,7 +272,12 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function cancelCurrent(reason) {
-        if (!currentGeneration || currentGeneration.status === 'cancelled' || currentGeneration.status === 'completed') return false;
+        if (
+            !currentGeneration
+            || currentGeneration.status === 'cancelled'
+            || currentGeneration.status === 'completed'
+            || currentGeneration.status === 'failed'
+        ) return false;
         const cancelRequestedAt = Date.now();
         currentGeneration.cancel.cancel(reason);
         providerSession.interrupt(reason, {
@@ -351,6 +441,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         });
 
         const generationForStream = currentGeneration;
+        generationForStream.inputEndedAt = inputEndedAt;
         armPttTurnTimeout(generationForStream);
 
         const endInputContext = {
