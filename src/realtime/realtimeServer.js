@@ -614,7 +614,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         });
     }
 
-    function endInput() {
+    function endInput(payload = {}) {
         if (!currentTurnId || !inputStartedAt) {
             emit({
                 type: 'error',
@@ -638,6 +638,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             duration_ms: recordingDurationMs,
             turn_input_bytes: inputBytes,
             session_input_bytes: sessionInputBytes,
+            end_reason: payload.end_reason || null,
         });
         log('input_audio_end', {
             turnId: currentTurnId,
@@ -646,6 +647,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             sessionInputBytes,
             generationId: currentGeneration.generationId,
             responseId: currentGeneration.responseId,
+            endReason: payload.end_reason || 'unknown',
         });
 
         const generationForStream = currentGeneration;
@@ -740,7 +742,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         } else if (payload.type === 'input_audio.start') {
             startInput(payload);
         } else if (payload.type === 'input_audio.end') {
-            endInput();
+            endInput(payload);
         } else if (payload.type === 'session.interrupt') {
             const reason = payload.reason || 'client_interrupt';
             const cancelledActiveGeneration = cancelCurrent(reason);

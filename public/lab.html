@@ -445,6 +445,11 @@
     let recordingTimer = null;
     let pttTimeoutTimer = null;
     let interruptStartedAt = 0;
+    let activePointerId = null;
+    let activePointerType = '';
+    let pendingEndReason = '';
+    let pendingEndPointerInfo = null;
+    let pttEndSent = false;
     const cancelledGenerations = new Set();
     const cancelledResponses = new Set();
     const aggregateLog = new Map();
@@ -805,8 +810,8 @@
       await ensureMic();
       if (audioContext?.state === 'suspended') await audioContext.resume();
 
-      pointerHeld = true;
       isRecording = true;
+      pttEndSent = false;
       bytesSentThisTurn = 0;
       providerChunksReceived = 0;
       playableChunksReceived = 0;
@@ -832,16 +837,42 @@
       });
       logLine('input_audio.start', { turn_id: currentTurnId, trigger });
       setState(STATES.LISTENING);
+      if (!pointerHeld && pendingEndReason) {
+        const reason = pendingEndReason;
+        const pointerInfo = pendingEndPointerInfo || {};
+        pendingEndReason = '';
+        pendingEndPointerInfo = null;
+        endTurn(reason, pointerInfo);
+      }
     }
 
-    function endTurn(reason) {
-      if (!isRecording) return;
+    function endTurn(reason, pointerInfo = {}) {
+      if (pttEndSent) return;
+      if (!isRecording) {
+        if (pointerHeld) {
+          pendingEndReason = reason;
+          pendingEndPointerInfo = pointerInfo;
+          pointerHeld = false;
+        }
+        return;
+      }
+      pttEndSent = true;
       pointerHeld = false;
       isRecording = false;
       releaseAt = performance.now();
       stopRecordingTimer();
       metrics.record.textContent = ms(releaseAt - recordingStartedAt);
-      sendJson({ type: 'input_audio.end' });
+      const recordingDurationMs = releaseAt - recordingStartedAt;
+      sendJson({
+        type: 'input_audio.end',
+        end_reason: reason,
+      });
+      logLine('ptt_end_sent', {
+        pointerId: pointerInfo.pointerId || activePointerId || 'none',
+        pointerType: pointerInfo.pointerType || activePointerType || 'unknown',
+        recordingDurationMs: Math.round(recordingDurationMs),
+        endReason: reason,
+      });
       logLine('input_audio.end', {
         turn_id: currentTurnId,
         reason,
@@ -916,6 +947,11 @@
     function stopCapture() {
       isRecording = false;
       pointerHeld = false;
+      activePointerId = null;
+      activePointerType = '';
+      pendingEndReason = '';
+      pendingEndPointerInfo = null;
+      pttEndSent = false;
       stopRecordingTimer();
     }
 
@@ -1150,29 +1186,115 @@
       node.start();
     }
 
+    function capturePointer(event) {
+      activePointerId = event.pointerId;
+      activePointerType = event.pointerType || 'unknown';
+      pendingEndReason = '';
+      try {
+        pttButton.setPointerCapture(event.pointerId);
+      } catch (error) {
+        logLine('ptt_pointer_capture_failed', {
+          pointerId: event.pointerId,
+          pointerType: event.pointerType || 'unknown',
+        });
+      }
+    }
+
+    function releasePointerCapture(event) {
+      if (activePointerId == null) return;
+      try {
+        if (pttButton.hasPointerCapture?.(activePointerId)) {
+          pttButton.releasePointerCapture(activePointerId);
+        }
+      } catch (error) {
+        // Capture may already be gone after browser cancellation.
+      }
+    }
+
+    function isActivePointer(event) {
+      return activePointerId == null || event.pointerId === activePointerId;
+    }
+
+    function finishPointerTurn(event, endReason) {
+      event.preventDefault();
+      if (!isActivePointer(event)) return;
+      const eventName = endReason === 'pointercancel' ? 'ptt_pointer_cancel' : 'ptt_pointer_up';
+      logLine(eventName, {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType || activePointerType || 'unknown',
+        recordingDurationMs: recordingStartedAt ? Math.round(performance.now() - recordingStartedAt) : 0,
+        endReason,
+      });
+      const pointerInfo = {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType || activePointerType || 'unknown',
+      };
+      releasePointerCapture(event);
+      endTurn(endReason, pointerInfo);
+      activePointerId = null;
+      activePointerType = '';
+    }
+
     function onPointerDown(event) {
       event.preventDefault();
+      if (activePointerId != null || isRecording) return;
       if (lifecycleState === STATES.DISCONNECTED) {
         connect();
         return;
       }
+      capturePointer(event);
+      pointerHeld = true;
+      logLine('ptt_pointer_down', {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType || 'unknown',
+        recordingDurationMs: 0,
+        endReason: 'none',
+      });
       startTurn(lifecycleState === STATES.PLAYING ? 'manual_interrupt' : 'ptt_hold')
         .then(() => {
-          if (!pointerHeld && isRecording) endTurn('release_after_mic_ready');
+          if (!pointerHeld && isRecording) endTurn(pendingEndReason || 'pointerup');
         })
         .catch((error) => setError(error.message));
     }
 
     function onPointerUp(event) {
-      event.preventDefault();
-      if (!pointerHeld) return;
-      endTurn('pointer_release');
+      finishPointerTurn(event, 'pointerup');
+    }
+
+    function onPointerCancel(event) {
+      finishPointerTurn(event, 'pointercancel');
+    }
+
+    function onLostPointerCapture(event) {
+      logLine('ptt_lost_pointer_capture', {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType || activePointerType || 'unknown',
+        recordingDurationMs: recordingStartedAt ? Math.round(performance.now() - recordingStartedAt) : 0,
+        endReason: 'none',
+      });
+    }
+
+    function onWindowBlur() {
+      if (!isRecording && !pointerHeld) return;
+      pendingEndReason = 'window_blur';
+      endTurn('window_blur');
+      pointerHeld = false;
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState !== 'hidden') return;
+      if (!isRecording && !pointerHeld) return;
+      pendingEndReason = 'visibility_hidden';
+      endTurn('visibility_hidden');
+      pointerHeld = false;
     }
 
     pttButton.addEventListener('pointerdown', onPointerDown);
     pttButton.addEventListener('pointerup', onPointerUp);
-    pttButton.addEventListener('pointercancel', onPointerUp);
-    pttButton.addEventListener('pointerleave', onPointerUp);
+    pttButton.addEventListener('pointercancel', onPointerCancel);
+    pttButton.addEventListener('lostpointercapture', onLostPointerCapture);
+    window.addEventListener('blur', onWindowBlur);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     connectBtn.addEventListener('click', connect);
     reconnectBtn.addEventListener('click', reconnect);
     disconnectBtn.addEventListener('click', disconnect);
