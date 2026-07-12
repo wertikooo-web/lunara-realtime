@@ -50,6 +50,7 @@ class GeminiLiveProviderSession {
         this.session = null;
         this.connectPromise = null;
         this.active = null;
+        this.pendingInterrupt = null;
         this.pendingAudio = [];
         this.inputBytes = 0;
         this.sessionInputBytes = 0;
@@ -297,8 +298,22 @@ class GeminiLiveProviderSession {
         });
     }
 
-    interrupt(reason = 'interrupt') {
-        if (this.active?.signal && !this.active.signal.cancelled) {
+    interrupt(reason = 'interrupt', context = {}) {
+        const interrupted = this.active;
+        this.pendingInterrupt = {
+            interrupted_generation_id: context.interrupted_generation_id || interrupted?.generationId || null,
+            interrupted_turn_id: context.interrupted_turn_id || interrupted?.turnId || null,
+            interrupted_response_id: context.interrupted_response_id || interrupted?.responseId || null,
+            provider_instance_id: context.provider_instance_id || this.instanceId,
+            interrupt_requested_at: context.interrupt_requested_at || Date.now(),
+            onSessionEvent: interrupted?.onSessionEvent || null,
+            log: interrupted?.log || (() => {}),
+        };
+        if (
+            this.active?.signal
+            && !this.active.signal.cancelled
+            && typeof this.active.signal.cancel === 'function'
+        ) {
             this.active.signal.cancel(reason);
         }
         this.active = null;
@@ -311,6 +326,48 @@ class GeminiLiveProviderSession {
         }
     }
 
+    handleProviderInterrupted() {
+        const interrupt = this.pendingInterrupt;
+        const currentActiveGenerationId = this.active?.generationId || null;
+
+        if (!interrupt?.interrupted_generation_id) {
+            const log = this.active?.log || (() => {});
+            log('dropped_provider_event', {
+                providerInstanceId: this.instanceId,
+                eventType: 'provider_interrupted',
+                reason: 'unmatched_provider_interrupt',
+                currentActiveGenerationId: currentActiveGenerationId || 'none',
+            });
+            return;
+        }
+
+        const event = {
+            type: 'provider_interrupt_ack',
+            interrupted_generation_id: interrupt.interrupted_generation_id,
+            interrupted_turn_id: interrupt.interrupted_turn_id,
+            interrupted_response_id: interrupt.interrupted_response_id,
+            provider_instance_id: interrupt.provider_instance_id,
+            current_active_generation_id: currentActiveGenerationId,
+            matched: true,
+            ignored_for_active_generation: true,
+            elapsed_ms: Date.now() - interrupt.interrupt_requested_at,
+        };
+
+        const emit = this.active?.onSessionEvent || interrupt.onSessionEvent;
+        if (emit) emit(event);
+        const log = this.active?.log || interrupt.log || (() => {});
+        log('provider_interrupt_ack', {
+            interruptedGenerationId: event.interrupted_generation_id,
+            interruptedResponseId: event.interrupted_response_id || 'none',
+            currentActiveGenerationId: event.current_active_generation_id || 'none',
+            matched: event.matched,
+            ignoredForActiveGeneration: event.ignored_for_active_generation,
+            elapsedMs: event.elapsed_ms,
+            providerInstanceId: this.instanceId,
+        });
+        this.pendingInterrupt = null;
+    }
+
     close() {
         this.closed = true;
         this.interrupt('close');
@@ -321,21 +378,16 @@ class GeminiLiveProviderSession {
     }
 
     handleMessage(message) {
-        if (!this.active || this.closed || this.active.signal.cancelled) return;
+        if (this.closed) return;
         const content = message?.serverContent;
         if (!content) return;
 
         if (content.interrupted) {
-            this.active.onEvent({
-                type: 'response.cancelled',
-                response_id: this.active.responseId,
-                turn_id: this.active.turnId,
-                reason: 'provider_interrupted',
-                provider: this.name,
-            });
-            this.active = null;
+            this.handleProviderInterrupted();
             return;
         }
+
+        if (!this.active || this.active.signal.cancelled) return;
 
         if (content.inputTranscription?.text) {
             this.active.onEvent({

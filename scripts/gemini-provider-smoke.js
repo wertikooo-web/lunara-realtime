@@ -79,6 +79,48 @@ async function main() {
         throw new Error('Valid PCM chunk must emit audio.start');
     }
     first.interrupt('smoke');
+    const ackEvents = [];
+    first.active = {
+        generationId: 'generation_new',
+        responseId: null,
+        turnId: 'turn_new',
+        signal: {
+            cancelled: false,
+        },
+        onSessionEvent(event) {
+            ackEvents.push(event);
+        },
+        log() {},
+    };
+    first.pendingInterrupt = {
+        interrupted_generation_id: 'generation_old',
+        interrupted_turn_id: 'turn_old',
+        interrupted_response_id: 'response_old',
+        provider_instance_id: first.instanceId,
+        interrupt_requested_at: Date.now() - 25,
+        onSessionEvent(event) {
+            ackEvents.push(event);
+        },
+        log() {},
+    };
+    first.handleMessage({
+        serverContent: {
+            interrupted: true,
+        },
+    });
+    const ack = ackEvents.find((event) => event.type === 'provider_interrupt_ack');
+    if (!ack) {
+        throw new Error('Provider interrupt ack must be emitted');
+    }
+    if (ack.interrupted_generation_id !== 'generation_old') {
+        throw new Error(`Provider ack attached to wrong generation: ${ack.interrupted_generation_id}`);
+    }
+    if (ack.current_active_generation_id !== 'generation_new') {
+        throw new Error(`Provider ack must report current active generation: ${ack.current_active_generation_id}`);
+    }
+    if (first.active?.generationId !== 'generation_new' || first.active.signal.cancelled) {
+        throw new Error('Provider interrupt ack must not cancel the new active generation');
+    }
     first.close();
     second.close();
     console.log('[GeminiProviderSmoke] ok');

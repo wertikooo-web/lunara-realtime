@@ -162,24 +162,45 @@ class RegressionProviderSession {
         this.instanceId = instanceId;
         this.audioBytes = 0;
         this.activeSignal = null;
+        this.activeContext = null;
     }
 
     sendAudio(buffer) {
         this.audioBytes += Buffer.isBuffer(buffer) ? buffer.length : 0;
     }
 
-    interrupt(reason = 'interrupt') {
+    interrupt(reason = 'interrupt', context = {}) {
         if (this.activeSignal && !this.activeSignal.cancelled) {
             this.activeSignal.cancel(reason);
         }
+        const interruptedContext = context;
+        setTimeout(() => {
+            const emit = this.activeContext?.onSessionEvent;
+            if (!emit || !interruptedContext.interrupted_generation_id) return;
+            emit({
+                type: 'provider_interrupt_ack',
+                interrupted_generation_id: interruptedContext.interrupted_generation_id,
+                interrupted_turn_id: interruptedContext.interrupted_turn_id,
+                interrupted_response_id: interruptedContext.interrupted_response_id,
+                provider_instance_id: this.instanceId,
+                current_active_generation_id: this.activeContext?.generationId || null,
+                matched: true,
+                ignored_for_active_generation: true,
+            });
+        }, 120);
     }
 
     close() {
         this.interrupt('close');
     }
 
+    beginResponse(context) {
+        this.activeContext = context;
+    }
+
     async endInput(context) {
         this.activeSignal = context.signal;
+        this.activeContext = context;
         context.onEvent({
             type: 'transcript.user',
             response_id: context.responseId,
@@ -302,6 +323,27 @@ async function main() {
         const interrupted = await runTurn(client, 'interrupt_ptt', 6400);
         client.sendJson({ type: 'session.interrupt', reason: 'manual_regression' });
         await client.waitFor('response.cancelled', (event) => event.turn_id === 'interrupt_ptt');
+        client.sendJson({ type: 'input_audio.start', turn_id: 'after_interrupt_ptt', mode: 'push_to_talk' });
+        client.sendBinary(Buffer.alloc(4096, 2));
+        const turnBAck = await client.waitFor('input_audio.start', (event) => event.turn_id === 'after_interrupt_ptt');
+        const providerAck = await client.waitFor('provider_interrupt_ack', (event) => (
+            event.interrupted_generation_id === interrupted.responseCreated.generation_id
+        ));
+        if (providerAck.current_active_generation_id !== turnBAck.generation_id) {
+            throw new Error('Provider interrupt ack must reference old generation while reporting new active generation');
+        }
+        client.sendJson({ type: 'input_audio.end' });
+        const turnB = await client.waitFor('response.created', (event) => event.turn_id === 'after_interrupt_ptt');
+        await client.waitFor('audio.end', (event) => event.turn_id === 'after_interrupt_ptt');
+        const turnBCancelled = client.events.find((event) => (
+            event.type === 'response.cancelled' && event.turn_id === 'after_interrupt_ptt'
+        ));
+        if (turnBCancelled) {
+            throw new Error('Late provider interrupt ack cancelled the new turn');
+        }
+        if (!turnB.response_id) {
+            throw new Error('Second turn did not receive response after provider interrupt ack');
+        }
         await sleep(320);
         const lateChunks = client.events.filter((event) => (
             event.type === 'audio.chunk'
