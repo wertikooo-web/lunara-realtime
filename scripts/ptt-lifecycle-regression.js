@@ -221,6 +221,17 @@ class RegressionProviderSession {
         if (context.turnId === 'timeout_ptt') {
             return;
         }
+        if (context.turnId === 'empty_turn_complete_ptt') {
+            await sleep(20);
+            if (this.closed || context.signal.cancelled) return;
+            context.onEvent({
+                type: 'response.failed',
+                response_id: context.responseId,
+                turn_id: context.turnId,
+                reason: 'provider_turn_complete_without_model_output',
+            });
+            return;
+        }
         context.onEvent({
             type: 'transcript.user',
             response_id: context.responseId,
@@ -415,6 +426,29 @@ async function main() {
         }
         if (!logs.some((line) => line.includes('stage=turn_timeout_recovery_completed'))) {
             throw new Error('Missing turn_timeout_recovery_completed log');
+        }
+
+        client.sendJson({ type: 'input_audio.start', turn_id: 'empty_turn_complete_ptt', mode: 'push_to_talk' });
+        client.sendBinary(Buffer.alloc(2048, 4));
+        client.sendJson({ type: 'input_audio.end' });
+        const noOutputFailed = await client.waitFor(
+            'response.failed',
+            (event) => (
+                event.turn_id === 'empty_turn_complete_ptt'
+                && event.reason === 'provider_turn_complete_without_model_output'
+            ),
+            2000,
+        );
+        if (noOutputFailed.response_id) {
+            throw new Error('Provider no-output failure must not create response_id');
+        }
+        const noOutputRotation = await client.waitFor(
+            'provider.rotated',
+            (event) => event.reason === 'provider_turn_complete_without_model_output',
+            2000,
+        );
+        if (noOutputRotation.old_provider_instance_id === noOutputRotation.new_provider_instance_id) {
+            throw new Error('No-output provider failure must rotate provider session');
         }
 
         const afterTimeout = await runTurn(client, 'after_timeout_ptt', 2048, { waitForEnd: true });

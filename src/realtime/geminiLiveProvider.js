@@ -298,6 +298,7 @@ class GeminiLiveProviderSession {
             startedAt: this.active.startedAt || Date.now(),
             audioStarted: this.active.audioStarted || false,
             modelOutputStarted: this.active.modelOutputStarted || false,
+            inputEnded: true,
             chunkIndex: this.active.chunkIndex || 0,
         });
         context.log('gemini_response_waiting', {
@@ -424,6 +425,7 @@ class GeminiLiveProviderSession {
             startedAt: Date.now(),
             audioStarted: false,
             modelOutputStarted: false,
+            inputEnded: false,
             chunkIndex: 0,
         };
         this.connect(context.log).then(() => {
@@ -632,6 +634,18 @@ class GeminiLiveProviderSession {
 
         if (content.turnComplete) {
             if (!this.active.modelOutputStarted) {
+                if (this.active.inputEnded) {
+                    this.active.onEvent({
+                        type: 'response.failed',
+                        response_id: this.active.responseId,
+                        turn_id: this.active.turnId,
+                        reason: 'provider_turn_complete_without_model_output',
+                        provider_instance_id: this.instanceId,
+                    });
+                    this.active = null;
+                    this.inputBytes = 0;
+                    return;
+                }
                 this.active.log('dropped_provider_event', {
                     generationId: this.active.generationId,
                     responseId: this.active.responseId,
@@ -648,6 +662,18 @@ class GeminiLiveProviderSession {
     emitOutputEnd(cause) {
         if (!this.active) return;
         if (!this.active.modelOutputStarted) {
+            if (this.active.inputEnded) {
+                this.active.onEvent({
+                    type: 'response.failed',
+                    response_id: this.active.responseId,
+                    turn_id: this.active.turnId,
+                    reason: `provider_${cause}_without_model_output`,
+                    provider_instance_id: this.instanceId,
+                });
+                this.active = null;
+                this.inputBytes = 0;
+                return;
+            }
             this.active.log('dropped_provider_event', {
                 generationId: this.active.generationId,
                 responseId: this.active.responseId,

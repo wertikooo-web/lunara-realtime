@@ -192,6 +192,48 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         });
     }
 
+    async function recoverFromProviderFailure(generation, reason, payload = {}) {
+        if (generation !== currentGeneration) {
+            droppedProviderEvent(generation, 'response.failed', 'stale_generation');
+            return;
+        }
+        generation.status = 'failed';
+        generation.cancel.cancel(reason);
+        clearGenerationTimeout(generation);
+        log('response_failed', {
+            generationId: generation.generationId,
+            responseId: generation.responseId,
+            turnId: generation.turnId,
+            reason,
+            providerInstanceId: providerSession?.instanceId || 'unknown',
+        });
+        emit({
+            ...payload,
+            type: 'response.failed',
+            generation_id: generation.generationId,
+            response_id: generation.responseId,
+            turn_id: generation.turnId,
+            reason,
+        });
+
+        const startedAt = Date.now();
+        const oldProviderInstanceId = providerSession?.instanceId || 'unknown';
+        log('turn_timeout_recovery_started', {
+            failedGenerationId: generation.generationId,
+            oldProviderInstanceId,
+            reason,
+        });
+        rotateProviderSession(reason);
+        await warmProviderSession(reason);
+        log('turn_timeout_recovery_completed', {
+            failedGenerationId: generation.generationId,
+            oldProviderInstanceId,
+            newProviderInstanceId: providerSession?.instanceId || 'unknown',
+            elapsedMs: Date.now() - startedAt,
+            reason,
+        });
+    }
+
     function emitResponseCreated(generation, cause) {
         if (!generation || generation.responseCreatedSent) return;
         if (generation.status === 'cancelled' || generation.status === 'completed') {
@@ -220,6 +262,16 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         const startsGenerationEvents = new Set(['transcript.model', 'audio.start', 'audio.chunk']);
         if (eventType === 'provider_interrupt_ack') {
             return emit(payload);
+        }
+        if (eventType === 'response.failed') {
+            recoverFromProviderFailure(generation, payload.reason || 'provider_failed', payload).catch((error) => {
+                log('turn_timeout_recovery_error', {
+                    generationId: generation.generationId,
+                    turnId: generation.turnId,
+                    message: error.message,
+                });
+            });
+            return true;
         }
         if (generation.status === 'cancelled' || generation.status === 'completed' || generation.status === 'failed') {
             if (modelOutputEvents.has(eventType)) {

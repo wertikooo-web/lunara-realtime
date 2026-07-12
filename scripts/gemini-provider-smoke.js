@@ -113,6 +113,37 @@ async function main() {
     if (lateEvents.length !== 0 || first.active?.generationId !== 'generation_late') {
         throw new Error('turnComplete without model output must not finish the current active turn');
     }
+    const noOutputEvents = [];
+    first.active = {
+        generationId: 'generation_no_output',
+        responseId: null,
+        turnId: 'turn_no_output',
+        signal: { cancelled: false },
+        startedAt: Date.now(),
+        audioStarted: false,
+        modelOutputStarted: false,
+        inputEnded: true,
+        chunkIndex: 0,
+        onEvent(event) {
+            noOutputEvents.push(event);
+        },
+        onAudioChunk(event) {
+            noOutputEvents.push(event);
+        },
+        log() {},
+    };
+    first.handleMessage({
+        serverContent: {
+            turnComplete: true,
+        },
+    });
+    const noOutputFailed = noOutputEvents.find((event) => event.type === 'response.failed');
+    if (!noOutputFailed || noOutputFailed.reason !== 'provider_turn_complete_without_model_output') {
+        throw new Error('turnComplete after input end without model output must emit response.failed');
+    }
+    if (first.active) {
+        throw new Error('turnComplete after input end without model output must clear active provider turn');
+    }
     const buffered = provider.createSession();
     const bufferLogs = [];
     buffered.active = {
