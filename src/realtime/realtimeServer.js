@@ -54,13 +54,14 @@ function attachRealtimeServer(server, options = {}) {
         }
 
         if (!acceptWebSocket(req, socket)) return;
-        createRealtimeSession(socket, providerFactory(), providerMetadata);
+        createRealtimeSession(socket, providerFactory, providerMetadata);
     });
 }
 
-function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
+function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     const sessionId = id('session');
     const connectedAt = Date.now();
+    let providerSession = providerFactory();
     let currentTurnId = null;
     let currentGeneration = null;
     let inputStartedAt = 0;
@@ -186,7 +187,7 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
     }
 
     function cancelCurrent(reason) {
-        if (!currentGeneration || currentGeneration.status === 'cancelled' || currentGeneration.status === 'completed') return;
+        if (!currentGeneration || currentGeneration.status === 'cancelled' || currentGeneration.status === 'completed') return false;
         const cancelRequestedAt = Date.now();
         currentGeneration.cancel.cancel(reason);
         providerSession.interrupt(reason, {
@@ -214,6 +215,43 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
             reason,
             cancelLatencyMs,
         });
+        return true;
+    }
+
+    function rotateProviderSession(reason) {
+        const oldProviderSession = providerSession;
+        const oldProviderInstanceId = oldProviderSession?.instanceId || 'unknown';
+        try {
+            if (typeof oldProviderSession.destroySession === 'function') {
+                oldProviderSession.destroySession(reason);
+            } else {
+                oldProviderSession.close();
+            }
+        } catch (error) {
+            log('provider_rotation_close_error', {
+                reason,
+                providerInstanceId: oldProviderInstanceId,
+                message: error.message,
+            });
+        }
+        providerSession = providerFactory();
+        log('provider_session_rotated', {
+            reason,
+            oldProviderInstanceId,
+            newProviderInstanceId: providerSession.instanceId || 'unknown',
+            provider: providerSession.name || 'provider',
+        });
+        emit({
+            type: 'provider.rotated',
+            reason,
+            old_provider_instance_id: oldProviderInstanceId,
+            new_provider_instance_id: providerSession.instanceId || null,
+            provider: providerSession.name || 'provider',
+        });
+    }
+
+    function shouldRotateProviderOnInterrupt() {
+        return Boolean(providerSession?.rotateOnInterrupt);
     }
 
     function closeProvider(reason) {
@@ -229,7 +267,10 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
     }
 
     function startInput(payload = {}) {
-        cancelCurrent('new_input');
+        const cancelledActiveGeneration = cancelCurrent('new_input');
+        if (cancelledActiveGeneration && shouldRotateProviderOnInterrupt()) {
+            rotateProviderSession('new_input_after_cancel');
+        }
         turnCounter += 1;
         currentTurnId = payload.turn_id || id(`turn${turnCounter}`);
         currentGeneration = createGeneration({ turnId: currentTurnId });
@@ -379,7 +420,11 @@ function createRealtimeSession(socket, providerSession, providerMetadata = {}) {
         } else if (payload.type === 'input_audio.end') {
             endInput();
         } else if (payload.type === 'session.interrupt') {
-            cancelCurrent(payload.reason || 'client_interrupt');
+            const reason = payload.reason || 'client_interrupt';
+            const cancelledActiveGeneration = cancelCurrent(reason);
+            if (cancelledActiveGeneration && shouldRotateProviderOnInterrupt()) {
+                rotateProviderSession(reason);
+            }
         } else if (payload.type === 'ping') {
             emit({
                 type: 'pong',

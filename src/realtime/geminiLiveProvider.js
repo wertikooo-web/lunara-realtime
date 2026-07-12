@@ -128,6 +128,7 @@ class GeminiLiveProvider {
 class GeminiLiveProviderSession {
     constructor({ apiKey, model, instanceId }) {
         this.name = 'gemini';
+        this.rotateOnInterrupt = true;
         this.model = model;
         this.apiKey = apiKey;
         this.instanceId = instanceId;
@@ -156,6 +157,7 @@ class GeminiLiveProviderSession {
                 model: this.model,
                 callbacks: {
                     onopen: () => {
+                        if (this.closed) return;
                         this.ready = true;
                         log('gemini_open', {
                             providerInstanceId: this.instanceId,
@@ -164,6 +166,7 @@ class GeminiLiveProviderSession {
                     },
                     onmessage: (message) => this.handleMessage(message),
                     onerror: (error) => {
+                        if (this.closed) return;
                         const message = safeErrorMessage(error);
                         this.active?.onEvent?.({
                             type: 'error',
@@ -176,6 +179,7 @@ class GeminiLiveProviderSession {
                         log('gemini_error', { providerInstanceId: this.instanceId, message });
                     },
                     onclose: (event) => {
+                        if (this.closed) return;
                         this.ready = false;
                         log('gemini_close', {
                             providerInstanceId: this.instanceId,
@@ -202,6 +206,14 @@ class GeminiLiveProviderSession {
                     },
                 },
             });
+            if (this.closed) {
+                try {
+                    session.close();
+                } catch (error) {
+                    // The wrapper was destroyed while connect() was in flight.
+                }
+                return session;
+            }
             this.session = session;
             this.flushPendingAudio();
             return session;
@@ -230,6 +242,7 @@ class GeminiLiveProviderSession {
     }
 
     sendAudioNow(buffer) {
+        if (this.closed || !this.session) return;
         this.session.sendRealtimeInput({
             audio: {
                 data: buffer.toString('base64'),
@@ -456,12 +469,29 @@ class GeminiLiveProviderSession {
     }
 
     close() {
+        this.destroySession('close');
+    }
+
+    destroySession(reason = 'destroy_session') {
         this.closed = true;
-        this.interrupt('close');
-        this.pendingAudio = [];
-        if (this.session?.close) {
-            this.session.close();
+        if (this.active?.signal && !this.active.signal.cancelled && typeof this.active.signal.cancel === 'function') {
+            this.active.signal.cancel(reason);
         }
+        this.active = null;
+        this.pendingInterrupt = null;
+        this.pendingAudio = [];
+        const ws = this.session?.conn?.ws;
+        try {
+            if (ws?.removeAllListeners) ws.removeAllListeners();
+            if (ws?.terminate) ws.terminate();
+            else if (ws?.close) ws.close();
+            else if (this.session?.close) this.session.close();
+        } catch (error) {
+            // Best-effort hard close; session is already marked closed locally.
+        }
+        this.session = null;
+        this.connectPromise = null;
+        this.ready = false;
     }
 
     handleMessage(message) {

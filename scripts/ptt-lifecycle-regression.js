@@ -148,33 +148,41 @@ class RegressionProvider {
     constructor() {
         this.name = 'regression';
         this.counter = 0;
+        this.sessions = [];
     }
 
     createSession() {
         this.counter += 1;
-        return new RegressionProviderSession(`regression_session_${this.counter}`);
+        const session = new RegressionProviderSession(`regression_session_${this.counter}`);
+        this.sessions.push(session);
+        return session;
     }
 }
 
 class RegressionProviderSession {
     constructor(instanceId) {
         this.name = 'regression';
+        this.rotateOnInterrupt = true;
         this.instanceId = instanceId;
         this.audioBytes = 0;
         this.activeSignal = null;
         this.activeContext = null;
+        this.closed = false;
     }
 
     sendAudio(buffer) {
+        if (this.closed) return;
         this.audioBytes += Buffer.isBuffer(buffer) ? buffer.length : 0;
     }
 
     interrupt(reason = 'interrupt', context = {}) {
+        if (this.closed) return;
         if (this.activeSignal && !this.activeSignal.cancelled) {
             this.activeSignal.cancel(reason);
         }
         const interruptedContext = context;
         setTimeout(() => {
+            if (this.closed) return;
             const emit = this.activeContext?.onSessionEvent;
             if (!emit || !interruptedContext.interrupted_generation_id) return;
             emit({
@@ -190,15 +198,24 @@ class RegressionProviderSession {
         }, 120);
     }
 
+    destroySession() {
+        this.closed = true;
+        if (this.activeSignal && !this.activeSignal.cancelled) {
+            this.activeSignal.cancel('destroy_session');
+        }
+    }
+
     close() {
-        this.interrupt('close');
+        this.destroySession();
     }
 
     beginResponse(context) {
+        if (this.closed) return;
         this.activeContext = context;
     }
 
     async endInput(context) {
+        if (this.closed) return;
         this.activeSignal = context.signal;
         this.activeContext = context;
         context.onEvent({
@@ -208,6 +225,7 @@ class RegressionProviderSession {
             text: `heard ${context.turnInputBytes}`,
         });
         await sleep(context.turnInputBytes <= 2 ? 5 : 25);
+        if (this.closed || context.signal.cancelled) return;
         context.onEvent({
             type: 'audio.start',
             response_id: context.responseId,
@@ -228,6 +246,7 @@ class RegressionProviderSession {
             elapsed_ms: 2,
         });
         await sleep(250);
+        if (this.closed || context.signal.cancelled) return;
         context.onEvent({
             type: 'transcript.model',
             response_id: context.responseId,
@@ -326,15 +345,19 @@ async function main() {
         client.sendJson({ type: 'input_audio.start', turn_id: 'after_interrupt_ptt', mode: 'push_to_talk' });
         client.sendBinary(Buffer.alloc(4096, 2));
         const turnBAck = await client.waitFor('input_audio.start', (event) => event.turn_id === 'after_interrupt_ptt');
-        const providerAck = await client.waitFor('provider_interrupt_ack', (event) => (
-            event.interrupted_generation_id === interrupted.responseCreated.generation_id
-        ));
-        if (providerAck.current_active_generation_id !== turnBAck.generation_id) {
-            throw new Error('Provider interrupt ack must reference old generation while reporting new active generation');
+        const rotation = await client.waitFor('provider.rotated', (event) => event.reason === 'manual_regression');
+        if (rotation.old_provider_instance_id === rotation.new_provider_instance_id) {
+            throw new Error('Provider rotation must create a new provider instance');
+        }
+        if (provider.sessions.length < 2 || !provider.sessions[0].closed) {
+            throw new Error('Old provider session must be hard-closed after manual interruption');
         }
         client.sendJson({ type: 'input_audio.end' });
         const turnB = await client.waitFor('response.created', (event) => event.turn_id === 'after_interrupt_ptt');
         await client.waitFor('audio.end', (event) => event.turn_id === 'after_interrupt_ptt');
+        if (provider.sessions[1].audioBytes !== 4096) {
+            throw new Error(`Turn B audio must be routed to the new provider session, got ${provider.sessions[1].audioBytes}`);
+        }
         const turnBCancelled = client.events.find((event) => (
             event.type === 'response.cancelled' && event.turn_id === 'after_interrupt_ptt'
         ));
@@ -345,6 +368,13 @@ async function main() {
             throw new Error('Second turn did not receive response after provider interrupt ack');
         }
         await sleep(320);
+        const lateAck = client.events.find((event) => (
+            event.type === 'provider_interrupt_ack'
+            && event.interrupted_generation_id === interrupted.responseCreated.generation_id
+        ));
+        if (lateAck) {
+            throw new Error('Hard-closed old provider session must not emit late provider_interrupt_ack');
+        }
         const lateChunks = client.events.filter((event) => (
             event.type === 'audio.chunk'
             && event.generation_id === interrupted.responseCreated.generation_id
@@ -360,8 +390,8 @@ async function main() {
         if (lateModel.length !== 0) {
             throw new Error('Late transcript.model escaped after cancellation');
         }
-        if (!logs.some((line) => line.includes('stage=dropped_provider_event') && line.includes('terminal_generation'))) {
-            throw new Error('Missing dropped_provider_event log for terminal generation');
+        if (!logs.some((line) => line.includes('stage=provider_session_rotated') && line.includes('reason=manual_regression'))) {
+            throw new Error('Missing provider_session_rotated log for manual interruption');
         }
 
         console.log('[PttLifecycleRegression] ok');
