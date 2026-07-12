@@ -53,21 +53,37 @@ class MockRealtimeProvider {
         this.instanceCounter = 0;
     }
 
-    createSession() {
+    createSession(options = {}) {
         this.instanceCounter += 1;
         return new MockRealtimeProviderSession({
             config: this.config,
             providerName: this.name,
             instanceId: `mock_session_${this.instanceCounter}`,
+            systemInstructionText: options.systemInstructionText,
+            systemInstructionMeta: options.systemInstructionMeta,
+            promptSource: options.promptSource,
+            rotationReason: options.rotationReason,
         });
     }
 }
 
 class MockRealtimeProviderSession {
-    constructor({ config, providerName, instanceId }) {
+    constructor({
+        config,
+        providerName,
+        instanceId,
+        systemInstructionText,
+        systemInstructionMeta,
+        promptSource,
+        rotationReason,
+    }) {
         this.config = config;
         this.name = providerName;
         this.instanceId = instanceId;
+        this.systemInstructionText = systemInstructionText || '';
+        this.systemInstructionMeta = systemInstructionMeta || {};
+        this.promptSource = promptSource || 'default';
+        this.rotationReason = rotationReason || 'initial';
         this.closed = false;
         this.activeSignal = null;
         this.inputBytes = 0;

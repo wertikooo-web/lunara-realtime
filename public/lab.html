@@ -206,11 +206,47 @@
       white-space: pre-wrap;
     }
 
+    .prompt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .prompt-field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .prompt-field label {
+      color: var(--text);
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .prompt-field textarea {
+      width: 100%;
+      min-height: 180px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #070b16;
+      color: var(--text);
+      padding: 10px;
+      font: 12px/1.45 Consolas, "Courier New", monospace;
+    }
+
+    .prompt-field textarea[readonly] {
+      color: var(--muted);
+      background: #0b1223;
+    }
+
     @media (max-width: 820px) {
       .grid,
       .ids,
       .metrics,
-      .track-settings {
+      .track-settings,
+      .prompt-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -246,6 +282,37 @@
         <div id="userTranscript" class="pill">User transcript: -</div>
         <div id="modelTranscript" class="pill">Model transcript: -</div>
         <div id="trackInfo" class="track-settings" aria-live="polite"></div>
+      </div>
+
+      <div class="panel wide">
+        <h2>Realtime Prompt Lab</h2>
+        <div id="promptStatus" class="pill">Prompt config: loading</div>
+        <div class="controls">
+          <button id="applyPromptBtn" class="primary">Apply prompt</button>
+          <button id="resetPromptBtn">Restore default</button>
+        </div>
+        <div class="prompt-grid">
+          <div class="prompt-field">
+            <label for="corePromptInput">CORE SYSTEM PROMPT</label>
+            <textarea id="corePromptInput" spellcheck="false"></textarea>
+            <div id="corePromptMeta" class="pill">0 chars</div>
+          </div>
+          <div class="prompt-field">
+            <label for="childContextInput">CHILD PROFILE / CONFIRMED MEMORY</label>
+            <textarea id="childContextInput" spellcheck="false"></textarea>
+            <div id="childContextMeta" class="pill">0 chars</div>
+          </div>
+          <div class="prompt-field">
+            <label for="parentRulesInput">PARENT SETTINGS / RESTRICTIONS</label>
+            <textarea id="parentRulesInput" spellcheck="false"></textarea>
+            <div id="parentRulesMeta" class="pill">0 chars</div>
+          </div>
+          <div class="prompt-field">
+            <label for="currentContextPreview">CURRENT CONTEXT (readonly)</label>
+            <textarea id="currentContextPreview" readonly spellcheck="false"></textarea>
+            <div id="currentContextMeta" class="pill">Generated locally</div>
+          </div>
+        </div>
       </div>
 
       <div class="panel wide">
@@ -317,6 +384,17 @@
     const trackInfo = document.getElementById('trackInfo');
     const userTranscript = document.getElementById('userTranscript');
     const modelTranscript = document.getElementById('modelTranscript');
+    const promptStatus = document.getElementById('promptStatus');
+    const applyPromptBtn = document.getElementById('applyPromptBtn');
+    const resetPromptBtn = document.getElementById('resetPromptBtn');
+    const corePromptInput = document.getElementById('corePromptInput');
+    const childContextInput = document.getElementById('childContextInput');
+    const parentRulesInput = document.getElementById('parentRulesInput');
+    const currentContextPreview = document.getElementById('currentContextPreview');
+    const corePromptMeta = document.getElementById('corePromptMeta');
+    const childContextMeta = document.getElementById('childContextMeta');
+    const parentRulesMeta = document.getElementById('parentRulesMeta');
+    const currentContextMeta = document.getElementById('currentContextMeta');
     const logEl = document.getElementById('log');
 
     const ids = {
@@ -370,6 +448,17 @@
     const cancelledGenerations = new Set();
     const cancelledResponses = new Set();
     const aggregateLog = new Map();
+    const labPrompt = {
+      allowCustom: false,
+      maxChars: 8000,
+      defaults: {
+        corePrompt: '',
+        childContext: '',
+        parentRules: '',
+      },
+      meta: null,
+    };
+    const recentTurns = [];
 
     function ms(value) {
       return `${Math.max(0, Math.round(value))} ms`;
@@ -441,6 +530,86 @@
       metrics.chunksDropped.textContent = String(chunksDropped);
       metrics.timeouts.textContent = String(pttTimeouts);
       metrics.reconnect.textContent = String(reconnectCount);
+    }
+
+    function updatePromptLockState() {
+      const locked = !labPrompt.allowCustom;
+      corePromptInput.readOnly = locked;
+      childContextInput.readOnly = locked;
+      parentRulesInput.readOnly = locked;
+      applyPromptBtn.disabled = locked;
+      promptStatus.textContent = locked
+        ? `Prompt config: readonly default (${labPrompt.maxChars} char limit)`
+        : `Prompt config: editable lab-only (${labPrompt.maxChars} char limit)`;
+    }
+
+    function updatePromptMeta() {
+      corePromptMeta.textContent = `${corePromptInput.value.length} / ${labPrompt.maxChars} chars`;
+      childContextMeta.textContent = `${childContextInput.value.length} / ${labPrompt.maxChars} chars`;
+      parentRulesMeta.textContent = `${parentRulesInput.value.length} / ${labPrompt.maxChars} chars`;
+      currentContextMeta.textContent = `${currentContextPreview.value.length} chars`;
+    }
+
+    function updateCurrentContextPreview() {
+      const lines = [
+        `Current date/time: ${new Date().toISOString()}`,
+        'Mode: push_to_talk',
+        'Recent relevant turns:',
+      ];
+      if (recentTurns.length === 0) {
+        lines.push('- none in this lab session yet');
+      } else {
+        recentTurns.slice(-6).forEach((turn) => {
+          lines.push(`- ${turn.role}: ${turn.text.slice(0, 240)}`);
+        });
+      }
+      currentContextPreview.value = lines.join('\n');
+      updatePromptMeta();
+    }
+
+    function applyPromptDefaults() {
+      corePromptInput.value = labPrompt.defaults.corePrompt || '';
+      childContextInput.value = labPrompt.defaults.childContext || '';
+      parentRulesInput.value = labPrompt.defaults.parentRules || '';
+      updateCurrentContextPreview();
+      updatePromptMeta();
+    }
+
+    function buildPromptConfigPayload() {
+      return {
+        core_prompt: corePromptInput.value,
+        child_context: childContextInput.value,
+        parent_rules: parentRulesInput.value,
+      };
+    }
+
+    async function loadLabConfig() {
+      try {
+        const response = await fetch('/lab-config', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const config = await response.json();
+        labPrompt.allowCustom = Boolean(config.allow_custom_prompt);
+        labPrompt.maxChars = Number(config.max_chars || 8000);
+        labPrompt.defaults = config.defaults || labPrompt.defaults;
+        labPrompt.meta = config.meta || null;
+        applyPromptDefaults();
+        updatePromptLockState();
+        if (config.current_context) currentContextPreview.value = config.current_context;
+        updatePromptMeta();
+      } catch (error) {
+        promptStatus.textContent = `Prompt config: failed to load (${error.message})`;
+        updatePromptLockState();
+      }
+    }
+
+    function applyPromptByReconnect(reason) {
+      if (!labPrompt.allowCustom) return;
+      if (![STATES.DISCONNECTED, STATES.IDLE, STATES.ERROR].includes(lifecycleState)) {
+        logLine('prompt.apply.blocked', { reason: 'busy_state', state: lifecycleState });
+        return;
+      }
+      logLine('prompt.apply.requested', { reason });
+      reconnect();
     }
 
     function logLine(label, payload = {}) {
@@ -519,6 +688,7 @@
           lang: 'ru-RU',
           codec: 'pcm16',
           sampleRate: 16000,
+          config: buildPromptConfigPayload(),
         });
         logLine('connect.open');
       });
@@ -782,12 +952,25 @@
       } else if (payload.type === 'session.ready') {
         sessionId = payload.session_id || sessionId;
         providerInfo.textContent = `Provider ${payload.provider || '-'} / ${payload.model || '-'}`;
+        if (payload.lab_prompt) {
+          labPrompt.allowCustom = Boolean(payload.lab_prompt.allow_custom_prompt);
+          labPrompt.maxChars = Number(payload.lab_prompt.max_chars || labPrompt.maxChars);
+          labPrompt.defaults = payload.lab_prompt.defaults || labPrompt.defaults;
+          labPrompt.meta = payload.lab_prompt.meta || labPrompt.meta;
+          updatePromptLockState();
+          updatePromptMeta();
+        }
         setStatus(true);
         setState(STATES.IDLE);
         updateIds();
       } else if (payload.type === 'transcript.user') {
         clearPttTimeout();
         userTranscript.textContent = `User transcript: ${payload.text || '-'}`;
+        if (payload.text) {
+          recentTurns.push({ role: 'user', text: payload.text });
+          while (recentTurns.length > 12) recentTurns.shift();
+          updateCurrentContextPreview();
+        }
       } else if (payload.type === 'response.created') {
         clearPttTimeout();
         currentGenerationId = payload.generation_id || currentGenerationId;
@@ -822,12 +1005,26 @@
         return;
       } else if (payload.type === 'provider.ready') {
         if (!isRecording && lifecycleState !== STATES.PLAYING) setState(STATES.IDLE);
+      } else if (payload.type === 'session.config.applied') {
+        if (payload.lab_prompt) {
+          labPrompt.meta = payload.lab_prompt.meta || labPrompt.meta;
+          if (payload.lab_prompt.current_context) {
+            currentContextPreview.value = payload.lab_prompt.current_context;
+          }
+          updatePromptMeta();
+        }
+        promptStatus.textContent = `Prompt config: applied (${payload.prompt_source || 'default'})`;
       } else if (payload.type === 'transcript.model') {
         if (isLateEvent(payload)) {
           dropProviderEvent(payload, 'late_model_transcript_after_cancellation');
           return;
         }
         modelTranscript.textContent = `Model transcript: ${payload.text || '-'}`;
+        if (payload.text) {
+          recentTurns.push({ role: 'assistant', text: payload.text });
+          while (recentTurns.length > 12) recentTurns.shift();
+          updateCurrentContextPreview();
+        }
       } else if (payload.type === 'error') {
         setError(payload.message || payload.code || 'Provider error');
       }
@@ -979,11 +1176,20 @@
     connectBtn.addEventListener('click', connect);
     reconnectBtn.addEventListener('click', reconnect);
     disconnectBtn.addEventListener('click', disconnect);
+    applyPromptBtn.addEventListener('click', () => applyPromptByReconnect('button'));
+    resetPromptBtn.addEventListener('click', () => {
+      applyPromptDefaults();
+      applyPromptByReconnect('restore_default');
+    });
+    corePromptInput.addEventListener('input', updatePromptMeta);
+    childContextInput.addEventListener('input', updatePromptMeta);
+    parentRulesInput.addEventListener('input', updatePromptMeta);
     clearBtn.addEventListener('click', () => {
       logEl.textContent = '';
       aggregateLog.clear();
     });
 
+    loadLabConfig();
     setStatus(false);
     setState(STATES.DISCONNECTED);
     updateIds();

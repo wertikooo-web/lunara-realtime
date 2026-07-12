@@ -9,6 +9,13 @@ const {
     sendClose,
 } = require('./wsProtocol');
 const { MockRealtimeProvider, DEFAULT_CONFIG } = require('./mockRealtimeProvider');
+const {
+    LAB_ALLOW_CUSTOM_PROMPT,
+    LAB_PROMPT_MAX_CHARS,
+    buildRealtimeSystemInstruction,
+    defaultPromptBlocks,
+    sanitizePromptConfig,
+} = require('./realtimePrompt');
 
 function id(prefix) {
     return `${prefix}_${crypto.randomBytes(8).toString('hex')}`;
@@ -50,7 +57,7 @@ function createGeneration({ turnId }) {
 
 function attachRealtimeServer(server, options = {}) {
     const defaultProvider = new MockRealtimeProvider(options.mockConfig || DEFAULT_CONFIG);
-    const providerFactory = options.providerFactory || (() => defaultProvider.createSession());
+    const providerFactory = options.providerFactory || ((sessionOptions = {}) => defaultProvider.createSession(sessionOptions));
     const providerMetadata = options.providerMetadata || { provider: 'mock', model: 'mock' };
 
     server.on('upgrade', (req, socket) => {
@@ -73,10 +80,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     const sessionVoiceConfigSource = sessionVoiceName
         ? (providerMetadata.defaultVoiceConfigSource || (providerMetadata.defaultVoiceName ? 'default' : 'metadata'))
         : 'provider_default';
-    let providerSession = providerFactory({
-        voiceName: sessionVoiceName || undefined,
-        voiceConfigSource: sessionVoiceConfigSource,
-    });
+    let promptBlocks = defaultPromptBlocks();
+    let promptSource = 'default';
+    const recentTurns = [];
     let currentTurnId = null;
     let currentGeneration = null;
     let inputStartedAt = 0;
@@ -88,6 +94,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let socketClosed = false;
     let providerClosed = false;
     let readySent = false;
+    let providerSession = providerFactory(buildProviderSessionOptions('initial'));
 
     function log(stage, extra = {}) {
         const details = Object.entries(extra)
@@ -105,6 +112,76 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             session_id: sessionId,
             server_time_ms: Date.now(),
             ...payload,
+        });
+    }
+
+    function rememberTurn(role, text) {
+        const clean = String(text || '').trim();
+        if (!clean) return;
+        recentTurns.push({ role, text: clean.slice(0, 240) });
+        while (recentTurns.length > 12) recentTurns.shift();
+    }
+
+    function buildPromptBundle() {
+        return buildRealtimeSystemInstruction({
+            ...promptBlocks,
+            currentContext: {
+                mode: currentMode,
+                recentTurns,
+            },
+        });
+    }
+
+    function buildProviderSessionOptions(rotationReason) {
+        const prompt = buildPromptBundle();
+        return {
+            voiceName: sessionVoiceName || undefined,
+            voiceConfigSource: sessionVoiceConfigSource,
+            systemInstructionText: prompt.text,
+            systemInstructionMeta: prompt.meta,
+            promptSource,
+            rotationReason,
+        };
+    }
+
+    function safePromptPayload() {
+        const prompt = buildPromptBundle();
+        return {
+            allow_custom_prompt: LAB_ALLOW_CUSTOM_PROMPT,
+            max_chars: LAB_PROMPT_MAX_CHARS,
+            source: promptSource,
+            defaults: defaultPromptBlocks(),
+            current_context: prompt.blocks.currentContext,
+            meta: prompt.meta,
+        };
+    }
+
+    function emitPromptApplied(reason) {
+        const prompt = buildPromptBundle();
+        emit({
+            type: 'session.config.applied',
+            reason,
+            prompt_source: promptSource,
+            lab_prompt: {
+                allow_custom_prompt: LAB_ALLOW_CUSTOM_PROMPT,
+                max_chars: LAB_PROMPT_MAX_CHARS,
+                current_context: prompt.blocks.currentContext,
+                meta: prompt.meta,
+            },
+        });
+        log('prompt_config_applied', {
+            reason,
+            promptSource,
+            promptChars: prompt.meta.promptChars,
+            promptHash: prompt.meta.promptHash,
+            corePromptChars: prompt.meta.corePrompt.chars,
+            corePromptHash: prompt.meta.corePrompt.hash,
+            childContextChars: prompt.meta.childContext.chars,
+            childContextHash: prompt.meta.childContext.hash,
+            parentRulesChars: prompt.meta.parentRules.chars,
+            parentRulesHash: prompt.meta.parentRules.hash,
+            currentContextChars: prompt.meta.currentContext.chars,
+            currentContextHash: prompt.meta.currentContext.hash,
         });
     }
 
@@ -161,6 +238,22 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             configSource: providerSession.voiceConfigSource || sessionVoiceConfigSource,
             inheritedFromPreviousProvider: reason !== 'initial',
             rotationReason: reason,
+        });
+        log('provider_prompt_config', {
+            clientSessionId: sessionId,
+            providerInstanceId: providerSession.instanceId || 'unknown',
+            promptSource: providerSession.promptSource || promptSource,
+            rotationReason: providerSession.rotationReason || reason,
+            promptChars: providerSession.systemInstructionMeta?.promptChars || 0,
+            promptHash: providerSession.systemInstructionMeta?.promptHash || 'none',
+            corePromptChars: providerSession.systemInstructionMeta?.corePrompt?.chars || 0,
+            corePromptHash: providerSession.systemInstructionMeta?.corePrompt?.hash || 'none',
+            childContextChars: providerSession.systemInstructionMeta?.childContext?.chars || 0,
+            childContextHash: providerSession.systemInstructionMeta?.childContext?.hash || 'none',
+            parentRulesChars: providerSession.systemInstructionMeta?.parentRules?.chars || 0,
+            parentRulesHash: providerSession.systemInstructionMeta?.parentRules?.hash || 'none',
+            currentContextChars: providerSession.systemInstructionMeta?.currentContext?.chars || 0,
+            currentContextHash: providerSession.systemInstructionMeta?.currentContext?.hash || 'none',
         });
         emit({
             type: 'provider.ready',
@@ -300,6 +393,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             return false;
         }
         if (eventType === 'transcript.user' && generation.inputEndedAt && !generation.firstInputTranscriptionAt) {
+            rememberTurn('user', payload.text);
             generation.firstInputTranscriptionAt = Date.now();
             log('provider_input_transcription_received', {
                 generationId: generation.generationId,
@@ -323,6 +417,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 turnId: generation.turnId,
                 inputEndToFirstValidAudioMs: generation.firstValidAudioAt - generation.inputEndedAt,
             });
+        }
+        if (eventType === 'transcript.model') {
+            rememberTurn('assistant', payload.text);
         }
         if (startsGenerationEvents.has(eventType)) {
             emitResponseCreated(generation, eventType);
@@ -410,10 +507,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 message: error.message,
             });
         }
-        providerSession = providerFactory({
-            voiceName: sessionVoiceName || undefined,
-            voiceConfigSource: sessionVoiceConfigSource,
-        });
+        providerSession = providerFactory(buildProviderSessionOptions(reason));
+        const oldPromptMeta = oldProviderSession?.systemInstructionMeta || {};
+        const newPromptMeta = providerSession.systemInstructionMeta || {};
         log('provider_session_rotated', {
             reason,
             oldProviderInstanceId,
@@ -422,6 +518,11 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             oldProviderVoiceName,
             newProviderVoiceName: providerSession.voiceName || sessionVoiceName || 'none',
             voicePreserved: oldProviderVoiceName === (providerSession.voiceName || sessionVoiceName || 'none'),
+            oldPromptHash: oldPromptMeta.promptHash || 'none',
+            newPromptHash: newPromptMeta.promptHash || 'none',
+            corePromptPreserved: oldPromptMeta.corePrompt?.hash === newPromptMeta.corePrompt?.hash,
+            childContextPreserved: oldPromptMeta.childContext?.hash === newPromptMeta.childContext?.hash,
+            parentRulesPreserved: oldPromptMeta.parentRules?.hash === newPromptMeta.parentRules?.hash,
         });
         emit({
             type: 'provider.rotated',
@@ -432,6 +533,14 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             old_provider_voice_name: oldProviderVoiceName,
             new_provider_voice_name: providerSession.voiceName || sessionVoiceName || null,
             voice_preserved: oldProviderVoiceName === (providerSession.voiceName || sessionVoiceName || 'none'),
+            old_prompt_hash: oldPromptMeta.promptHash || null,
+            new_prompt_hash: newPromptMeta.promptHash || null,
+            core_prompt_hash: newPromptMeta.corePrompt?.hash || null,
+            child_context_hash: newPromptMeta.childContext?.hash || null,
+            parent_rules_hash: newPromptMeta.parentRules?.hash || null,
+            core_prompt_preserved: oldPromptMeta.corePrompt?.hash === newPromptMeta.corePrompt?.hash,
+            child_context_preserved: oldPromptMeta.childContext?.hash === newPromptMeta.childContext?.hash,
+            parent_rules_preserved: oldPromptMeta.parentRules?.hash === newPromptMeta.parentRules?.hash,
         });
     }
 
@@ -594,14 +703,37 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         }
 
         if (payload.type === 'session.start') {
-            if (!readySent) {
+            if (
+                currentGeneration
+                && !['completed', 'cancelled', 'failed'].includes(currentGeneration.status)
+            ) {
                 emit({
-                    type: 'session.ready',
-                    session_id: sessionId,
-                    provider: providerSession.name || 'mock',
-                    provider_instance_id: providerSession.instanceId || null,
-                    model: providerMetadata.model || null,
-                    config: DEFAULT_CONFIG,
+                    type: 'error',
+                    code: 'session_config_busy',
+                    message: 'Prompt config can be changed only while the realtime session is idle.',
+                });
+                return;
+            }
+            try {
+                const sanitized = sanitizePromptConfig(payload.config || {}, {
+                    allowCustomPrompt: LAB_ALLOW_CUSTOM_PROMPT,
+                });
+                promptBlocks = sanitized.blocks;
+                promptSource = sanitized.source;
+                rotateProviderSession('session_start_config');
+                emitPromptApplied('session.start');
+            } catch (error) {
+                emit({
+                    type: 'error',
+                    code: 'prompt_config_invalid',
+                    message: error.code || error.message,
+                    max_chars: error.maxChars || LAB_PROMPT_MAX_CHARS,
+                    chars: error.chars || 0,
+                });
+                log('prompt_config_invalid', {
+                    message: error.code || error.message,
+                    maxChars: error.maxChars || LAB_PROMPT_MAX_CHARS,
+                    chars: error.chars || 0,
                 });
             }
             log('session_start_received');
@@ -695,6 +827,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         provider_instance_id: providerSession.instanceId || null,
         model: providerMetadata.model || null,
         config: DEFAULT_CONFIG,
+        lab_prompt: safePromptPayload(),
     });
     log('session_ready', {
         provider: providerSession.name || 'mock',

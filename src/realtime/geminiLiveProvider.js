@@ -42,6 +42,10 @@ function hashText(text) {
     return crypto.createHash('sha256').update(String(text || ''), 'utf8').digest('hex').slice(0, 12);
 }
 
+function defaultSystemInstructionText() {
+    return 'You are Lumi, a warm child-safe voice companion. Reply briefly and naturally in the user language.';
+}
+
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -155,18 +159,39 @@ class GeminiLiveProvider {
             instanceId: makeInstanceId(),
             voiceName,
             voiceConfigSource: options.voiceConfigSource || this.voiceConfigSource || 'default',
+            systemInstructionText: options.systemInstructionText,
+            systemInstructionMeta: options.systemInstructionMeta,
+            promptSource: options.promptSource,
+            rotationReason: options.rotationReason,
         });
     }
 }
 
 class GeminiLiveProviderSession {
-    constructor({ apiKey, model, instanceId, voiceName, voiceConfigSource }) {
+    constructor({
+        apiKey,
+        model,
+        instanceId,
+        voiceName,
+        voiceConfigSource,
+        systemInstructionText,
+        systemInstructionMeta,
+        promptSource,
+        rotationReason,
+    }) {
         this.name = 'gemini';
         this.rotateOnInterrupt = true;
         this.rotateAfterOutputComplete = true;
         this.model = model;
         this.voiceName = normalizeVoiceName(voiceName);
         this.voiceConfigSource = voiceConfigSource || 'default';
+        this.systemInstructionText = String(systemInstructionText || defaultSystemInstructionText());
+        this.systemInstructionMeta = systemInstructionMeta || {
+            promptChars: this.systemInstructionText.length,
+            promptHash: hashText(this.systemInstructionText),
+        };
+        this.promptSource = promptSource || 'provider_default';
+        this.rotationReason = rotationReason || 'initial';
         this.apiKey = apiKey;
         this.instanceId = instanceId;
         this.closed = false;
@@ -199,15 +224,20 @@ class GeminiLiveProviderSession {
             });
             const { ActivityHandling, GoogleGenAI, Modality } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey: this.apiKey });
-            const systemPrompt = 'You are Lumi, a warm child-safe voice companion. Reply briefly and naturally in the user language.';
+            const systemPrompt = this.systemInstructionText;
             const speechConfig = buildGeminiSpeechConfig(this.voiceName);
             log('gemini_connect_config', {
                 providerInstanceId: this.instanceId,
                 model: this.model,
                 voiceName: this.voiceName,
                 speechConfigShape: describeSpeechConfigShape(speechConfig),
-                promptChars: systemPrompt.length,
-                promptHash: hashText(systemPrompt),
+                promptSource: this.promptSource,
+                promptChars: this.systemInstructionMeta.promptChars || systemPrompt.length,
+                promptHash: this.systemInstructionMeta.promptHash || hashText(systemPrompt),
+                corePromptHash: this.systemInstructionMeta.corePrompt?.hash || 'none',
+                childContextHash: this.systemInstructionMeta.childContext?.hash || 'none',
+                parentRulesHash: this.systemInstructionMeta.parentRules?.hash || 'none',
+                currentContextHash: this.systemInstructionMeta.currentContext?.hash || 'none',
             });
             const session = await ai.live.connect({
                 model: this.model,
@@ -285,6 +315,22 @@ class GeminiLiveProviderSession {
                 provider: this.name,
                 voiceName: this.voiceName,
                 voiceConfigSource: this.voiceConfigSource,
+            });
+            log('provider_prompt_config', {
+                providerInstanceId: this.instanceId,
+                provider: this.name,
+                promptSource: this.promptSource,
+                rotationReason: this.rotationReason,
+                promptChars: this.systemInstructionMeta.promptChars || systemPrompt.length,
+                promptHash: this.systemInstructionMeta.promptHash || hashText(systemPrompt),
+                corePromptChars: this.systemInstructionMeta.corePrompt?.chars || 0,
+                corePromptHash: this.systemInstructionMeta.corePrompt?.hash || 'none',
+                childContextChars: this.systemInstructionMeta.childContext?.chars || 0,
+                childContextHash: this.systemInstructionMeta.childContext?.hash || 'none',
+                parentRulesChars: this.systemInstructionMeta.parentRules?.chars || 0,
+                parentRulesHash: this.systemInstructionMeta.parentRules?.hash || 'none',
+                currentContextChars: this.systemInstructionMeta.currentContext?.chars || 0,
+                currentContextHash: this.systemInstructionMeta.currentContext?.hash || 'none',
             });
             this.flushPendingAudio();
             return session;

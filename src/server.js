@@ -6,6 +6,12 @@ const path = require('path');
 const { attachRealtimeServer } = require('./realtime/realtimeServer');
 const { MockRealtimeProvider, DEFAULT_CONFIG } = require('./realtime/mockRealtimeProvider');
 const { GeminiLiveProvider, MODEL_ID: GEMINI_MODEL_ID, DEFAULT_GEMINI_LIVE_VOICE } = require('./realtime/geminiLiveProvider');
+const {
+    LAB_ALLOW_CUSTOM_PROMPT,
+    LAB_PROMPT_MAX_CHARS,
+    buildRealtimeSystemInstruction,
+    defaultPromptBlocks,
+} = require('./realtime/realtimePrompt');
 
 const PORT = Number(process.env.PORT || 3100);
 const provider = process.env.REALTIME_PROVIDER || 'mock';
@@ -31,7 +37,7 @@ function createProviderFactory() {
             provider: 'mock',
             model: 'mock',
         },
-        createSession: () => mockProvider.createSession(),
+        createSession: (sessionOptions = {}) => mockProvider.createSession(sessionOptions),
     };
 }
 
@@ -53,7 +59,7 @@ const server = http.createServer((req, res) => {
             service: 'lunara-realtime-lab',
             provider,
             model: providerFactory.metadata.model,
-            endpoints: ['/health', '/', '/lab', '/realtime'],
+            endpoints: ['/health', '/', '/lab', '/lab-config', '/realtime'],
         });
     }
 
@@ -63,8 +69,27 @@ const server = http.createServer((req, res) => {
             status: 'realtime-ready',
             provider,
             model: providerFactory.metadata.model,
-            endpoints: ['/health', '/lab', '/realtime'],
+            endpoints: ['/health', '/lab', '/lab-config', '/realtime'],
             next: 'Open /lab in a browser and test streaming.',
+        });
+    }
+
+    if (req.method === 'GET' && req.url === '/lab-config') {
+        const defaults = defaultPromptBlocks();
+        const prompt = buildRealtimeSystemInstruction({
+            ...defaults,
+            currentContext: {
+                mode: 'push_to_talk',
+                recentTurns: [],
+            },
+        });
+        return sendJson(res, 200, {
+            ok: true,
+            allow_custom_prompt: LAB_ALLOW_CUSTOM_PROMPT,
+            max_chars: LAB_PROMPT_MAX_CHARS,
+            defaults,
+            current_context: prompt.blocks.currentContext,
+            meta: prompt.meta,
         });
     }
 

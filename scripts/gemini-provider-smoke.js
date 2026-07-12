@@ -7,12 +7,28 @@ const {
     DEFAULT_GEMINI_LIVE_VOICE,
     buildGeminiSpeechConfig,
 } = require('../src/realtime/geminiLiveProvider');
+const {
+    buildRealtimeSystemInstruction,
+    defaultPromptBlocks,
+} = require('../src/realtime/realtimePrompt');
 
 async function main() {
     const provider = new GeminiLiveProvider({
         apiKey: 'test-key-not-used',
     });
-    const first = provider.createSession();
+    const prompt = buildRealtimeSystemInstruction({
+        ...defaultPromptBlocks(),
+        currentContext: {
+            mode: 'push_to_talk',
+            recentTurns: [{ role: 'user', text: 'How is my cat named?' }],
+        },
+    });
+    const first = provider.createSession({
+        systemInstructionText: prompt.text,
+        systemInstructionMeta: prompt.meta,
+        promptSource: 'smoke',
+        rotationReason: 'initial',
+    });
     const second = provider.createSession();
 
     if (provider.name !== 'gemini') {
@@ -26,6 +42,15 @@ async function main() {
     }
     if (first.voiceName !== DEFAULT_GEMINI_LIVE_VOICE || second.voiceName !== DEFAULT_GEMINI_LIVE_VOICE) {
         throw new Error('Gemini provider sessions must pin the configured voice');
+    }
+    if (first.systemInstructionText !== prompt.text) {
+        throw new Error('Gemini session must store the provided system instruction text');
+    }
+    if (first.systemInstructionMeta?.promptHash !== prompt.meta.promptHash) {
+        throw new Error('Gemini session must store the provided system instruction metadata');
+    }
+    if (!prompt.meta.corePrompt.hash || !prompt.meta.childContext.hash || !prompt.meta.parentRules.hash) {
+        throw new Error('Realtime prompt builder must expose block hashes');
     }
     const speechConfig = buildGeminiSpeechConfig(DEFAULT_GEMINI_LIVE_VOICE);
     if (typeof speechConfig !== 'object' || Array.isArray(speechConfig)) {

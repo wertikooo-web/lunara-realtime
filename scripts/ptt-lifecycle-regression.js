@@ -167,6 +167,10 @@ class RegressionProviderSession {
         this.instanceId = instanceId;
         this.voiceName = options.voiceName || 'RegressionFemale';
         this.voiceConfigSource = options.voiceConfigSource || 'test';
+        this.systemInstructionText = options.systemInstructionText || '';
+        this.systemInstructionMeta = options.systemInstructionMeta || {};
+        this.promptSource = options.promptSource || 'test';
+        this.rotationReason = options.rotationReason || 'initial';
         this.audioBytes = 0;
         this.activeSignal = null;
         this.activeContext = null;
@@ -363,6 +367,9 @@ async function main() {
         if (!normalRotation.voice_preserved || normalRotation.old_provider_voice_name !== 'RegressionFemale' || normalRotation.new_provider_voice_name !== 'RegressionFemale') {
             throw new Error('Completed output rotation must preserve voiceName');
         }
+        if (!normalRotation.core_prompt_preserved || !normalRotation.child_context_preserved || !normalRotation.parent_rules_preserved) {
+            throw new Error('Completed output rotation must preserve realtime prompt blocks');
+        }
         if (!provider.sessions.find((session) => (
             session.instanceId === normalRotation.old_provider_instance_id && session.closed
         ))) {
@@ -394,6 +401,9 @@ async function main() {
         }
         if (!rotation.voice_preserved || rotation.old_provider_voice_name !== 'RegressionFemale' || rotation.new_provider_voice_name !== 'RegressionFemale') {
             throw new Error('Manual interrupt rotation must preserve voiceName');
+        }
+        if (!rotation.core_prompt_preserved || !rotation.child_context_preserved || !rotation.parent_rules_preserved) {
+            throw new Error('Manual interrupt rotation must preserve realtime prompt blocks');
         }
         if (provider.sessions.length < 2 || !provider.sessions[0].closed) {
             throw new Error('Old provider session must be hard-closed after manual interruption');
@@ -463,6 +473,9 @@ async function main() {
         if (!timeoutRotation.voice_preserved || timeoutRotation.old_provider_voice_name !== 'RegressionFemale' || timeoutRotation.new_provider_voice_name !== 'RegressionFemale') {
             throw new Error('Timeout recovery rotation must preserve voiceName');
         }
+        if (!timeoutRotation.core_prompt_preserved || !timeoutRotation.child_context_preserved || !timeoutRotation.parent_rules_preserved) {
+            throw new Error('Timeout recovery rotation must preserve realtime prompt blocks');
+        }
         if (!logs.some((line) => line.includes('stage=turn_timeout_recovery_started'))) {
             throw new Error('Missing turn_timeout_recovery_started log');
         }
@@ -494,6 +507,9 @@ async function main() {
         }
         if (!noOutputRotation.voice_preserved || noOutputRotation.old_provider_voice_name !== 'RegressionFemale' || noOutputRotation.new_provider_voice_name !== 'RegressionFemale') {
             throw new Error('No-output provider failure rotation must preserve voiceName');
+        }
+        if (!noOutputRotation.core_prompt_preserved || !noOutputRotation.child_context_preserved || !noOutputRotation.parent_rules_preserved) {
+            throw new Error('No-output provider failure rotation must preserve realtime prompt blocks');
         }
 
         const afterTimeout = await runTurn(client, 'after_timeout_ptt', 2048, { waitForEnd: true });
