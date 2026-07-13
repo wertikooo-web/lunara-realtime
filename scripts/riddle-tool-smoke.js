@@ -206,7 +206,7 @@ async function main() {
     });
     attachRealtimeServer(server, {
         providerFactory: (sessionOptions) => provider.createSession(sessionOptions),
-        providerMetadata: { provider: 'riddle-tool-test', model: 'test' },
+        providerMetadata: { provider: 'riddle-tool-test', model: 'test', contentToolsEnabled: true },
     });
 
     await new Promise((resolve) => server.listen(PORT, HOST, resolve));

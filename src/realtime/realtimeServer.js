@@ -31,7 +31,7 @@ const MAX_TURN_REPLAY_BYTES = Number.isFinite(configuredTurnReplayBytes)
 let warnedInvalidRotationMode = false;
 
 function areContentToolsEnabled(value = process.env.REALTIME_CONTENT_TOOLS) {
-    return !/^(0|false|no|off|disabled)$/i.test(String(value || ''));
+    return /^(1|true|yes|on|enabled)$/i.test(String(value || ''));
 }
 
 function normalizeProviderVoiceName(voiceName) {

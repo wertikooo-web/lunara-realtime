@@ -33,8 +33,11 @@ async function main() {
     });
     const second = provider.createSession();
 
+    if (areContentToolsEnabled() !== false) {
+        throw new Error('Content tools must be disabled by default');
+    }
     if (areContentToolsEnabled('off') !== false) {
-        throw new Error('REALTIME_CONTENT_TOOLS=off must disable content tools');
+        throw new Error('REALTIME_CONTENT_TOOLS=off must keep content tools disabled');
     }
     if (buildLiveTools({ enabled: false }).length !== 0) {
         throw new Error('Disabled content tools must not be sent to Gemini');
