@@ -1,0 +1,2007 @@
+{
+  "pack_id": "jokes_ru_v2",
+  "type": "joke",
+  "lang": "ru-RU",
+  "pack_version": "v2",
+  "source": "docx_import",
+  "items": [
+    {
+      "id": "joke_ru_v2_001",
+      "title": "Шутка 001",
+      "text": "— Папа, а почему ты сначала наливаешь в чашку чай, а потом кладёшь сахар? — Чтобы проверить, поместится ли он там, сынок.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 1
+      }
+    },
+    {
+      "id": "joke_ru_v2_002",
+      "title": "Шутка 002",
+      "text": "Малыш смотрит на сиамских близнецов и говорит: «Ого, какие верные друзья!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 2
+      }
+    },
+    {
+      "id": "joke_ru_v2_003",
+      "title": "Шутка 003",
+      "text": "Котёнок смотрит в зеркало: «Ого, лев вырос, а усы те же».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 3
+      }
+    },
+    {
+      "id": "joke_ru_v2_004",
+      "title": "Шутка 004",
+      "text": "Разговаривают две рыбки: «Слушай, а ты умеешь плавать спиной вперёд?» — «Конечно, если рак покажет дорогу!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 4
+      }
+    },
+    {
+      "id": "joke_ru_v2_005",
+      "title": "Шутка 005",
+      "text": "— Папа, а почему комары так громко пищат? — Чтобы мы знали, откуда ждать гостей.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 5
+      }
+    },
+    {
+      "id": "joke_ru_v2_006",
+      "title": "Шутка 006",
+      "text": "Муравей смотрит на слона: «И как этот великан умудряется не наступать на мои любимые ромашки?»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 6
+      }
+    },
+    {
+      "id": "joke_ru_v2_007",
+      "title": "Шутка 007",
+      "text": "Мама спрашивает: «Коля, почему твоя плюшевая собака сидит в холодильнике?» — «Она охраняет сосиски от кота!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 7
+      }
+    },
+    {
+      "id": "joke_ru_v2_008",
+      "title": "Шутка 008",
+      "text": "Кенгуру проверяет карман: «Так, ключи, телефон... Ой, а где ребёнок?!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 8
+      }
+    },
+    {
+      "id": "joke_ru_v2_009",
+      "title": "Шутка 009",
+      "text": "— Папа, а солнце когда-нибудь спит? — Да, каждую ночь оно укрывается тёмным одеялом со звёздами.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 9
+      }
+    },
+    {
+      "id": "joke_ru_v2_010",
+      "title": "Шутка 010",
+      "text": "Жираф говорит слону: «Зато я первый узнаю, когда пойдёт дождь!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 10
+      }
+    },
+    {
+      "id": "joke_ru_v2_011",
+      "title": "Шутка 011",
+      "text": "Ёжик подходит к кактусу в магазине: «Мама, привет, а ты что тут делаешь?»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 11
+      }
+    },
+    {
+      "id": "joke_ru_v2_012",
+      "title": "Шутка 012",
+      "text": "— Дедушка, а почему у тебя борода белая? — Это я просто сахарную вату слишком усердно ел.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 12
+      }
+    },
+    {
+      "id": "joke_ru_v2_013",
+      "title": "Шутка 013",
+      "text": "Зубная щётка говорит Обувной: «У меня самая чистая работа, а ты весело прыгаешь по лужам!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 13
+      }
+    },
+    {
+      "id": "joke_ru_v2_014",
+      "title": "Шутка 014",
+      "text": "Подушка шепчет одеялу: «Давай сегодня подольше подержим этого соню в кровати».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 14
+      }
+    },
+    {
+      "id": "joke_ru_v2_015",
+      "title": "Шутка 015",
+      "text": "— Мама, смотри, птичка летит! — Это самолёт, сынок. — Ого, а где же у него перья?",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 15
+      }
+    },
+    {
+      "id": "joke_ru_v2_016",
+      "title": "Шутка 016",
+      "text": "Колобок на приёме у парикмахера: «Сделайте мне чёлку на затылке!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 16
+      }
+    },
+    {
+      "id": "joke_ru_v2_017",
+      "title": "Шутка 017",
+      "text": "— Почему ты плачешь, мышка? — Кот забрал мою любимую корочку сыра и даже «спасибо» не сказал!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 17
+      }
+    },
+    {
+      "id": "joke_ru_v2_018",
+      "title": "Шутка 018",
+      "text": "Червяк маме: «Мам, а можно я пойду погуляю вокруг яблока?»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 18
+      }
+    },
+    {
+      "id": "joke_ru_v2_019",
+      "title": "Шутка 019",
+      "text": "Слон примерил кроссовки муравья и подумал: «Кажется, немножко жмут в пятке».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 19
+      }
+    },
+    {
+      "id": "joke_ru_v2_020",
+      "title": "Шутка 020",
+      "text": "— Алло, это зоопарк? — Да. — Мой попугай научился говорить «Алло». Что делать? — Положите трубку!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 20
+      }
+    },
+    {
+      "id": "joke_ru_v2_021",
+      "title": "Шутка 021",
+      "text": "— Мама, а почему у рыбы нет голоса? — Попробуй сама поговорить под водой, поймёшь!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 21
+      }
+    },
+    {
+      "id": "joke_ru_v2_022",
+      "title": "Шутка 022",
+      "text": "Пингвин говорит страусу: «Ему весело, он может спрятать голову в песок, а у меня тут только твёрдый лёд!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 22
+      }
+    },
+    {
+      "id": "joke_ru_v2_023",
+      "title": "Шутка 023",
+      "text": "— Чего ты ищешь под столом, Коля? — Вчера папа сказал, что у нас деньги куры не клюют. Ищу этих курок!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 23
+      }
+    },
+    {
+      "id": "joke_ru_v2_024",
+      "title": "Шутка 024",
+      "text": "Конфета плачет в вазе. Печенье спрашивает: «Ты чего?» — «Меня сейчас съедят!» — «Эх, везёт тебе, а на меня только крошки сыплются».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 24
+      }
+    },
+    {
+      "id": "joke_ru_v2_025",
+      "title": "Шутка 025",
+      "text": "Хомяк смотрит на свои щёки в зеркало: «Идеально! Сюда поместится ещё одно печенье».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 25
+      }
+    },
+    {
+      "id": "joke_ru_v2_026",
+      "title": "Шутка 026",
+      "text": "— Миша, ты зачем сыплешь сахар в аквариум? — Чтобы рыбкам было сладко спать.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 26
+      }
+    },
+    {
+      "id": "joke_ru_v2_027",
+      "title": "Шутка 027",
+      "text": "Собака думает: «Человек меня кормит, играет... Наверное, он великан-волшебник!» Кот думает: «Человек меня кормит, гладит... Наверное, я король!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 27
+      }
+    },
+    {
+      "id": "joke_ru_v2_028",
+      "title": "Шутка 028",
+      "text": "— Бабушка, а почему у тебя такие большие уши? — Чтобы лучше слышать, как ты шуршишь фантиками от конфет!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 28
+      }
+    },
+    {
+      "id": "joke_ru_v2_029",
+      "title": "Шутка 029",
+      "text": "Осьминог считает свои ноги: «Один, два, три... Ой, опять запутался!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 29
+      }
+    },
+    {
+      "id": "joke_ru_v2_030",
+      "title": "Шутка 030",
+      "text": "— Папа, а почему луна круглая? — Потому что треугольную сложнее катить по небу.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 30
+      }
+    },
+    {
+      "id": "joke_ru_v2_031",
+      "title": "Шутка 031",
+      "text": "Заяц бежит по лесу: «Ой, лиса! Ой, волк! Ой, бабочка... Фух, напугала!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 31
+      }
+    },
+    {
+      "id": "joke_ru_v2_032",
+      "title": "Шутка 032",
+      "text": "— Почему ты не спишь, Миша? — Жду, когда подушка перевернётся на холодную сторону.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 32
+      }
+    },
+    {
+      "id": "joke_ru_v2_033",
+      "title": "Шутка 033",
+      "text": "Крокодил плачет: «Никто не хочет со мной обниматься, все сразу кричат и убегают!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 33
+      }
+    },
+    {
+      "id": "joke_ru_v2_034",
+      "title": "Шутка 034",
+      "text": "— Мама, купи мне собаку! — Но ты же не будешь с ней гулять. — Буду, честное слово, прямо по комнате!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 34
+      }
+    },
+    {
+      "id": "joke_ru_v2_035",
+      "title": "Шутка 035",
+      "text": "Муха летает вокруг лампочки: «Какое яркое солнце, только почему-то пахнет стеклом».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 35
+      }
+    },
+    {
+      "id": "joke_ru_v2_036",
+      "title": "Шутка 036",
+      "text": "Разговаривают два зонтика: «Ты почему такой мокрый?» — «Да вот, опять работу на дом взял».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 36
+      }
+    },
+    {
+      "id": "joke_ru_v2_037",
+      "title": "Шутка 037",
+      "text": "Цыплёнок смотрит на большой круглый блин: «Ого, какое огромное яйцо кто-то снёс!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 37
+      }
+    },
+    {
+      "id": "joke_ru_v2_038",
+      "title": "Шутка 038",
+      "text": "— Папа, а где живут пингвины? — На Южном полюсе. — А им там не скучно без мультиков?",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 38
+      }
+    },
+    {
+      "id": "joke_ru_v2_039",
+      "title": "Шутка 039",
+      "text": "Карандаш говорит ластику: «Перестань ходить за мной по пятам и портить мои рисунки!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 39
+      }
+    },
+    {
+      "id": "joke_ru_v2_040",
+      "title": "Шутка 040",
+      "text": "Бегемот залез на весы: «Ого, весы показывают, что я идеальный... для трёх бегемотов».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 40
+      }
+    },
+    {
+      "id": "joke_ru_v2_041",
+      "title": "Шутка 041",
+      "text": "— Мама, я сегодня сделал доброе дело! — Какое, сынок? — Я помог коту доесть сметану.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 41
+      }
+    },
+    {
+      "id": "joke_ru_v2_042",
+      "title": "Шутка 042",
+      "text": "Лягушка на кувшинке: «Какая прекрасная погода, дождь идёт, сырость, красота!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 42
+      }
+    },
+    {
+      "id": "joke_ru_v2_043",
+      "title": "Шутка 043",
+      "text": "— Папа, а почему дельфины такие умные? — Потому что они не смотрят планшет весь день, а плавают.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 43
+      }
+    },
+    {
+      "id": "joke_ru_v2_044",
+      "title": "Шутка 044",
+      "text": "Черепаха пришла на финиш: «Ура, я первая!» — «Вообще-то, соревнования были вчера».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 44
+      }
+    },
+    {
+      "id": "joke_ru_v2_045",
+      "title": "Шутка 045",
+      "text": "— Толя, кем ты хочешь стать, когда вырастешь? — Мороженщиком, чтобы самому решать, сколько шариков положить!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 45
+      }
+    },
+    {
+      "id": "joke_ru_v2_046",
+      "title": "Шутка 046",
+      "text": "Снежинка падает на ладошку: «Ой, как тут тепло... Ой, кажется, я таю!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 46
+      }
+    },
+    {
+      "id": "joke_ru_v2_047",
+      "title": "Шутка 047",
+      "text": "Кот сидит у мышиной норки: «Мяу! То есть, тьфу, Гав! Пусть думает, что пришла собака».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 47
+      }
+    },
+    {
+      "id": "joke_ru_v2_048",
+      "title": "Шутка 048",
+      "text": "— Бабушка, а почему компот красный? — Потому что вишня стесняется, что её варят.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 48
+      }
+    },
+    {
+      "id": "joke_ru_v2_049",
+      "title": "Шутка 049",
+      "text": "Попугай кричит: «Я не птица, я капитан корабля!» Кот отвечает: «Ладно, капитан, плыви в клетку».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 49
+      }
+    },
+    {
+      "id": "joke_ru_v2_050",
+      "title": "Шутка 050",
+      "text": "Пчела подлетает к искусственному цветку: «Хм, красивый, но пахнет пластилином».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 50
+      }
+    },
+    {
+      "id": "joke_ru_v2_051",
+      "title": "Шутка 051",
+      "text": "— Мама, смотри, червячок ползёт! — Не трогай его, у него дела. — Да какие дела, он же босиком!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 51
+      }
+    },
+    {
+      "id": "joke_ru_v2_052",
+      "title": "Шутка 052",
+      "text": "Одеяло говорит подушке: «Обнимем его покрепче, пусть думает, что ещё ночь».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 52
+      }
+    },
+    {
+      "id": "joke_ru_v2_053",
+      "title": "Шутка 053",
+      "text": "— Мама, а почему у зебры полоски? — Чтобы хищники думали, что это пешеходный переход, и останавливались.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 53
+      }
+    },
+    {
+      "id": "joke_ru_v2_054",
+      "title": "Шутка 054",
+      "text": "Велосипед упал на бок: «Ох, устал я сегодня на двух ногах стоять».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 54
+      }
+    },
+    {
+      "id": "joke_ru_v2_055",
+      "title": "Шутка 055",
+      "text": "— Дедушка, а ты был маленьким? — Конечно. — Ого, и у тебя тоже была такая большая борода?",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 55
+      }
+    },
+    {
+      "id": "joke_ru_v2_056",
+      "title": "Шутка 056",
+      "text": "Лиса стучится в курятник: «Откройте, это бесплатная доставка вкусного зерна!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 56
+      }
+    },
+    {
+      "id": "joke_ru_v2_057",
+      "title": "Шутка 057",
+      "text": "— Юра, ты зачем разукрасил спящего папу зеленым фломастером? — Я хотел, чтобы он был похож на Шрека, когда проснётся!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 57
+      }
+    },
+    {
+      "id": "joke_ru_v2_058",
+      "title": "Шутка 058",
+      "text": "Картошка в кастрюле: «Ого, горячая ванна, только почему-то с укропом».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 58
+      }
+    },
+    {
+      "id": "joke_ru_v2_059",
+      "title": "Шутка 059",
+      "text": "— Папа, а почему у слона такой длинный нос? — Чтобы он мог пить чай, не наклоняясь к столу.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 59
+      }
+    },
+    {
+      "id": "joke_ru_v2_060",
+      "title": "Шутка 060",
+      "text": "Лужа во дворе: «Как только я вырастаю большая и красивая, приходят дети в сапогах и всё портят!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 60
+      }
+    },
+    {
+      "id": "joke_ru_v2_061",
+      "title": "Шутка 061",
+      "text": "— Мама, можно мне ещё один кусочек торта? — Нет, у тебя живот заболит. — А я положу его в карман, пусть карман порадуется.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 61
+      }
+    },
+    {
+      "id": "joke_ru_v2_062",
+      "title": "Шутка 062",
+      "text": "Обезьянка смотрит в зеркало: «Какая симпатичная девочка, только причесаться забыла».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 62
+      }
+    },
+    {
+      "id": "joke_ru_v2_063",
+      "title": "Шутка 063",
+      "text": "Дед Мороз летом: «Кажется, я забыл выключить кондиционер в холодильнике».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 63
+      }
+    },
+    {
+      "id": "joke_ru_v2_064",
+      "title": "Шутка 064",
+      "text": "— Почему ты не ешь суп, сынок? — Я жду, пока буквы в нём составят слово «конфета».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 64
+      }
+    },
+    {
+      "id": "joke_ru_v2_065",
+      "title": "Шутка 065",
+      "text": "Мышка нашла кусочек мыла: «Ого, какой странный сыр, от него изо рта пузыри идут!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 65
+      }
+    },
+    {
+      "id": "joke_ru_v2_066",
+      "title": "Шутка 066",
+      "text": "— Папа, а почему птицы летают на юг? — Потому что пешком идти слишком долго.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 66
+      }
+    },
+    {
+      "id": "joke_ru_v2_067",
+      "title": "Шутка 067",
+      "text": "Чайник на плите: «Всё, я закипаю, держите меня семеро!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 67
+      }
+    },
+    {
+      "id": "joke_ru_v2_068",
+      "title": "Шутка 068",
+      "text": "— Мама, наш кот сегодня сошёл с ума! Он бегал за собственным хвостом! — А ты что делал? — А я ловил его тень.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 68
+      }
+    },
+    {
+      "id": "joke_ru_v2_069",
+      "title": "Шутка 069",
+      "text": "Жираф покупает шарф: «Дайте мне, пожалуйста, три километра синего цвета».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 69
+      }
+    },
+    {
+      "id": "joke_ru_v2_070",
+      "title": "Шутка 070",
+      "text": "Солнечный зайчик прыгает по стене: «Поймай меня, поймай... Ой, тучка пришла, пока!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 70
+      }
+    },
+    {
+      "id": "joke_ru_v2_071",
+      "title": "Шутка 071",
+      "text": "— Почему ты спишь в ботинках, дедушка? — Чтобы, если мне приснится футбол, я был готов сразу забить гол!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 71
+      }
+    },
+    {
+      "id": "joke_ru_v2_072",
+      "title": "Шутка 072",
+      "text": "Ложка говорит вилке: «Хватит колоться, давай просто дружить».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 72
+      }
+    },
+    {
+      "id": "joke_ru_v2_073",
+      "title": "Шутка 073",
+      "text": "— Папа, купи мне барабан! — Соседи будут ругаться. — А я буду играть, только когда они спят!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 73
+      }
+    },
+    {
+      "id": "joke_ru_v2_074",
+      "title": "Шутка 074",
+      "text": "Хомяк спрятал семечку за щёку: «Фух, теперь можно спокойно идти мимо кота».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 74
+      }
+    },
+    {
+      "id": "joke_ru_v2_075",
+      "title": "Шутка 075",
+      "text": "— Мама, смотри, какой красивый камушек! — Сынок, брось, это же чей-то старый кед.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 75
+      }
+    },
+    {
+      "id": "joke_ru_v2_076",
+      "title": "Шутка 076",
+      "text": "Телевизор шепчет пульту: «Пожалуйста, переключи на мультики, я устал от новостей».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 76
+      }
+    },
+    {
+      "id": "joke_ru_v2_077",
+      "title": "Шутка 077",
+      "text": "Слон наступил на колобка: «Ой, извини, я думал, это коврик».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 77
+      }
+    },
+    {
+      "id": "joke_ru_v2_078",
+      "title": "Шутка 078",
+      "text": "— Почему ты не чистишь зубы, сынок? — Я жду, когда паста станет со вкусом шоколада.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 78
+      }
+    },
+    {
+      "id": "joke_ru_v2_079",
+      "title": "Шутка 079",
+      "text": "Бабочка гусенице: «Ничего-ничего, скоро и у тебя вырастут крылья, и мы полетим за нектаром!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 79
+      }
+    },
+    {
+      "id": "joke_ru_v2_080",
+      "title": "Шутка 080",
+      "text": "— Папа, а почему небо синее? — Потому что зелёное было бы слишком похоже на большой огурец.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 80
+      }
+    },
+    {
+      "id": "joke_ru_v2_081",
+      "title": "Шутка 081",
+      "text": "Пылесос обиделся на веник: «Ты просто забираешь мою любимую пыль!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 81
+      }
+    },
+    {
+      "id": "joke_ru_v2_082",
+      "title": "Шутка 082",
+      "text": "— Мама, наш пёс Барбос умеет разговаривать! — Да ладно? И что он сказал? — Он сказал: «Гав!», что на его языке означает «Дай колбасы!».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 82
+      }
+    },
+    {
+      "id": "joke_ru_v2_083",
+      "title": "Шутка 083",
+      "text": "Ёжик бежит по травке: «Ой, щекотно! Ой, опять щекотно!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 83
+      }
+    },
+    {
+      "id": "joke_ru_v2_084",
+      "title": "Шутка 084",
+      "text": "Карман куртки думает: «Ого, сколько у меня сокровищ: фантик, камушек, деталька от лего и половинка сушки!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 84
+      }
+    },
+    {
+      "id": "joke_ru_v2_085",
+      "title": "Шутка 085",
+      "text": "— Мама, а почему у папы в машине руль круглый? — Чтобы ему было удобнее крутиться на месте, когда мы заблудились.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 85
+      }
+    },
+    {
+      "id": "joke_ru_v2_086",
+      "title": "Шутка 086",
+      "text": "Рюкзак говорит учебнику: «Ложись поудобнее, завтра у нас тяжёлый день».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 86
+      }
+    },
+    {
+      "id": "joke_ru_v2_087",
+      "title": "Шутка 087",
+      "text": "Лев прыгает через обруч в цирке: «Чего не сделаешь ради вкусной сосиски!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 87
+      }
+    },
+    {
+      "id": "joke_ru_v2_088",
+      "title": "Шутка 088",
+      "text": "Подушка вздыхает: «Каждую ночь одно и то же: ложатся и спят, хоть бы сказку рассказали».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 88
+      }
+    },
+    {
+      "id": "joke_ru_v2_089",
+      "title": "Шутка 089",
+      "text": "— Папа, а почему рыбы не тонут? — Потому что у них есть спасательные жилеты из чешуи.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 89
+      }
+    },
+    {
+      "id": "joke_ru_v2_090",
+      "title": "Шутка 090",
+      "text": "Муравей залез на гриб: «Ого, какая высокая смотровая площадка!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 90
+      }
+    },
+    {
+      "id": "joke_ru_v2_091",
+      "title": "Шутка 091",
+      "text": "— Мама, можно я пойду погуляю под дождём? — Нет, промокнешь. — А я надену папину куртку, она большая, под ней сухо!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 91
+      }
+    },
+    {
+      "id": "joke_ru_v2_092",
+      "title": "Шутка 092",
+      "text": "Ластик стирает карандаш: «Прости, дружище, ничего личного, просто исправляю ошибку».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 92
+      }
+    },
+    {
+      "id": "joke_ru_v2_093",
+      "title": "Шутка 093",
+      "text": "Белка уронила шишку: «Ой, кажется, я разбудила спящего крота».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 93
+      }
+    },
+    {
+      "id": "joke_ru_v2_094",
+      "title": "Шутка 094",
+      "text": "Книжка говорит читателю: «Переверни страницу, там самое интересное!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 94
+      }
+    },
+    {
+      "id": "joke_ru_v2_095",
+      "title": "Шутка 095",
+      "text": "— Мама, а почему у петуха такие яркие перья? — Чтобы куры видели, какой он модный.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 95
+      }
+    },
+    {
+      "id": "joke_ru_v2_096",
+      "title": "Шутка 096",
+      "text": "Кот сидит на подоконнике и смотрит на птиц: «Так близко и так далеко...»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 96
+      }
+    },
+    {
+      "id": "joke_ru_v2_097",
+      "title": "Шутка 097",
+      "text": "Веник ворчит на совок: «Держи крепче, а то всё обратно рассыплешь!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 97
+      }
+    },
+    {
+      "id": "joke_ru_v2_098",
+      "title": "Шутка 098",
+      "text": "— Бабушка, а почему у тебя блины такие круглые? — Потому что сковородка квадратные делать не умеет.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 98
+      }
+    },
+    {
+      "id": "joke_ru_v2_099",
+      "title": "Шутка 099",
+      "text": "Снежинка летит на нос собаке: «Ой, какая тёплая и мокрая посадочная полоса!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 99
+      }
+    },
+    {
+      "id": "joke_ru_v2_100",
+      "title": "Шутка 100",
+      "text": "— Папа, а почему у машины четыре колеса, а не два? — Чтобы она не падала на бок, когда у неё кружится голова.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 100
+      }
+    },
+    {
+      "id": "joke_ru_v2_101",
+      "title": "Шутка 101",
+      "text": "Компот в стакане: «Ого, сколько ягод пришло со мной поплавать!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 101
+      }
+    },
+    {
+      "id": "joke_ru_v2_102",
+      "title": "Шутка 102",
+      "text": "Зеркало говорит девочке: «Ты сегодня просто принцесса, только бантик поправь».",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 102
+      }
+    },
+    {
+      "id": "joke_ru_v2_103",
+      "title": "Шутка 103",
+      "text": "— Мама, купи мне живого крокодила! — А где он будет жить? — Под моей кроватью, он будет охранять мои игрушки от Барбоса.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 103
+      }
+    },
+    {
+      "id": "joke_ru_v2_104",
+      "title": "Шутка 104",
+      "text": "Щётка для волос говорит расчёске: «У тебя такие редкие зубы, как ты вообще что-то распутываешь?»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 104
+      }
+    },
+    {
+      "id": "joke_ru_v2_105",
+      "title": "Шутка 105",
+      "text": "— Почему ты не ешь кашу, Миша? — Она на меня так грустно смотрит, мне её жалко.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 105
+      }
+    },
+    {
+      "id": "joke_ru_v2_106",
+      "title": "Шутка 106",
+      "text": "Медведь в берлоге ворочается: «Кто-то забыл выключить мой весенний будильник!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 106
+      }
+    },
+    {
+      "id": "joke_ru_v2_107",
+      "title": "Шутка 107",
+      "text": "Солнышко умывается тучкой: «Ох, как освежает!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 107
+      }
+    },
+    {
+      "id": "joke_ru_v2_108",
+      "title": "Шутка 108",
+      "text": "— Папа, а почему у слона уши большие? — Чтобы отгонять мух и слушать, как далеко ушёл муравей.",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 108
+      }
+    },
+    {
+      "id": "joke_ru_v2_109",
+      "title": "Шутка 109",
+      "text": "Ручка пишет в тетрадке: «Ого, сколько закорючек мы сегодня сделали!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 109
+      }
+    },
+    {
+      "id": "joke_ru_v2_110",
+      "title": "Шутка 110",
+      "text": "— Мама, смотри, я нарисовал лошадку! — А где у неё ноги? — Она скачет так быстро, что их просто не видно!",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 110
+      }
+    },
+    {
+      "id": "joke_ru_v2_111",
+      "title": "Шутка 111",
+      "text": "Мышонок смотрит на луну: «Ого, какой большой круг сыра повесили на небо!»",
+      "tags": [
+        "docx_import",
+        "joke",
+        "ru"
+      ],
+      "topic": "детский юмор",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "ШУТКИ Вот обновлённый список.docx",
+        "source_line": 111
+      }
+    }
+  ]
+}

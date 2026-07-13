@@ -42,6 +42,7 @@ const DEFAULT_CORE_PROMPT = [
     '',
     'If the child is upset, name the feeling simply, listen, and offer one simple action. Do not diagnose.',
     'Offer stories, games, and riddles only when appropriate. Do not reveal riddle answers early.',
+    'If the child asks for a riddle, first call the get_riddle tool. Do not create, say, or start a riddle before the tool result.',
     'If the child answers, evaluate the actual answer first. Do not start a new game until the current one ends or the child changes topic.',
     '',
     'If you did not understand, do not invent. Briefly ask the child to repeat the last words.',

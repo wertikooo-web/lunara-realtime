@@ -16,6 +16,7 @@ const {
     defaultPromptBlocks,
     sanitizePromptConfig,
 } = require('./realtimePrompt');
+const { createContentLibrary } = require('../content/contentLibrary');
 
 function id(prefix) {
     return `${prefix}_${crypto.randomBytes(8).toString('hex')}`;
@@ -167,6 +168,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let sessionLanguage = null;
     let pendingLanguageSwitch = null;
     let pendingLanguageCandidate = null;
+    const contentLibrary = providerMetadata.contentLibrary || createContentLibrary(providerMetadata.contentLibraryOptions || {});
+    let activeActivity = null;
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
 
     function log(stage, extra = {}) {
@@ -219,9 +222,130 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             promptSource,
             rotationReason,
             rotationMode,
+            toolHandlers: {
+                get_riddle: handleGetRiddleTool,
+            },
         };
     }
 
+    function handleGetRiddleTool({ args = {}, generationId, turnId, providerInstanceId }) {
+        if (!currentGeneration || currentGeneration.generationId !== generationId) {
+            log('riddle_tool_rejected', {
+                reason: 'stale_generation',
+                generationId: generationId || 'none',
+                activeGenerationId: currentGeneration?.generationId || 'none',
+                providerInstanceId: providerInstanceId || 'unknown',
+            });
+            return { error: 'stale_generation' };
+        }
+        if (activeActivity?.type === 'riddle') {
+            log('riddle_tool_rejected', {
+                reason: 'active_riddle_in_progress',
+                generationId,
+                turnId,
+                contentId: activeActivity.contentId,
+                providerInstanceId: providerInstanceId || 'unknown',
+            });
+            return {
+                error: 'active_riddle_in_progress',
+                active_activity_type: activeActivity.type,
+                content_id: activeActivity.contentId,
+            };
+        }
+
+        const riddle = contentLibrary.getRiddle({
+            language: args.language || sessionLanguage || 'ru',
+            topic: args.topic || args.query || '',
+            query: args.topic || args.query || '',
+            tags: Array.isArray(args.tags) ? args.tags : [],
+        });
+        if (!riddle) {
+            log('riddle_tool_rejected', {
+                reason: 'no_riddle_available',
+                generationId,
+                turnId,
+                providerInstanceId: providerInstanceId || 'unknown',
+            });
+            return { error: 'no_riddle_available' };
+        }
+
+        activeActivity = {
+            type: 'riddle',
+            contentId: riddle.id,
+            expectedAnswers: [...riddle.answers],
+            hints: Array.isArray(riddle.hints) ? [...riddle.hints] : [],
+            language: riddle.language,
+            topic: riddle.topic || '',
+            source: riddle.source || 'library',
+            attempts: 0,
+            generationId,
+            turnId,
+        };
+        log('riddle_tool_selected', {
+            generationId,
+            turnId,
+            contentId: riddle.id,
+            answerCount: riddle.answers.length,
+            source: riddle.source || 'library',
+            topic: riddle.topic || '',
+            providerInstanceId: providerInstanceId || 'unknown',
+        });
+        emit({
+            type: 'activity.started',
+            activity_type: 'riddle',
+            content_id: riddle.id,
+            generation_id: generationId,
+            turn_id: turnId,
+        });
+        return {
+            id: riddle.id,
+            type: riddle.type || 'riddle',
+            text: riddle.text,
+            answers: Array.isArray(riddle.answers) ? riddle.answers : [],
+            hints: Array.isArray(riddle.hints) ? riddle.hints : [],
+            language: riddle.language,
+            topic: riddle.topic || '',
+            source: riddle.source || 'library',
+        };
+    }
+
+    function maybeHandleActiveActivityAnswer(generation, text) {
+        if (!activeActivity || activeActivity.type !== 'riddle') return false;
+        if (!generation || generation !== currentGeneration) return false;
+        const result = contentLibrary.checkRiddleAnswer(activeActivity, text);
+        if (!result.handled) return false;
+
+        const contentId = activeActivity.contentId;
+        activeActivity.attempts = result.attempts;
+        if (result.completed) {
+            activeActivity = null;
+        }
+
+        log('riddle_answer_checked', {
+            generationId: generation.generationId,
+            turnId: generation.turnId,
+            contentId,
+            correct: result.correct,
+            attempts: result.attempts,
+            completed: result.completed,
+        });
+        emit({
+            type: 'activity.answer_checked',
+            activity_type: 'riddle',
+            content_id: contentId,
+            generation_id: generation.generationId,
+            response_id: generation.responseId,
+            turn_id: generation.turnId,
+            correct: result.correct,
+            attempts: result.attempts,
+            completed: result.completed,
+            hint: result.hint || null,
+        });
+        if (typeof providerSession?.sendActivityResult === 'function') {
+            providerSession.sendActivityResult(result);
+        }
+        return true;
+    }
     function safePromptPayload() {
         const prompt = buildPromptBundle();
         return {
@@ -609,6 +733,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 turnId: generation.turnId,
                 inputEndToInputTranscriptionMs: generation.firstInputTranscriptionAt - generation.inputEndedAt,
             });
+            maybeHandleActiveActivityAnswer(generation, payload.text);
         }
         if (startsGenerationEvents.has(eventType) && generation.inputEndedAt && !generation.firstModelEventAt) {
             generation.firstModelEventAt = Date.now();

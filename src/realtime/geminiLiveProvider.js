@@ -55,6 +55,22 @@ function hashText(text) {
     return crypto.createHash('sha256').update(String(text || ''), 'utf8').digest('hex').slice(0, 12);
 }
 
+const GET_RIDDLE_TOOL_DECLARATION = {
+    name: 'get_riddle',
+    description: 'Mandatory first step for any child request for a riddle. Call get_riddle before saying any riddle text. Never invent or speak a riddle before this tool result. The server may return a library item or a controlled generated fallback in the same format.',
+    parameters: {
+        type: 'OBJECT',
+        properties: {
+            topic: { type: 'STRING', description: 'Optional child-requested topic, tag, or theme for the riddle.' },
+            language: { type: 'STRING', description: 'Optional requested language code. Use the child language when clear.' },
+        },
+    },
+};
+
+function buildLiveTools() {
+    return [{ functionDeclarations: [GET_RIDDLE_TOOL_DECLARATION] }];
+}
+
 function defaultSystemInstructionText() {
     return 'You are Lumi, a warm child-safe voice companion. Reply briefly and naturally in the user language.';
 }
@@ -177,6 +193,7 @@ class GeminiLiveProvider {
             promptSource: options.promptSource,
             rotationReason: options.rotationReason,
             rotationMode: normalizeRotationMode(options.rotationMode),
+            toolHandlers: options.toolHandlers,
         });
     }
 }
@@ -193,6 +210,7 @@ class GeminiLiveProviderSession {
         promptSource,
         rotationReason,
         rotationMode,
+        toolHandlers,
     }) {
         this.name = 'gemini';
         this.rotationMode = normalizeRotationMode(rotationMode);
@@ -223,6 +241,7 @@ class GeminiLiveProviderSession {
         this.sessionInputBytes = 0;
         this.promptApplyCount = 0;
         this.rawTraceSeq = 0;
+        this.toolHandlers = toolHandlers && typeof toolHandlers === 'object' ? toolHandlers : {};
     }
 
     async connect(log = () => {}) {
@@ -303,6 +322,7 @@ class GeminiLiveProviderSession {
                     speechConfig,
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
+                    tools: buildLiveTools(),
                     realtimeInputConfig: {
                         automaticActivityDetection: {
                             disabled: false,
@@ -675,6 +695,86 @@ class GeminiLiveProviderSession {
         this.ready = false;
     }
 
+    async handleToolCall(toolCall) {
+        if (this.closed) return;
+        const active = this.active;
+        if (!active || active.signal.cancelled) return;
+        const functionCalls = Array.isArray(toolCall?.functionCalls) ? toolCall.functionCalls : [];
+        if (functionCalls.length === 0) return;
+
+        const functionResponses = [];
+        for (const functionCall of functionCalls) {
+            const name = String(functionCall?.name || '');
+            const handler = this.toolHandlers[name];
+            active.onEvent({
+                type: 'tool.call',
+                response_id: active.responseId,
+                turn_id: active.turnId,
+                tool_name: name,
+                provider_instance_id: this.instanceId,
+            });
+            let response;
+            try {
+                if (typeof handler !== 'function') {
+                    response = { error: 'unsupported_tool:' + (name || 'unknown') };
+                } else {
+                    response = await handler({
+                        args: functionCall?.args || {},
+                        functionCall,
+                        generationId: active.generationId,
+                        responseId: active.responseId,
+                        turnId: active.turnId,
+                        providerInstanceId: this.instanceId,
+                    });
+                }
+            } catch (error) {
+                response = { error: safeErrorMessage(error) };
+            }
+            functionResponses.push({
+                id: functionCall?.id,
+                name,
+                response: response || {},
+            });
+        }
+
+        if (this.closed || this.active !== active || active.signal.cancelled) {
+            active.log('dropped_provider_event', {
+                generationId: active.generationId,
+                responseId: active.responseId,
+                eventType: 'tool.response',
+                reason: 'stale_tool_response',
+                providerInstanceId: this.instanceId,
+            });
+            return;
+        }
+
+        this.session?.sendToolResponse({ functionResponses });
+        active.onEvent({
+            type: 'tool.response',
+            response_id: active.responseId,
+            turn_id: active.turnId,
+            tool_names: functionResponses.map((item) => item.name).filter(Boolean),
+            provider_instance_id: this.instanceId,
+        });
+    }
+
+    sendActivityResult(result) {
+        if (this.closed || !this.session) return false;
+        const correct = Boolean(result?.correct);
+        const attempts = Number(result?.attempts || 0);
+        const text = correct
+            ? 'Server checked the child answer to the active riddle: correct. Reply warmly and briefly, then continue normally.'
+            : 'Server checked the child answer to the active riddle: incorrect. Attempts: ' + attempts + '. Reply briefly. If attempts are 2 or more, give a gentle hint without revealing the answer.';
+        this.session.sendClientContent({
+            turns: [{
+                role: 'user',
+                parts: [{ text }],
+            }],
+            turnComplete: true,
+        });
+        return true;
+    }
+
     handleMessage(message) {
         if (this.closed) return;
         if (isRawTraceEnabled()) {
@@ -689,6 +789,17 @@ class GeminiLiveProviderSession {
                 voiceName: this.voiceName,
             });
         }
+        if (message?.toolCall) {
+            this.handleToolCall(message.toolCall).catch((error) => {
+                const log = this.active?.log || this.sessionLog || (() => {});
+                log('provider_tool_error', {
+                    providerInstanceId: this.instanceId,
+                    message: safeErrorMessage(error),
+                });
+            });
+            return;
+        }
+
         const content = message?.serverContent;
         if (!content) return;
 
@@ -833,6 +944,7 @@ class GeminiLiveProviderSession {
 
 module.exports = {
     GeminiLiveProvider,
+    buildLiveTools,
     MODEL_ID,
     DEFAULT_GEMINI_LIVE_VOICE,
     buildGeminiSpeechConfig,

@@ -1,0 +1,1809 @@
+{
+  "pack_id": "tongue_twisters_ru_v2",
+  "type": "tongue_twister",
+  "lang": "ru-RU",
+  "pack_version": "v2",
+  "source": "docx_import",
+  "items": [
+    {
+      "id": "tongue_twister_ru_v2_001",
+      "title": "Скороговорка 001",
+      "text": "От топота копыт пыль по полю летит.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 1
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_002",
+      "title": "Скороговорка 002",
+      "text": "Ехал Грека через реку, видит Грека в реке рак.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 2
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_003",
+      "title": "Скороговорка 003",
+      "text": "На дворе трава, на траве дрова, не руби дрова на траве двора.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 3
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_004",
+      "title": "Скороговорка 004",
+      "text": "Карл у Клары украл кораллы, Клара у Карла украла кларнет.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 4
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_005",
+      "title": "Скороговорка 005",
+      "text": "Четыре чёрненьких чумазеньких чертёнка чертили чёрными чернилами чертёж.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 5
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_006",
+      "title": "Скороговорка 006",
+      "text": "Шла Саша по шоссе и сосала сушку.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 6
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_007",
+      "title": "Скороговорка 007",
+      "text": "Кукушка кукушонку купила капюшон.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 7
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_008",
+      "title": "Скороговорка 008",
+      "text": "Свинья тупорыла, носом весь двор перерыла.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 8
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_009",
+      "title": "Скороговорка 009",
+      "text": "Бык тупогуб, тупогубенький бычок, у быка бела губа была тупа.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 9
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_010",
+      "title": "Скороговорка 010",
+      "text": "Три свиристели свиристели на ели.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 10
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_011",
+      "title": "Скороговорка 011",
+      "text": "Расскажите про покупки! Про какие про покупки? Про покупки, про покупки, про покупочки мои.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 11
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_012",
+      "title": "Скороговорка 012",
+      "text": "Все скороговорки не перевыскороговоришь.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 12
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_013",
+      "title": "Скороговорка 013",
+      "text": "На опушке в избушке живут старушки-болтушки.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 13
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_014",
+      "title": "Скороговорка 014",
+      "text": "Осип охрип, Архип осип.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 14
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_015",
+      "title": "Скороговорка 015",
+      "text": "Два щенка щека к щеке щиплют щётку в уголке.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 15
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_016",
+      "title": "Скороговорка 016",
+      "text": "Цпля поймала цаплю в зарослях конопли.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 16
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_017",
+      "title": "Скороговорка 017",
+      "text": "У Сени и Сани в сетях сом с усами.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 17
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_018",
+      "title": "Скороговорка 018",
+      "text": "Променяла Прасковья карася на три пары коровьих присосок.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 18
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_019",
+      "title": "Скороговорка 019",
+      "text": "Волки рыщут, пищу ищут.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 19
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_020",
+      "title": "Скороговорка 020",
+      "text": "У сороки-белобоки четыре сорочонка.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 20
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_021",
+      "title": "Скороговорка 021",
+      "text": "Ткач ткёт ткани на платки Тане.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 21
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_022",
+      "title": "Скороговорка 022",
+      "text": "Везёт Сенька Саньку с Сонькой на санках.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 22
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_023",
+      "title": "Скороговорка 023",
+      "text": "Носит Сеня сено в сени, спать на сене будет Сеня.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 23
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_024",
+      "title": "Скороговорка 024",
+      "text": "Шли сорок мышей, несли сорок грошей.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 24
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_025",
+      "title": "Скороговорка 025",
+      "text": "Шесть мышат в камышах шуршат.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 25
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_026",
+      "title": "Скороговорка 026",
+      "text": "Мама мыла Милу мылом, Мила мыло не любила.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 26
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_027",
+      "title": "Скороговорка 027",
+      "text": "На горе Арарат растёт крупный виноград.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 27
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_028",
+      "title": "Скороговорка 028",
+      "text": "Щёткой чищу я щенка, щекочу ему бока.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 28
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_029",
+      "title": "Скороговорка 029",
+      "text": "В аквариуме у Харитона четыре рака да три тритона.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 29
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_030",
+      "title": "Скороговорка 030",
+      "text": "Ужа ужалила ужица, ужу с ужицей не ужиться.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 30
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_031",
+      "title": "Скороговорка 031",
+      "text": "Корабли лавировали, лавировали, да не вылавировали.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 31
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_032",
+      "title": "Скороговорка 032",
+      "text": "Повар Пётр и повар Павел Пётр пёк, а Павел парил.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 32
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_033",
+      "title": "Скороговорка 033",
+      "text": "Жужжит жужелица, жужжит, да не кружится.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 33
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_034",
+      "title": "Скороговорка 034",
+      "text": "Цыплёнок цапли цепко цеплялся за цепочку.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 34
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_035",
+      "title": "Скороговорка 035",
+      "text": "У киски в миске сливки скисли.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 35
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_036",
+      "title": "Скороговорка 036",
+      "text": "Клещ залез на лещ, лещ попал под клещ.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 36
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_037",
+      "title": "Скороговорка 037",
+      "text": "Архип стал сип, Сип стал хрип.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 37
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_038",
+      "title": "Скороговорка 038",
+      "text": "Варвара караулила цыплят, а ворона воровала.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 38
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_039",
+      "title": "Скороговорка 039",
+      "text": "У Кондрата куртка коротковата.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 39
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_040",
+      "title": "Скороговорка 040",
+      "text": "На реке поймали рака, из-за рака вышла драка.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 40
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_041",
+      "title": "Скороговорка 041",
+      "text": "Шли три попА, три Прокопия попА, три Прокопьевича.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 41
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_042",
+      "title": "Скороговорка 042",
+      "text": "Бомбардир бонбоньерками бомбардировал барышень.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 42
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_043",
+      "title": "Скороговорка 043",
+      "text": "Полпогреба репы, полколпака гороху.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 43
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_044",
+      "title": "Скороговорка 044",
+      "text": "Наш чеботарь всем чеботарям чеботарь.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 44
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_045",
+      "title": "Скороговорка 045",
+      "text": "Наш голова вашего голову головой переголовит.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 45
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_046",
+      "title": "Скороговорка 046",
+      "text": "В один клин, Клим, колоти.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 46
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_047",
+      "title": "Скороговорка 047",
+      "text": "Триста тридцать три корабля лавировали.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 47
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_048",
+      "title": "Скороговорка 048",
+      "text": "Добры бобры идут в боры.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 48
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_049",
+      "title": "Скороговорка 049",
+      "text": "Лошадь ела кашу, а корова — простоквашу.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 49
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_050",
+      "title": "Скороговорка 050",
+      "text": "Купи кипу пик, кипу пик купи.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 50
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_051",
+      "title": "Скороговорка 051",
+      "text": "Водовоз вёз воду из водопровода.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 51
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_052",
+      "title": "Скороговорка 052",
+      "text": "Сашка ловил шашкой лягушек в камышах.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 52
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_053",
+      "title": "Скороговорка 053",
+      "text": "Летели лебеди с лебедятами.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 53
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_054",
+      "title": "Скороговорка 054",
+      "text": "У Саши в каше сыворотка от простокваши.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 54
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_055",
+      "title": "Скороговорка 055",
+      "text": "Сшил колпак, да не по-колпаковски.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 55
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_056",
+      "title": "Скороговорка 056",
+      "text": "Рыбы в проруби — пруд пруди.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 56
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_057",
+      "title": "Скороговорка 057",
+      "text": "Пекарь Пётр пёк пироги.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 57
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_058",
+      "title": "Скороговорка 058",
+      "text": "Сиреневенькая зубовыковыривательница.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 58
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_059",
+      "title": "Скороговорка 059",
+      "text": "Хвала халве, халве хвала.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 59
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_060",
+      "title": "Скороговорка 060",
+      "text": "Рома Маше дал ромашку, Маша Роме сшила рубашку.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 60
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_061",
+      "title": "Скороговорка 061",
+      "text": "Мышка залезла под крышку.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 61
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_062",
+      "title": "Скороговорка 062",
+      "text": "Белые бараны били в барабаны.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 62
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_063",
+      "title": "Скороговорка 063",
+      "text": "Стоит поп на копне, колпак на попе.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 63
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_064",
+      "title": "Скороговорка 064",
+      "text": "У ёлки иголки колки.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 64
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_065",
+      "title": "Скороговорка 065",
+      "text": "Лавировали корабли, лавировали, да не вылавировали.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 65
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_066",
+      "title": "Скороговорка 066",
+      "text": "Протокол про протокол протоколом запротоколировали.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 66
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_067",
+      "title": "Скороговорка 067",
+      "text": "Чешуя у щучки, щетинка у чушки.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 67
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_068",
+      "title": "Скороговорка 068",
+      "text": "Свиристель свиристит свирелью.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 68
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_069",
+      "title": "Скороговорка 069",
+      "text": "Король — орёл, орёл — король.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 69
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_070",
+      "title": "Скороговорка 070",
+      "text": "Маланья-болтунья молоко болтала.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 70
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_071",
+      "title": "Скороговорка 071",
+      "text": "Опять пять ребят нашли у пенька пять опят.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 71
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_072",
+      "title": "Скороговорка 072",
+      "text": "Гриша грыз корж, а Боря — морж.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 72
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_073",
+      "title": "Скороговорка 073",
+      "text": "Из-под Костромы, из-под Костромщины шли четыре мужчины.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 73
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_074",
+      "title": "Скороговорка 074",
+      "text": "Щи да каша — пища наша.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 74
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_075",
+      "title": "Скороговорка 075",
+      "text": "Дядя Коля дочке Поле подарил щеночка колли.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 75
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_076",
+      "title": "Скороговорка 076",
+      "text": "У крошки матрёшки пропали серёжки.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 76
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_077",
+      "title": "Скороговорка 077",
+      "text": "Шакал шагал, шакал скакал.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 77
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_078",
+      "title": "Скороговорка 078",
+      "text": "Хохлатые хохотушки хохотом хохотали.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 78
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_079",
+      "title": "Скороговорка 079",
+      "text": "Купила бабуся бусы Марусе.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 79
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_080",
+      "title": "Скороговорка 080",
+      "text": "Фараонов фаворит на сапфир сменял нефрит.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 80
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_081",
+      "title": "Скороговорка 081",
+      "text": "Наш филин Федя в лесу на ветке сидит.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 81
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_082",
+      "title": "Скороговорка 082",
+      "text": "Кит катает кота на катере.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 82
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_083",
+      "title": "Скороговорка 083",
+      "text": "Здоровому всё здорово.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 83
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_084",
+      "title": "Скороговорка 084",
+      "text": "Зине купили в магазине резину.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 84
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_085",
+      "title": "Скороговорка 085",
+      "text": "Тимошка Трошке крошит крошки в окрошку.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 85
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_086",
+      "title": "Скороговорка 086",
+      "text": "Клим из Клина ехал в Крым.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 86
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_087",
+      "title": "Скороговорка 087",
+      "text": "Галка села на палку, палка ударила галку.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 87
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_088",
+      "title": "Скороговорка 088",
+      "text": "Кот копеек накопил, кошке кофточку купил.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 88
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_089",
+      "title": "Скороговорка 089",
+      "text": "Свиристели прилетели и запели еле-еле.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 89
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_090",
+      "title": "Скороговорка 090",
+      "text": "На дворе сидит гора, на горе стоит нора.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 90
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_091",
+      "title": "Скороговорка 091",
+      "text": "Панкрат принёс домкрат.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 91
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_092",
+      "title": "Скороговорка 092",
+      "text": "Лена искала ленту в телеге.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 92
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_093",
+      "title": "Скороговорка 093",
+      "text": "У Паши в кармане три карандаша.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 93
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_094",
+      "title": "Скороговорка 094",
+      "text": "Люба любит лютики, а Поля — поляны.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 94
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_095",
+      "title": "Скороговорка 095",
+      "text": "Глеб хлеб пёк, Олег хлеб ел.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 95
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_096",
+      "title": "Скороговорка 096",
+      "text": "Воробей просил ворону вызвать волка к телефону.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 96
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_097",
+      "title": "Скороговорка 097",
+      "text": "Маленький мальчик мячик гонял.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 97
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_098",
+      "title": "Скороговорка 098",
+      "text": "Наш пёс Барбос перерос навес.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 98
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_099",
+      "title": "Скороговорка 099",
+      "text": "Топали да топали, дотопали до тополя.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 99
+      }
+    },
+    {
+      "id": "tongue_twister_ru_v2_100",
+      "title": "Скороговорка 100",
+      "text": "Шёл Егор через двор, нёс топор чинить забор.",
+      "tags": [
+        "docx_import",
+        "tongue_twister",
+        "ru"
+      ],
+      "topic": "речь",
+      "difficulty": "medium",
+      "age_min": 4,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких и популярных скороговорок для детей.docx",
+        "source_line": 100
+      }
+    }
+  ]
+}

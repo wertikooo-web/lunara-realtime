@@ -1,0 +1,2139 @@
+{
+  "pack_id": "riddles_ru_v2",
+  "type": "riddle",
+  "lang": "ru-RU",
+  "pack_version": "v2",
+  "source": "docx_import",
+  "items": [
+    {
+      "id": "riddle_ru_v2_001",
+      "title": "Загадка 001",
+      "text": "Зелёная, прыгучая, на речке певучая.",
+      "answers": [
+        "лягушка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 1
+      }
+    },
+    {
+      "id": "riddle_ru_v2_002",
+      "title": "Загадка 002",
+      "text": "Хвост пушистый, мех золотистый, в лесу живёт, кур крадёт.",
+      "answers": [
+        "лиса"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 2
+      }
+    },
+    {
+      "id": "riddle_ru_v2_003",
+      "title": "Загадка 003",
+      "text": "Зимой спит в берлоге, летом ходит по дороге.",
+      "answers": [
+        "медведь",
+        "мёдвёдь"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 3
+      }
+    },
+    {
+      "id": "riddle_ru_v2_004",
+      "title": "Загадка 004",
+      "text": "По веткам скачет, в дупло шишки прячет.",
+      "answers": [
+        "белка",
+        "бёлка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 4
+      }
+    },
+    {
+      "id": "riddle_ru_v2_005",
+      "title": "Загадка 005",
+      "text": "Маленький, серенький, под кустом сидит, ушами шевелит.",
+      "answers": [
+        "заяц"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 5
+      }
+    },
+    {
+      "id": "riddle_ru_v2_006",
+      "title": "Загадка 006",
+      "text": "Живёт во дворе, лает в конуре.",
+      "answers": [
+        "собака"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 6
+      }
+    },
+    {
+      "id": "riddle_ru_v2_007",
+      "title": "Загадка 007",
+      "text": "Мягкие лапки, а в лапках цап-царапки.",
+      "answers": [
+        "кошка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 7
+      }
+    },
+    {
+      "id": "riddle_ru_v2_008",
+      "title": "Загадка 008",
+      "text": "Иголки на спине носит, ниток никогда не просит.",
+      "answers": [
+        "ёж",
+        "еж"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 8
+      }
+    },
+    {
+      "id": "riddle_ru_v2_009",
+      "title": "Загадка 009",
+      "text": "Вместо носа — пятачок, вместо хвостика — крючок.",
+      "answers": [
+        "свинья"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 9
+      }
+    },
+    {
+      "id": "riddle_ru_v2_010",
+      "title": "Загадка 010",
+      "text": "Говорит она «му-му», молока налить кому?",
+      "answers": [
+        "корова"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 10
+      }
+    },
+    {
+      "id": "riddle_ru_v2_011",
+      "title": "Загадка 011",
+      "text": "Подковы на ногах, возит телегу на лугах.",
+      "answers": [
+        "лошадь"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 11
+      }
+    },
+    {
+      "id": "riddle_ru_v2_012",
+      "title": "Загадка 012",
+      "text": "Плывёт по речке белый пух, кричит «кря-кря»...",
+      "answers": [
+        "утка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 12
+      }
+    },
+    {
+      "id": "riddle_ru_v2_013",
+      "title": "Загадка 013",
+      "text": "Днём спит, ночью летает, прохожих пугает.",
+      "answers": [
+        "сова"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 13
+      }
+    },
+    {
+      "id": "riddle_ru_v2_014",
+      "title": "Загадка 014",
+      "text": "Птица мирная, степная, почту людям доставляет.",
+      "answers": [
+        "голубь"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 14
+      }
+    },
+    {
+      "id": "riddle_ru_v2_015",
+      "title": "Загадка 015",
+      "text": "Красный гребешок, будит всех...",
+      "answers": [
+        "петушок",
+        "пётушок"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 15
+      }
+    },
+    {
+      "id": "riddle_ru_v2_016",
+      "title": "Загадка 016",
+      "text": "Не птица, а летает, на цветках засыпает.",
+      "answers": [
+        "бабочка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 16
+      }
+    },
+    {
+      "id": "riddle_ru_v2_017",
+      "title": "Загадка 017",
+      "text": "Целый день жужжит, мёд в улей тащит.",
+      "answers": [
+        "пчела",
+        "пчёла"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 17
+      }
+    },
+    {
+      "id": "riddle_ru_v2_018",
+      "title": "Загадка 018",
+      "text": "Наткёт сеточку кругом, для мушек это дом.",
+      "answers": [
+        "паук"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 18
+      }
+    },
+    {
+      "id": "riddle_ru_v2_019",
+      "title": "Загадка 019",
+      "text": "Шея длинная, как кран, ходит важный великан.",
+      "answers": [
+        "жираф"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 19
+      }
+    },
+    {
+      "id": "riddle_ru_v2_020",
+      "title": "Загадка 020",
+      "text": "Носит домик на спине, ползёт тихо по траве.",
+      "answers": [
+        "улитка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 20
+      }
+    },
+    {
+      "id": "riddle_ru_v2_021",
+      "title": "Загадка 021",
+      "text": "Маленький, зелёный, в траве стрекочет.",
+      "answers": [
+        "кузнечик",
+        "кузнёчик"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 21
+      }
+    },
+    {
+      "id": "riddle_ru_v2_022",
+      "title": "Загадка 022",
+      "text": "Под землёй прорыл метро этот маленький герой.",
+      "answers": [
+        "крот"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 22
+      }
+    },
+    {
+      "id": "riddle_ru_v2_023",
+      "title": "Загадка 023",
+      "text": "Под водой живёт, хвостом виляет, рот открывает.",
+      "answers": [
+        "рыба"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 23
+      }
+    },
+    {
+      "id": "riddle_ru_v2_024",
+      "title": "Загадка 024",
+      "text": "В реке живёт бревно, зелёное и зубастое оно.",
+      "answers": [
+        "крокодил"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 24
+      }
+    },
+    {
+      "id": "riddle_ru_v2_025",
+      "title": "Загадка 025",
+      "text": "Полосатая лошадка, скачет по дорожке гладко.",
+      "answers": [
+        "зебра",
+        "зёбра"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Животные и птицы",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 25
+      }
+    },
+    {
+      "id": "riddle_ru_v2_026",
+      "title": "Загадка 026",
+      "text": "Круглое, жёлтое, в небе сияет, всех согревает.",
+      "answers": [
+        "солнце",
+        "солнцё"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 26
+      }
+    },
+    {
+      "id": "riddle_ru_v2_027",
+      "title": "Загадка 027",
+      "text": "Ночью на небе один золотой рог виден.",
+      "answers": [
+        "месяц",
+        "мёсяц"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 27
+      }
+    },
+    {
+      "id": "riddle_ru_v2_028",
+      "title": "Загадка 028",
+      "text": "Горошины рассыпались по ночному небу.",
+      "answers": [
+        "звёзды",
+        "звезды"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 28
+      }
+    },
+    {
+      "id": "riddle_ru_v2_029",
+      "title": "Загадка 029",
+      "text": "По небу плывёт белая вата.",
+      "answers": [
+        "облако"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 29
+      }
+    },
+    {
+      "id": "riddle_ru_v2_030",
+      "title": "Загадка 030",
+      "text": "С неба падает водичка, пьёт её трава-сестричка.",
+      "answers": [
+        "дождь"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 30
+      }
+    },
+    {
+      "id": "riddle_ru_v2_031",
+      "title": "Загадка 031",
+      "text": "Белый, холодный, зимой землю укрывает.",
+      "answers": [
+        "снег",
+        "снёг"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 31
+      }
+    },
+    {
+      "id": "riddle_ru_v2_032",
+      "title": "Загадка 032",
+      "text": "Без рук, без ног, а ворота открывает.",
+      "answers": [
+        "ветер",
+        "вётёр"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 32
+      }
+    },
+    {
+      "id": "riddle_ru_v2_033",
+      "title": "Загадка 033",
+      "text": "После дождя в небе цветной мост встаёт.",
+      "answers": [
+        "радуга"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 33
+      }
+    },
+    {
+      "id": "riddle_ru_v2_034",
+      "title": "Загадка 034",
+      "text": "На дворе горой, а в избе водой.",
+      "answers": [
+        "лёд",
+        "лед"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 34
+      }
+    },
+    {
+      "id": "riddle_ru_v2_035",
+      "title": "Загадка 035",
+      "text": "Весной растёт сверху вниз, прозрачный каприз.",
+      "answers": [
+        "сосулька"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 35
+      }
+    },
+    {
+      "id": "riddle_ru_v2_036",
+      "title": "Загадка 036",
+      "text": "Летом гремит, молнией блестит.",
+      "answers": [
+        "гроза"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 36
+      }
+    },
+    {
+      "id": "riddle_ru_v2_037",
+      "title": "Загадка 037",
+      "text": "Бабахнет на небе, а мы прячемся в доме.",
+      "answers": [
+        "гром"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 37
+      }
+    },
+    {
+      "id": "riddle_ru_v2_038",
+      "title": "Загадка 038",
+      "text": "Траву росой умывает, утро начинает.",
+      "answers": [
+        "заря"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 38
+      }
+    },
+    {
+      "id": "riddle_ru_v2_039",
+      "title": "Загадка 039",
+      "text": "Зимой стекло узорами украшает.",
+      "answers": [
+        "мороз"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 39
+      }
+    },
+    {
+      "id": "riddle_ru_v2_040",
+      "title": "Загадка 040",
+      "text": "Белая дымка над рекой встаёт с утра.",
+      "answers": [
+        "туман"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 40
+      }
+    },
+    {
+      "id": "riddle_ru_v2_041",
+      "title": "Загадка 041",
+      "text": "Сами падают с ветвей, осенью летят быстрей.",
+      "answers": [
+        "листья"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 41
+      }
+    },
+    {
+      "id": "riddle_ru_v2_042",
+      "title": "Загадка 042",
+      "text": "Летом зеленеет, осенью желтеет.",
+      "answers": [
+        "трава"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 42
+      }
+    },
+    {
+      "id": "riddle_ru_v2_043",
+      "title": "Загадка 043",
+      "text": "Бежит, журчит, в реку спешит.",
+      "answers": [
+        "ручей",
+        "ручёй"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 43
+      }
+    },
+    {
+      "id": "riddle_ru_v2_044",
+      "title": "Загадка 044",
+      "text": "Моря и океаны соединяет, корабли качает.",
+      "answers": [
+        "вода"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 44
+      }
+    },
+    {
+      "id": "riddle_ru_v2_045",
+      "title": "Загадка 045",
+      "text": "Стоит Антошка на одной ножке, его ищут в лукошке.",
+      "answers": [
+        "гриб"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Природа и погода",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 45
+      }
+    },
+    {
+      "id": "riddle_ru_v2_046",
+      "title": "Загадка 046",
+      "text": "Круглое, румяное, с дерева упало — мне в рот попало.",
+      "answers": [
+        "яблоко"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 46
+      }
+    },
+    {
+      "id": "riddle_ru_v2_047",
+      "title": "Загадка 047",
+      "text": "Сидит дед, во сто шуб одет, кто его раздевает, слёзы проливает.",
+      "answers": [
+        "лук"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 47
+      }
+    },
+    {
+      "id": "riddle_ru_v2_048",
+      "title": "Загадка 048",
+      "text": "Красная девица сидит в темнице, а коса на улице.",
+      "answers": [
+        "морковь"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 48
+      }
+    },
+    {
+      "id": "riddle_ru_v2_049",
+      "title": "Загадка 049",
+      "text": "Сто одёжек и все без застёжек.",
+      "answers": [
+        "капуста"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 49
+      }
+    },
+    {
+      "id": "riddle_ru_v2_050",
+      "title": "Загадка 050",
+      "text": "Маленький, горький, луку брат.",
+      "answers": [
+        "чеснок",
+        "чёснок"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 50
+      }
+    },
+    {
+      "id": "riddle_ru_v2_051",
+      "title": "Загадка 051",
+      "text": "Синий мундир, жёлтая подкладка, а в середине сладко.",
+      "answers": [
+        "слива"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 51
+      }
+    },
+    {
+      "id": "riddle_ru_v2_052",
+      "title": "Загадка 052",
+      "text": "Жёлтый, кислый, в чай его кладут.",
+      "answers": [
+        "лимон"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 52
+      }
+    },
+    {
+      "id": "riddle_ru_v2_053",
+      "title": "Загадка 053",
+      "text": "Длинный, зелёный, на грядке растёт.",
+      "answers": [
+        "огурец",
+        "огурёц"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 53
+      }
+    },
+    {
+      "id": "riddle_ru_v2_054",
+      "title": "Загадка 054",
+      "text": "Растёт в земле, круглая, коричневая, в суп её кладут.",
+      "answers": [
+        "картошка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 54
+      }
+    },
+    {
+      "id": "riddle_ru_v2_055",
+      "title": "Загадка 055",
+      "text": "Сверху зелёный, внутри красный, сладкий-прекрасный.",
+      "answers": [
+        "арбуз"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 55
+      }
+    },
+    {
+      "id": "riddle_ru_v2_056",
+      "title": "Загадка 056",
+      "text": "На ниточке качаются маленькие сладкие бусины.",
+      "answers": [
+        "земляника",
+        "зёмляника"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 56
+      }
+    },
+    {
+      "id": "riddle_ru_v2_057",
+      "title": "Загадка 057",
+      "text": "Круглый, красный, сочный, для салата нужен точно.",
+      "answers": [
+        "помидор"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 57
+      }
+    },
+    {
+      "id": "riddle_ru_v2_058",
+      "title": "Загадка 058",
+      "text": "Пчёлы его носят, к чаю все просят.",
+      "answers": [
+        "мёд",
+        "мед"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 58
+      }
+    },
+    {
+      "id": "riddle_ru_v2_059",
+      "title": "Загадка 059",
+      "text": "Из неё кашу варят и в мешки насыпают.",
+      "answers": [
+        "крупа"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 59
+      }
+    },
+    {
+      "id": "riddle_ru_v2_060",
+      "title": "Загадка 060",
+      "text": "Белое, жидкое, корова даёт.",
+      "answers": [
+        "молоко"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 60
+      }
+    },
+    {
+      "id": "riddle_ru_v2_061",
+      "title": "Загадка 061",
+      "text": "Круглый, жёлтый, с дырками, мыши его любят.",
+      "answers": [
+        "сыр"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 61
+      }
+    },
+    {
+      "id": "riddle_ru_v2_062",
+      "title": "Загадка 062",
+      "text": "Белый камень в воде тает, чай подслащает.",
+      "answers": [
+        "сахар"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 62
+      }
+    },
+    {
+      "id": "riddle_ru_v2_063",
+      "title": "Загадка 063",
+      "text": "Белый, пушистый, из печи душистый.",
+      "answers": [
+        "хлеб",
+        "хлёб"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 63
+      }
+    },
+    {
+      "id": "riddle_ru_v2_064",
+      "title": "Загадка 064",
+      "text": "Холодное, сладкое, летом в стаканчике тает.",
+      "answers": [
+        "мороженое",
+        "морожёноё"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 64
+      }
+    },
+    {
+      "id": "riddle_ru_v2_065",
+      "title": "Загадка 065",
+      "text": "Курица снесла, круглое, белое, внутри желток.",
+      "answers": [
+        "яйцо"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Овощи, фрукты и еда",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 65
+      }
+    },
+    {
+      "id": "riddle_ru_v2_066",
+      "title": "Загадка 066",
+      "text": "Два конца, два кольца, посередине гвоздик.",
+      "answers": [
+        "ножницы"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 66
+      }
+    },
+    {
+      "id": "riddle_ru_v2_067",
+      "title": "Загадка 067",
+      "text": "Сама худая, а голова с ушком.",
+      "answers": [
+        "иголка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 67
+      }
+    },
+    {
+      "id": "riddle_ru_v2_068",
+      "title": "Загадка 068",
+      "text": "Четыре ноги, а ходить не может.",
+      "answers": [
+        "стол"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 68
+      }
+    },
+    {
+      "id": "riddle_ru_v2_069",
+      "title": "Загадка 069",
+      "text": "На нём сидят, спиной опираются.",
+      "answers": [
+        "стул"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 69
+      }
+    },
+    {
+      "id": "riddle_ru_v2_070",
+      "title": "Загадка 070",
+      "text": "Мягкая, перьевая, под ушко ложится.",
+      "answers": [
+        "подушка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 70
+      }
+    },
+    {
+      "id": "riddle_ru_v2_071",
+      "title": "Загадка 071",
+      "text": "Зимой греет, летом в шкафу отдыхает.",
+      "answers": [
+        "шуба"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 71
+      }
+    },
+    {
+      "id": "riddle_ru_v2_072",
+      "title": "Загадка 072",
+      "text": "Одеваем на ноги, чтобы бегать по дороге.",
+      "answers": [
+        "обувь"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 72
+      }
+    },
+    {
+      "id": "riddle_ru_v2_073",
+      "title": "Загадка 073",
+      "text": "Носик пылает, бельё разглаживает.",
+      "answers": [
+        "утюг"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 73
+      }
+    },
+    {
+      "id": "riddle_ru_v2_074",
+      "title": "Загадка 074",
+      "text": "Гудит, шумит, пыль в себя так и тащит.",
+      "answers": [
+        "пылесос",
+        "пылёсос"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 74
+      }
+    },
+    {
+      "id": "riddle_ru_v2_075",
+      "title": "Загадка 075",
+      "text": "Стоит ящик, в нём экран, показывает сказки нам.",
+      "answers": [
+        "телевизор",
+        "тёлёвизор"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 75
+      }
+    },
+    {
+      "id": "riddle_ru_v2_076",
+      "title": "Загадка 076",
+      "text": "Картинки показывает, сказки рассказывает, из бумаги сделана.",
+      "answers": [
+        "книга"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 76
+      }
+    },
+    {
+      "id": "riddle_ru_v2_077",
+      "title": "Загадка 077",
+      "text": "Белый лист, на нём карандаш рисует.",
+      "answers": [
+        "бумага"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 77
+      }
+    },
+    {
+      "id": "riddle_ru_v2_078",
+      "title": "Загадка 078",
+      "text": "Деревянная палочка, внутри чёрный носик, рисует домик.",
+      "answers": [
+        "карандаш"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 78
+      }
+    },
+    {
+      "id": "riddle_ru_v2_079",
+      "title": "Загадка 079",
+      "text": "В пенал ложится, ровно чертить пригодится.",
+      "answers": [
+        "линейка",
+        "линёйка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 79
+      }
+    },
+    {
+      "id": "riddle_ru_v2_080",
+      "title": "Загадка 080",
+      "text": "Ошибку в тетрадке быстро сотрёт.",
+      "answers": [
+        "ластик"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 80
+      }
+    },
+    {
+      "id": "riddle_ru_v2_081",
+      "title": "Загадка 081",
+      "text": "На спине висит, учебники хранит.",
+      "answers": [
+        "рюкзак"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 81
+      }
+    },
+    {
+      "id": "riddle_ru_v2_082",
+      "title": "Загадка 082",
+      "text": "Капает водичка на грязные ручки.",
+      "answers": [
+        "кран"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 82
+      }
+    },
+    {
+      "id": "riddle_ru_v2_083",
+      "title": "Загадка 083",
+      "text": "Зубки имеет, а кусать не умеет, причёску делает.",
+      "answers": [
+        "расчёска",
+        "расческа"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 83
+      }
+    },
+    {
+      "id": "riddle_ru_v2_084",
+      "title": "Загадка 084",
+      "text": "Круглое, стеклянное, себя в нём видишь.",
+      "answers": [
+        "зеркало",
+        "зёркало"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 84
+      }
+    },
+    {
+      "id": "riddle_ru_v2_085",
+      "title": "Загадка 085",
+      "text": "Растёт на голове, стригут в парикмахерской.",
+      "answers": [
+        "волосы"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 85
+      }
+    },
+    {
+      "id": "riddle_ru_v2_086",
+      "title": "Загадка 086",
+      "text": "Пять братьев вместе живут, а работать по одному ходят.",
+      "answers": [
+        "пальцы"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 86
+      }
+    },
+    {
+      "id": "riddle_ru_v2_087",
+      "title": "Загадка 087",
+      "text": "Круглый, гладкий, прыгает по грядке, бьют его, а он не плачет.",
+      "answers": [
+        "мяч"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 87
+      }
+    },
+    {
+      "id": "riddle_ru_v2_088",
+      "title": "Загадка 088",
+      "text": "Зимой на них катаются с горы, быстрые...",
+      "answers": [
+        "санки"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 88
+      }
+    },
+    {
+      "id": "riddle_ru_v2_089",
+      "title": "Загадка 089",
+      "text": "Два колеса, руль и педали, мы на нём вдаль умчали.",
+      "answers": [
+        "велосипед",
+        "вёлосипёд"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 89
+      }
+    },
+    {
+      "id": "riddle_ru_v2_090",
+      "title": "Загадка 090",
+      "text": "Если дождь пойдёт, он над нами расцветёт.",
+      "answers": [
+        "зонт"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 90
+      }
+    },
+    {
+      "id": "riddle_ru_v2_091",
+      "title": "Загадка 091",
+      "text": "Ног нет, а ходит, рта нет, а скажет, когда спать, когда вставать.",
+      "answers": [
+        "часы"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 91
+      }
+    },
+    {
+      "id": "riddle_ru_v2_092",
+      "title": "Загадка 092",
+      "text": "Стеклянный дом, а в нём огонёк живёт.",
+      "answers": [
+        "лампочка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 92
+      }
+    },
+    {
+      "id": "riddle_ru_v2_093",
+      "title": "Загадка 093",
+      "text": "Рук нет, а рисовать на окнах умеет.",
+      "answers": [
+        "мороз"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 93
+      }
+    },
+    {
+      "id": "riddle_ru_v2_094",
+      "title": "Загадка 094",
+      "text": "Хвостик из кости, а на спине щетина, зубы чистит.",
+      "answers": [
+        "зубная щётка",
+        "зубная щетка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 94
+      }
+    },
+    {
+      "id": "riddle_ru_v2_095",
+      "title": "Загадка 095",
+      "text": "Кинешь в речку — не утонет, бьёшь о стенку — не стонет.",
+      "answers": [
+        "мяч"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Предметы и дом",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 95
+      }
+    },
+    {
+      "id": "riddle_ru_v2_096",
+      "title": "Загадка 096",
+      "text": "Четыре колеса, бензин пьёт, по дороге везёт.",
+      "answers": [
+        "машина"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Техника и транспорт",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 96
+      }
+    },
+    {
+      "id": "riddle_ru_v2_097",
+      "title": "Загадка 097",
+      "text": "По рельсам бежит, весело гудит.",
+      "answers": [
+        "поезд",
+        "поёзд"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Техника и транспорт",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 97
+      }
+    },
+    {
+      "id": "riddle_ru_v2_098",
+      "title": "Загадка 098",
+      "text": "Железная птица в небе кружится.",
+      "answers": [
+        "самолёт",
+        "самолет"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Техника и транспорт",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 98
+      }
+    },
+    {
+      "id": "riddle_ru_v2_099",
+      "title": "Загадка 099",
+      "text": "Под водой плывёт, железный кит.",
+      "answers": [
+        "подводная лодка"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Техника и транспорт",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 99
+      }
+    },
+    {
+      "id": "riddle_ru_v2_100",
+      "title": "Загадка 100",
+      "text": "В кармане лежит, звонит и поёт, маме привет передаёт.",
+      "answers": [
+        "телефон",
+        "тёлёфон"
+      ],
+      "tags": [
+        "docx_import",
+        "riddle",
+        "ru"
+      ],
+      "topic": "Техника и транспорт",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_docx": "Вот 100 коротких загадок для детей.docx",
+        "source_line": 100
+      }
+    }
+  ]
+}
