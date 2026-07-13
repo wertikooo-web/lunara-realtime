@@ -14,6 +14,17 @@ const {
 } = require('./realtime/realtimePrompt');
 const { GEMINI_VOICES, DEFAULT_VOICE_NAME } = require('./geminiVoices');
 const { synthesizeVoicePreview, MAX_PREVIEW_TEXT_CHARS } = require('./voicePreview');
+const memoryStore = require('./memory/store');
+
+const MEMORY_ENABLED = /^(1|true|yes|on|enabled)$/i.test(String(process.env.REALTIME_MEMORY_ENABLED || ''));
+let memoryReadyPromise = null;
+function ensureMemoryReady() {
+    if (!MEMORY_ENABLED) {
+        return Promise.reject(Object.assign(new Error('memory_disabled'), { code: 'memory_disabled' }));
+    }
+    if (!memoryReadyPromise) memoryReadyPromise = memoryStore.init();
+    return memoryReadyPromise;
+}
 
 const PORT = Number(process.env.PORT || 3100);
 const provider = process.env.REALTIME_PROVIDER || 'mock';
@@ -81,7 +92,7 @@ function readJsonBody(req) {
     });
 }
 
-const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/realtime'];
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
@@ -183,6 +194,59 @@ const server = http.createServer(async (req, res) => {
             const code = error.code || 'voice_preview_failed';
             const statusCode = code === 'gemini_api_key_missing' ? 503 : 502;
             return sendJson(res, statusCode, { ok: false, error: code, max_chars: MAX_PREVIEW_TEXT_CHARS });
+        }
+    }
+
+    const memoryMatch = /^\/api\/memory\/([^/]+)(\/facts(?:\/([^/]+))?|\/clear)?\/?$/.exec(req.url);
+    if (memoryMatch) {
+        const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(memoryMatch[1]));
+        const subPath = memoryMatch[2] || '';
+        const factId = memoryMatch[3] ? decodeURIComponent(memoryMatch[3]) : null;
+
+        try {
+            await ensureMemoryReady();
+
+            if (req.method === 'GET' && !subPath) {
+                const { profile, facts } = await memoryStore.getProfileWithFacts(deviceId);
+                return sendJson(res, 200, { ok: true, profile, facts });
+            }
+
+            if (req.method === 'PUT' && !subPath) {
+                const body = await readJsonBody(req);
+                const profile = await memoryStore.updateProfileFields(deviceId, body);
+                return sendJson(res, 200, { ok: true, profile });
+            }
+
+            if (req.method === 'POST' && subPath === '/facts') {
+                const body = await readJsonBody(req);
+                const fact = await memoryStore.addFact(deviceId, { label: body.label, value: body.value, source: 'parent' });
+                if (!fact) return sendJson(res, 400, { ok: false, error: 'label_and_value_required' });
+                return sendJson(res, 200, { ok: true, fact });
+            }
+
+            if (req.method === 'DELETE' && subPath.startsWith('/facts/') && factId) {
+                await memoryStore.deleteFact(deviceId, factId);
+                return sendJson(res, 200, { ok: true });
+            }
+
+            if (req.method === 'POST' && subPath === '/clear') {
+                await memoryStore.clearFacts(deviceId);
+                return sendJson(res, 200, { ok: true });
+            }
+
+            if (req.method === 'DELETE' && !subPath) {
+                await memoryStore.deleteProfile(deviceId);
+                return sendJson(res, 200, { ok: true });
+            }
+
+            return sendJson(res, 404, { ok: false, error: 'not_found' });
+        } catch (error) {
+            const code = error.code || 'memory_request_failed';
+            const statusCode = code === 'memory_disabled' ? 503
+                : code === 'body_too_large' ? 413
+                    : code === 'invalid_json' ? 400
+                        : 500;
+            return sendJson(res, statusCode, { ok: false, error: code });
         }
     }
 

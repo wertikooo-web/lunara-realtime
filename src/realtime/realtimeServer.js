@@ -17,6 +17,13 @@ const {
     sanitizePromptConfig,
 } = require('./realtimePrompt');
 const { createContentLibrary } = require('../content/contentLibrary');
+const memoryStore = require('../memory/store');
+const memoryGuard = require('../memory/guard');
+const { extractMemoryActions } = require('../memory/extractor');
+
+function memoryEnabledFromEnv() {
+    return /^(1|true|yes|on|enabled)$/i.test(String(process.env.REALTIME_MEMORY_ENABLED || ''));
+}
 
 function id(prefix) {
     return `${prefix}_${crypto.randomBytes(8).toString('hex')}`;
@@ -127,6 +134,8 @@ function createGeneration({ turnId }) {
         firstInputTranscriptionAt: 0,
         firstModelEventAt: 0,
         firstValidAudioAt: 0,
+        userTranscriptBuffer: '',
+        memoryExtractionStarted: false,
     };
 }
 
@@ -134,6 +143,12 @@ function attachRealtimeServer(server, options = {}) {
     const defaultProvider = new MockRealtimeProvider(options.mockConfig || DEFAULT_CONFIG);
     const providerFactory = options.providerFactory || ((sessionOptions = {}) => defaultProvider.createSession(sessionOptions));
     const providerMetadata = options.providerMetadata || { provider: 'mock', model: 'mock' };
+
+    if (memoryEnabledFromEnv()) {
+        memoryStore.init()
+            .then(() => console.log('[Realtime] memory store ready'))
+            .catch((error) => console.error('[Realtime] memory store init failed:', error.message));
+    }
 
     server.on('upgrade', (req, socket) => {
         const url = new URL(req.url || '/', 'http://localhost');
@@ -183,6 +198,49 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     const contentLibrary = providerMetadata.contentLibrary || createContentLibrary(providerMetadata.contentLibraryOptions || {});
     let activeActivity = null;
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
+    let deviceId = memoryStore.normalizeDeviceId();
+    const memoryEnabledFlag = memoryEnabledFromEnv();
+
+    async function fetchChildContext(forDeviceId) {
+        try {
+            const { profile, facts } = await memoryStore.getProfileWithFacts(forDeviceId);
+            if (profile && profile.memory_enabled === false) return null;
+            return memoryStore.formatChildContext({ profile, facts });
+        } catch (error) {
+            log('memory_fetch_error', { deviceId: forDeviceId, message: error.message });
+            return null;
+        }
+    }
+
+    // Fire-and-forget: never blocks the voice reply. Runs guard.looksMemorable()
+    // first so most turns never reach the LLM extraction call at all.
+    function maybeExtractMemory(generation) {
+        if (!memoryEnabledFlag || generation.memoryExtractionStarted) return;
+        generation.memoryExtractionStarted = true;
+        const text = generation.userTranscriptBuffer;
+        const afterPlaybackMs = generation.firstValidAudioAt ? Date.now() - generation.firstValidAudioAt : null;
+        if (!memoryGuard.looksMemorable(text, { afterPlaybackMs })) return;
+
+        (async () => {
+            try {
+                const { profile } = await memoryStore.getProfileWithFacts(deviceId);
+                if (profile && profile.memory_enabled === false) return;
+                const raw = await extractMemoryActions({ text });
+                const { actions, droppedCount } = memoryGuard.filterUnsafeActions(raw);
+                if (droppedCount) {
+                    log('memory_guard_dropped', { deviceId, droppedCount });
+                }
+                for (const fact of actions.add) {
+                    await memoryStore.addFact(deviceId, { label: fact.label, value: fact.value, source: 'auto' });
+                }
+                if (actions.add.length) {
+                    log('memory_facts_added', { deviceId, count: actions.add.length });
+                }
+            } catch (error) {
+                log('memory_extraction_error', { deviceId, message: error.message });
+            }
+        })();
+    }
 
     function log(stage, extra = {}) {
         const details = Object.entries(extra)
@@ -833,6 +891,13 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             }
             return false;
         }
+        if (eventType === 'transcript.user') {
+            // Gemini streams inputTranscription as incremental fragments, not one
+            // final string — accumulate every fragment for this generation so
+            // memory extraction (triggered later, at audio.end) sees the full
+            // user turn, not just the first partial chunk.
+            generation.userTranscriptBuffer += String(payload.text || '');
+        }
         if (eventType === 'transcript.user' && generation.inputEndedAt && !generation.firstInputTranscriptionAt) {
             rememberTurn('user', payload.text);
             noteUserLanguage(payload.text, generation);
@@ -875,6 +940,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         if (eventType === 'audio.end') {
             generation.status = 'completed';
             clearGenerationTimeout(generation);
+            maybeExtractMemory(generation);
         }
         const emitted = emit({
             ...payload,
@@ -1166,28 +1232,45 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 });
                 return;
             }
-            try {
-                const sanitized = sanitizePromptConfig(payload.config || {}, {
-                    allowCustomPrompt: LAB_ALLOW_CUSTOM_PROMPT,
-                });
-                promptBlocks = sanitized.blocks;
-                promptSource = sanitized.source;
-                rotateProviderSession('session_start_config');
-                emitPromptApplied('session.start');
-            } catch (error) {
-                emit({
-                    type: 'error',
-                    code: 'prompt_config_invalid',
-                    message: error.code || error.message,
-                    max_chars: error.maxChars || LAB_PROMPT_MAX_CHARS,
-                    chars: error.chars || 0,
-                });
-                log('prompt_config_invalid', {
-                    message: error.code || error.message,
-                    maxChars: error.maxChars || LAB_PROMPT_MAX_CHARS,
-                    chars: error.chars || 0,
-                });
+            if (payload.deviceId) {
+                deviceId = memoryStore.normalizeDeviceId(payload.deviceId);
             }
+            (async () => {
+                try {
+                    const sanitized = sanitizePromptConfig(payload.config || {}, {
+                        allowCustomPrompt: LAB_ALLOW_CUSTOM_PROMPT,
+                    });
+                    promptBlocks = sanitized.blocks;
+                    promptSource = sanitized.source;
+
+                    // Server-fetched confirmed memory always wins over anything the
+                    // client sent — a client must never be able to fake "confirmed
+                    // memory" for itself. childContext from DB is a hard override,
+                    // not merged with sanitized.blocks.childContext.
+                    if (memoryEnabledFlag) {
+                        const dbChildContext = await fetchChildContext(deviceId);
+                        if (dbChildContext) {
+                            promptBlocks = { ...promptBlocks, childContext: dbChildContext };
+                        }
+                    }
+
+                    rotateProviderSession('session_start_config');
+                    emitPromptApplied('session.start');
+                } catch (error) {
+                    emit({
+                        type: 'error',
+                        code: 'prompt_config_invalid',
+                        message: error.code || error.message,
+                        max_chars: error.maxChars || LAB_PROMPT_MAX_CHARS,
+                        chars: error.chars || 0,
+                    });
+                    log('prompt_config_invalid', {
+                        message: error.code || error.message,
+                        maxChars: error.maxChars || LAB_PROMPT_MAX_CHARS,
+                        chars: error.chars || 0,
+                    });
+                }
+            })();
             log('session_start_received');
         } else if (payload.type === 'input_audio.start') {
             startInput(payload);

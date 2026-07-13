@@ -15,12 +15,14 @@
     "smoke:ptt-button": "node scripts/ptt-button-smoke.js",
     "smoke:ptt-lifecycle": "node scripts/ptt-lifecycle-regression.js",
     "smoke:ptt-tail": "node scripts/ptt-silence-tail-smoke.js",
-    "smoke:realtime": "node scripts/realtime-smoke.js"
+    "smoke:realtime": "node scripts/realtime-smoke.js",
+    "smoke:memory-guard": "node scripts/smoke-memory-guard.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@google/genai": "^2.11.0"
+    "@google/genai": "^2.11.0",
+    "pg": "^8.22.0"
   }
 }
