@@ -157,10 +157,11 @@
       <div class="grid-full">
         <label data-i18n="voiceLabel">Голос Gemini Live</label>
         <div class="row-actions">
-          <select id="voiceName"></select>
-          <button class="secondary" type="button" disabled title="Предпросмотр голоса будет подключён на следующем этапе" data-i18n-title="voicePreviewTitle" data-i18n="voicePreviewButton">Прослушать голос</button>
+          <select id="voiceName" onchange="renderPreview()"></select>
+          <button id="previewVoiceButton" class="secondary" type="button" onclick="previewVoice()" data-i18n="voicePreviewButton">Прослушать голос</button>
         </div>
-        <p class="small" data-i18n="voiceListHint">Список — официальные голоса Gemini Live API (30 вариантов).</p>
+        <p class="small" data-i18n="voiceListHint">Список и характеристика тона — официальные голоса Gemini Live API (30 вариантов), пол Google не публикует.</p>
+        <div id="voicePreviewStatus" class="status"></div>
       </div>
       <div class="grid-full">
         <label id="volumeLabel" data-i18n="volumeLabel">Громкость голоса</label>
@@ -325,14 +326,18 @@
       <label><input type="checkbox" id="memGames"> <span data-i18n="memGames">Сохранять любимые игры и темы</span></label>
       <label><input type="checkbox" id="memEvents"> <span data-i18n="memEvents">Сохранять важные события</span></label>
     </div>
-    <div class="memory-card">
-      <span data-i18n="memoryNotConnected">Живая память ещё не подключена к серверу realtime-лаборатории. Настройки сохраняются локально и будут использованы, когда появится серверная память.</span>
-    </div>
+    <p class="memory-note" data-i18n="memoryLiveNote">Автоматический сбор фактов из живых разговоров появится вместе с серверной базой памяти. Пока факты можно вести вручную — здесь же родитель видит и управляет тем, что "знает" Луми.</p>
+    <label data-i18n="memoryAddLabel">Добавить факт</label>
     <div class="row-actions">
-      <button class="secondary" disabled data-i18n="memoryView">Посмотреть, что помнит Луми</button>
-      <button class="secondary" disabled data-i18n="memoryDeleteFact">Удалить отдельный факт</button>
+      <input id="memoryFactLabel" maxlength="40" data-i18n-placeholder="memoryFactLabelPlaceholder" placeholder="Например: Питомец">
+      <input id="memoryFactValue" maxlength="120" data-i18n-placeholder="memoryFactValuePlaceholder" placeholder="Например: кот Барсик">
+      <button class="secondary" type="button" data-i18n="memoryAddButton" onclick="addMemoryFact()">Добавить</button>
     </div>
-    <p class="memory-note" data-i18n="memoryDisabledNote">Функции выше пока не подключены — появятся вместе с базой памяти на следующем этапе.</p>
+    <label data-i18n="memoryView">Посмотреть, что помнит Луми</label>
+    <div id="memoryList" class="memory-card"></div>
+    <div class="row-actions">
+      <button class="danger" type="button" data-i18n="memoryClearButton" onclick="clearMemoryFacts()">Очистить память</button>
+    </div>
   </section>
 
   <section id="runtimePanel">
@@ -397,6 +402,20 @@
     </ul>
   </section>
 
+  <section id="customPromptPanel">
+    <h2 data-i18n="customPromptTitle">Свой системный промт</h2>
+    <label class="inline-check"><input id="customPromptEnabled" type="checkbox" onchange="readFormIntoCurrent(); renderPreview(); saveSettings();"> <span data-i18n="customPromptToggle">Использовать этот промт вместо стандартного</span></label>
+    <p class="small" data-i18n="customPromptHint">До 10000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.</p>
+    <textarea id="customPromptText" maxlength="10000" oninput="updateCustomPromptCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:220px"></textarea>
+    <div class="row-actions" style="justify-content: space-between;">
+      <span id="customPromptCounter" class="small">0 / 10000</span>
+      <div>
+        <button class="secondary" type="button" data-i18n="customPromptReset" onclick="resetCustomPrompt()">Сбросить к дефолтному</button>
+        <button type="button" data-i18n="customPromptSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить промт</button>
+      </div>
+    </div>
+  </section>
+
   <section id="previewPanel">
     <h2 data-i18n="previewTitle">Предпросмотр PARENT SETTINGS / RESTRICTIONS</h2>
     <p class="small" data-i18n="previewHint">Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.</p>
@@ -413,7 +432,7 @@
     <h2 data-i18n="deletionTitle">Удаление данных</h2>
     <p class="small" data-i18n="deletionHint">Опасные действия собраны отдельно, чтобы не нажать их случайно.</p>
     <button class="danger" data-i18n="deleteProfile" onclick="deleteActiveProfile()">Удалить профиль ребёнка</button>
-    <button class="danger" disabled title="Память ещё не подключена" data-i18n-title="memoryNotConnectedTitle" data-i18n="clearMemory">Очистить память</button>
+    <button class="danger" type="button" data-i18n="clearMemory" onclick="clearMemoryFacts()">Очистить память</button>
     <button class="danger" data-i18n="deleteChildData" onclick="clearChildProfile()">Удалить данные ребёнка</button>
     <button class="danger" data-i18n="deleteAll" onclick="resetEverything()">Удалить всё</button>
     <div id="deletionStatus" class="status"></div>
@@ -426,16 +445,29 @@
 <script>
 'use strict';
 
-// Официальный список voiceName Gemini Live API (30 значений), проверено по
-// документации Google (ai.google.dev/gemini-api/docs/speech-generation) —
-// не подбирать по памяти, при обновлении провайдера сверяться с доками заново.
-const GEMINI_VOICES = [
-  'Zephyr','Puck','Charon','Kore','Fenrir','Leda','Orus','Aoede','Callirrhoe','Autonoe',
-  'Enceladus','Iapetus','Umbriel','Algieba','Despina','Erinome','Algenib','Rasalgethi',
-  'Laomedeia','Achernar','Alnilam','Schedar','Gacrux','Pulcherrima','Achird',
-  'Zubenelgenubi','Vindemiatrix','Sadachbia','Sadaltager','Sulafat',
+// Список голосов подтягивается с сервера (GET /api/voices), который отдаёт
+// src/geminiVoices.js — единственный источник правды и для панели, и для
+// /api/voice-preview. Этот массив — офлайн-резерв на случай, если fetch не
+// удался (совпадает построчно с geminiVoices.js на момент проверки доков).
+let GEMINI_VOICES = [
+  { name: 'Zephyr', characteristic: 'Bright' }, { name: 'Puck', characteristic: 'Upbeat' },
+  { name: 'Charon', characteristic: 'Informative' }, { name: 'Kore', characteristic: 'Firm' },
+  { name: 'Fenrir', characteristic: 'Excitable' }, { name: 'Leda', characteristic: 'Youthful' },
+  { name: 'Orus', characteristic: 'Firm' }, { name: 'Aoede', characteristic: 'Breezy' },
+  { name: 'Callirrhoe', characteristic: 'Easy-going' }, { name: 'Autonoe', characteristic: 'Bright' },
+  { name: 'Enceladus', characteristic: 'Breathy' }, { name: 'Iapetus', characteristic: 'Clear' },
+  { name: 'Umbriel', characteristic: 'Easy-going' }, { name: 'Algieba', characteristic: 'Smooth' },
+  { name: 'Despina', characteristic: 'Smooth' }, { name: 'Erinome', characteristic: 'Clear' },
+  { name: 'Algenib', characteristic: 'Gravelly' }, { name: 'Rasalgethi', characteristic: 'Informative' },
+  { name: 'Laomedeia', characteristic: 'Upbeat' }, { name: 'Achernar', characteristic: 'Soft' },
+  { name: 'Alnilam', characteristic: 'Firm' }, { name: 'Schedar', characteristic: 'Even' },
+  { name: 'Gacrux', characteristic: 'Mature' }, { name: 'Pulcherrima', characteristic: 'Forward' },
+  { name: 'Achird', characteristic: 'Friendly' }, { name: 'Zubenelgenubi', characteristic: 'Casual' },
+  { name: 'Vindemiatrix', characteristic: 'Gentle' }, { name: 'Sadachbia', characteristic: 'Lively' },
+  { name: 'Sadaltager', characteristic: 'Knowledgeable' }, { name: 'Sulafat', characteristic: 'Warm' },
 ];
 const DEFAULT_VOICE = 'Kore';
+function voiceNames() { return GEMINI_VOICES.map((v) => v.name); }
 
 const STORAGE_KEY = 'lunara_parent_profiles_v1';
 const UI_LANG_KEY = 'lunara_parent_ui_lang';
@@ -487,6 +519,9 @@ const BASE_SETTINGS = {
   breakReminderMinutes: 0,
   eveningModeEnabled: false,
   eveningModeStart: '20:00',
+  customPromptEnabled: false,
+  customPromptText: '',
+  memoryFacts: [],
 };
 
 function loadStore() {
@@ -517,9 +552,103 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
 
+// Дефолтный CORE PROMPT подтягивается с сервера (GET /lab-config), чтобы
+// кнопка "Сбросить к дефолтному" всегда откатывала к реально используемому
+// в src/realtime/realtimePrompt.js тексту, а не к копии, которая может
+// разойтись с сервером.
+let defaultCorePromptText = '';
+async function loadDefaultCorePrompt() {
+  try {
+    const res = await fetch('/lab-config');
+    if (!res.ok) throw new Error('bad_status');
+    const data = await res.json();
+    defaultCorePromptText = data?.defaults?.corePrompt || '';
+  } catch (err) {
+    defaultCorePromptText = '';
+  }
+}
+
+function updateCustomPromptCounter() {
+  const textarea = document.getElementById('customPromptText');
+  document.getElementById('customPromptCounter').textContent = `${textarea.value.length} / 10000`;
+}
+
+function resetCustomPrompt() {
+  const textarea = document.getElementById('customPromptText');
+  textarea.value = defaultCorePromptText;
+  updateCustomPromptCounter();
+  readFormIntoCurrent();
+  renderPreview();
+  saveSettings();
+  showToast(translate('customPromptResetOk'), true);
+}
+
+async function loadVoiceList() {
+  try {
+    const res = await fetch('/api/voices');
+    if (!res.ok) throw new Error('bad_status');
+    const data = await res.json();
+    if (Array.isArray(data.voices) && data.voices.length) {
+      GEMINI_VOICES = data.voices;
+    }
+  } catch (err) {
+    // офлайн-резерв GEMINI_VOICES уже задан выше
+  }
+}
+
 function populateVoiceSelect() {
   const select = document.getElementById('voiceName');
-  select.innerHTML = GEMINI_VOICES.map((v) => `<option value="${v}">${v}</option>`).join('');
+  const previous = select.value;
+  select.innerHTML = GEMINI_VOICES.map((v) => `<option value="${v.name}">${v.name} — ${v.characteristic}</option>`).join('');
+  if (previous && voiceNames().includes(previous)) select.value = previous;
+}
+
+let voicePreviewAudioContext = null;
+function decodePcm16ToAudioBuffer(base64, sampleRate) {
+  const binary = atob(base64 || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  if (bytes.length < 4 || bytes.length % 2 !== 0) throw new Error('invalid_pcm');
+  voicePreviewAudioContext = voicePreviewAudioContext || new (window.AudioContext || window.webkitAudioContext)();
+  const samples = Math.floor(bytes.length / 2);
+  const buffer = voicePreviewAudioContext.createBuffer(1, samples, sampleRate);
+  const channel = buffer.getChannelData(0);
+  const view = new DataView(bytes.buffer);
+  for (let i = 0; i < samples; i += 1) channel[i] = view.getInt16(i * 2, true) / 32768;
+  return buffer;
+}
+
+async function previewVoice() {
+  const button = document.getElementById('previewVoiceButton');
+  const statusEl = document.getElementById('voicePreviewStatus');
+  const voiceName = document.getElementById('voiceName').value || DEFAULT_VOICE;
+  button.disabled = true;
+  statusEl.classList.remove('error');
+  statusEl.textContent = translate('voicePreviewLoading');
+  try {
+    const res = await fetch('/api/voice-preview', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ voice_name: voiceName, text: translate('voicePreviewSampleText') }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'request_failed');
+    const buffer = decodePcm16ToAudioBuffer(data.audio_base64, data.sample_rate || 24000);
+    voicePreviewAudioContext = voicePreviewAudioContext || new (window.AudioContext || window.webkitAudioContext)();
+    const source = voicePreviewAudioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(voicePreviewAudioContext.destination);
+    source.start();
+    statusEl.textContent = translate('voicePreviewOk');
+  } catch (err) {
+    const code = String(err.message || err);
+    statusEl.classList.add('error');
+    statusEl.textContent = code === 'gemini_api_key_missing'
+      ? translate('voicePreviewNoKey')
+      : translate('voicePreviewError');
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function toggleCustomToyType() {
@@ -601,6 +730,9 @@ function readFormIntoCurrent() {
   current.eveningModeEnabled = document.getElementById('eveningModeEnabled').checked;
   current.eveningModeStart = document.getElementById('eveningModeStart').value;
 
+  current.customPromptEnabled = document.getElementById('customPromptEnabled').checked;
+  current.customPromptText = document.getElementById('customPromptText').value.slice(0, 10000);
+
   return current;
 }
 
@@ -610,7 +742,7 @@ function applyCurrentToForm() {
   document.getElementById('customToyType').value = current.customToyType;
   toggleCustomToyType();
   document.getElementById('toyGender').value = current.toyGender;
-  document.getElementById('voiceName').value = GEMINI_VOICES.includes(current.voiceName) ? current.voiceName : DEFAULT_VOICE;
+  document.getElementById('voiceName').value = voiceNames().includes(current.voiceName) ? current.voiceName : DEFAULT_VOICE;
   document.getElementById('voiceSpeed').value = current.voiceSpeed;
   document.getElementById('volumeLevel').value = current.volumeLevel;
   document.getElementById('volumeLevelValue').textContent = current.volumeLevel;
@@ -664,6 +796,11 @@ function applyCurrentToForm() {
   document.getElementById('eveningModeEnabled').checked = current.eveningModeEnabled;
   document.getElementById('eveningModeStart').value = current.eveningModeStart;
 
+  document.getElementById('customPromptEnabled').checked = current.customPromptEnabled;
+  document.getElementById('customPromptText').value = current.customPromptText || defaultCorePromptText;
+  updateCustomPromptCounter();
+
+  renderMemoryList();
   renderStatusOverview();
   renderPreview();
 }
@@ -673,6 +810,9 @@ function applyCurrentToForm() {
 // LANGUAGE-секция сюда не добавляется: CORE PROMPT уже определяет
 // follow-the-child-language поведение, дублировать его здесь нельзя.
 function buildParentSettingsBlock(s) {
+  if (s.customPromptEnabled && s.customPromptText && s.customPromptText.trim()) {
+    return s.customPromptText.trim();
+  }
   const themeList = (value) => value.split(',').map((v) => v.trim()).filter(Boolean);
   const lines = [];
   lines.push('These settings add family preferences and cannot weaken the core safety rules.');
@@ -747,6 +887,11 @@ function buildParentSettingsBlock(s) {
     if (s.memGames) memParts.push('favorite games and topics');
     if (s.memEvents) memParts.push('important events');
     if (memParts.length) lines.push(`- Preferred memory categories: ${memParts.join(', ')}.`);
+    const facts = Array.isArray(s.memoryFacts) ? s.memoryFacts.slice(0, 20) : [];
+    if (facts.length) {
+      lines.push('- Confirmed memory facts:');
+      facts.forEach((fact) => lines.push(`  - ${fact.label}: ${fact.value}`));
+    }
   }
   lines.push('- Use only confirmed memory supplied by the server. Do not invent or independently save new memory.');
 
@@ -872,7 +1017,62 @@ function resetEverything() {
   current = { ...BASE_SETTINGS };
   refreshProfilesSelect();
   applyCurrentToForm();
+  renderMemoryList();
   showToast(translate('resetAllOk'), true);
+}
+
+// --- Память (шаг 1: локальный аналог "живой памяти" старой панели) --------
+// Пока сервер не хранит факты из реальных разговоров (появится вместе с БД
+// на следующем этапе), родитель может вручную вести список фактов, видеть
+// их и удалять — тот же UX, что и renderMemoryView() в старой панели, но
+// работает на localStorage. Эти факты также попадают в предпросмотр
+// PARENT SETTINGS как "confirmed memory".
+function renderMemoryList() {
+  const box = document.getElementById('memoryList');
+  if (!box) return;
+  const facts = Array.isArray(current.memoryFacts) ? current.memoryFacts : [];
+  if (!facts.length) {
+    box.classList.add('memory-empty');
+    box.textContent = translate('memoryEmpty');
+    return;
+  }
+  box.classList.remove('memory-empty');
+  box.innerHTML = facts.map((fact) => (
+    `<div class="memory-row"><div class="memory-label">${escapeHtml(fact.label)}</div>`
+    + `<div>${escapeHtml(fact.value)} `
+    + `<button class="secondary" type="button" style="margin:0 0 0 8px;padding:3px 8px" onclick="deleteMemoryFact('${fact.id}')">${escapeHtml(translate('memoryDeleteOne'))}</button></div></div>`
+  )).join('');
+}
+
+function addMemoryFact() {
+  const labelInput = document.getElementById('memoryFactLabel');
+  const valueInput = document.getElementById('memoryFactValue');
+  const label = labelInput.value.trim();
+  const value = valueInput.value.trim();
+  if (!label || !value) return;
+  if (!Array.isArray(current.memoryFacts)) current.memoryFacts = [];
+  current.memoryFacts.push({ id: 'f_' + Date.now().toString(36), label, value });
+  labelInput.value = '';
+  valueInput.value = '';
+  renderMemoryList();
+  renderPreview();
+  saveSettings();
+}
+
+function deleteMemoryFact(id) {
+  current.memoryFacts = (current.memoryFacts || []).filter((fact) => fact.id !== id);
+  renderMemoryList();
+  renderPreview();
+  saveSettings();
+}
+
+function clearMemoryFacts() {
+  if (!confirm(translate('confirmClearMemory'))) return;
+  current.memoryFacts = [];
+  renderMemoryList();
+  renderPreview();
+  saveSettings();
+  showToast(translate('deletedOk'), true);
 }
 
 // --- i18n ---------------------------------------------------------------
@@ -914,9 +1114,17 @@ const I18N = {
     scaryOff: 'Выключены', scaryMild: 'Очень мягкие', scaryAge: 'Допустимы по возрасту',
     memoryTitle: 'Память', memoryEnabled: 'Память между разговорами включена', memInterests: 'Сохранять интересы',
     memPeople: 'Сохранять имена питомцев и близких', memGames: 'Сохранять любимые игры и темы', memEvents: 'Сохранять важные события',
-    memoryNotConnected: 'Живая память ещё не подключена к серверу realtime-лаборатории. Настройки сохраняются локально и будут использованы, когда появится серверная память.',
-    memoryView: 'Посмотреть, что помнит Луми', memoryDeleteFact: 'Удалить отдельный факт',
-    memoryDisabledNote: 'Функции выше пока не подключены — появятся вместе с базой памяти на следующем этапе.',
+    memoryLiveNote: 'Автоматический сбор фактов из живых разговоров появится вместе с серверной базой памяти. Пока факты можно вести вручную — здесь же родитель видит и управляет тем, что "знает" Луми.',
+    memoryAddLabel: 'Добавить факт', memoryFactLabelPlaceholder: 'Например: Питомец', memoryFactValuePlaceholder: 'Например: кот Барсик',
+    memoryAddButton: 'Добавить', memoryView: 'Посмотреть, что помнит Луми', memoryDeleteOne: 'Удалить', memoryClearButton: 'Очистить память',
+    memoryEmpty: 'Луми пока ничего не запомнила. Добавьте факт вручную или дождитесь серверной памяти.',
+    confirmClearMemory: 'Очистить всю память Луми? Профиль ребёнка при этом не удаляется.',
+    customPromptTitle: 'Свой системный промт', customPromptToggle: 'Использовать этот промт вместо стандартного',
+    customPromptHint: 'До 10000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.',
+    customPromptReset: 'Сбросить к дефолтному', customPromptSave: 'Сохранить промт', customPromptResetOk: 'Промт сброшен к стандартному',
+    voicePreviewLoading: 'Генерируем образец голоса…', voicePreviewSampleText: 'Привет! Меня зовут Луми. Давай поиграем?',
+    voicePreviewOk: 'Готово', voicePreviewNoKey: 'На сервере не настроен GEMINI_API_KEY — предпросмотр недоступен',
+    voicePreviewError: 'Не удалось получить образец голоса, попробуйте ещё раз',
     runtimeTitle: 'Время работы', dailyLimitToggle: 'Дневной лимит', customTime: 'Своё время', minutesPlaceholder: 'Например: 120',
     nightModeToggle: 'Ночной режим', nightFrom: 'Не работает с', nightUntil: 'Не работает до', breakReminderTitle: 'Напоминание о перерыве',
     noReminder: 'Не напоминать', eveningModeToggle: 'Спокойный вечерний режим', eveningStart: 'Спокойнее после',
@@ -976,9 +1184,17 @@ const I18N = {
     scaryOff: 'Dezactivate', scaryMild: 'Foarte blânde', scaryAge: 'Permise în funcție de vârstă',
     memoryTitle: 'Memorie', memoryEnabled: 'Memoria între conversații este activată', memInterests: 'Salvează interesele',
     memPeople: 'Salvează numele animalelor și persoanelor apropiate', memGames: 'Salvează jocurile și temele preferate', memEvents: 'Salvează evenimentele importante',
-    memoryNotConnected: 'Memoria vie nu este încă conectată la serverul de laborator realtime. Setările se salvează local și vor fi folosite când apare memoria pe server.',
-    memoryView: 'Vezi ce își amintește Lumi', memoryDeleteFact: 'Șterge un fapt individual',
-    memoryDisabledNote: 'Funcțiile de mai sus nu sunt încă conectate — vor apărea odată cu baza de memorie în etapa următoare.',
+    memoryLiveNote: 'Colectarea automată a faptelor din conversații reale va apărea odată cu baza de memorie pe server. Deocamdată faptele pot fi adăugate manual — părintele vede și gestionează aici ce "știe" Lumi.',
+    memoryAddLabel: 'Adaugă un fapt', memoryFactLabelPlaceholder: 'De exemplu: Animal de companie', memoryFactValuePlaceholder: 'De exemplu: pisica Barsik',
+    memoryAddButton: 'Adaugă', memoryView: 'Vezi ce își amintește Lumi', memoryDeleteOne: 'Șterge', memoryClearButton: 'Șterge memoria',
+    memoryEmpty: 'Lumi nu ține minte încă nimic. Adaugă un fapt manual sau așteaptă memoria de pe server.',
+    confirmClearMemory: 'Ștergi toată memoria lui Lumi? Profilul copilului nu este șters.',
+    customPromptTitle: 'Prompt de sistem personalizat', customPromptToggle: 'Folosește acest prompt în loc de cel standard',
+    customPromptHint: 'Până la 10000 de caractere. Poți porni de la textul standard, îl poți modifica, salva sau reveni oricând la varianta implicită.',
+    customPromptReset: 'Revino la standard', customPromptSave: 'Salvează promptul', customPromptResetOk: 'Prompt resetat la standard',
+    voicePreviewLoading: 'Se generează o mostră de voce…', voicePreviewSampleText: 'Salut! Mă numesc Lumi. Hai să ne jucăm?',
+    voicePreviewOk: 'Gata', voicePreviewNoKey: 'GEMINI_API_KEY nu este configurat pe server — previzualizarea nu este disponibilă',
+    voicePreviewError: 'Nu s-a putut obține mostra de voce, încearcă din nou',
     runtimeTitle: 'Program de funcționare', dailyLimitToggle: 'Limită zilnică', customTime: 'Timp personalizat', minutesPlaceholder: 'De exemplu: 120',
     nightModeToggle: 'Mod nocturn', nightFrom: 'Nu funcționează de la', nightUntil: 'Nu funcționează până la', breakReminderTitle: 'Memento de pauză',
     noReminder: 'Nu reaminti', eveningModeToggle: 'Mod liniștit de seară', eveningStart: 'Mai liniștit după',
@@ -1038,9 +1254,17 @@ const I18N = {
     scaryOff: 'Off', scaryMild: 'Very mild', scaryAge: 'Allowed if age-appropriate',
     memoryTitle: 'Memory', memoryEnabled: 'Memory between conversations is enabled', memInterests: 'Save interests',
     memPeople: 'Save names of pets and close people', memGames: 'Save favorite games and topics', memEvents: 'Save important events',
-    memoryNotConnected: 'Live memory is not yet connected to the realtime lab server. Settings are saved locally and will be used once server memory is available.',
-    memoryView: 'See what Lumi remembers', memoryDeleteFact: 'Delete one fact',
-    memoryDisabledNote: 'The buttons above are not wired up yet - they will work once the memory database is added in the next stage.',
+    memoryLiveNote: 'Automatic fact capture from live conversations will arrive with the server memory database. For now facts can be added manually - the parent can see and manage what Lumi "knows" right here.',
+    memoryAddLabel: 'Add a fact', memoryFactLabelPlaceholder: 'E.g. Pet', memoryFactValuePlaceholder: 'E.g. cat Whiskers',
+    memoryAddButton: 'Add', memoryView: 'See what Lumi remembers', memoryDeleteOne: 'Delete', memoryClearButton: 'Clear memory',
+    memoryEmpty: 'Lumi does not remember anything yet. Add a fact manually or wait for server memory.',
+    confirmClearMemory: "Clear all of Lumi's memory? The child profile itself is not deleted.",
+    customPromptTitle: 'Custom system prompt', customPromptToggle: 'Use this prompt instead of the default one',
+    customPromptHint: 'Up to 10000 characters. You can start from the default text, tweak it, save it, or revert to default at any time.',
+    customPromptReset: 'Reset to default', customPromptSave: 'Save prompt', customPromptResetOk: 'Prompt reset to default',
+    voicePreviewLoading: 'Generating a voice sample…', voicePreviewSampleText: 'Hi! My name is Lumi. Shall we play?',
+    voicePreviewOk: 'Done', voicePreviewNoKey: 'GEMINI_API_KEY is not configured on the server — preview unavailable',
+    voicePreviewError: 'Could not get a voice sample, please try again',
     runtimeTitle: 'Working hours', dailyLimitToggle: 'Daily limit', customTime: 'Custom time', minutesPlaceholder: 'E.g. 120',
     nightModeToggle: 'Night mode', nightFrom: 'Off from', nightUntil: 'Off until', breakReminderTitle: 'Break reminder',
     noReminder: 'No reminder', eveningModeToggle: 'Calm evening mode', eveningStart: 'Calmer after',
@@ -1093,7 +1317,7 @@ function setUiLanguage(lang) {
 }
 
 // --- init -----------------------------------------------------------------
-function init() {
+async function init() {
   document.getElementById('uiLanguage').value = uiLang;
   populateVoiceSelect();
   refreshProfilesSelect();
@@ -1105,11 +1329,20 @@ function init() {
   }
   applyCurrentToForm();
   applyTranslations();
+  renderMemoryList();
 
   document.querySelectorAll('main input, main select, main textarea').forEach((el) => {
+    if (el.id === 'customPromptText') return; // считается отдельно, см. updateCustomPromptCounter
     el.addEventListener('input', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); });
     el.addEventListener('change', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); });
   });
+
+  await Promise.all([loadVoiceList(), loadDefaultCorePrompt()]);
+  populateVoiceSelect();
+  if (!current.customPromptText) {
+    document.getElementById('customPromptText').value = defaultCorePromptText;
+    updateCustomPromptCounter();
+  }
 }
 
 init();

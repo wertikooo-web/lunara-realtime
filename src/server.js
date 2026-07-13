@@ -12,6 +12,8 @@ const {
     buildRealtimeSystemInstruction,
     defaultPromptBlocks,
 } = require('./realtime/realtimePrompt');
+const { GEMINI_VOICES, DEFAULT_VOICE_NAME } = require('./geminiVoices');
+const { synthesizeVoicePreview, MAX_PREVIEW_TEXT_CHARS } = require('./voicePreview');
 
 const PORT = Number(process.env.PORT || 3100);
 const provider = process.env.REALTIME_PROVIDER || 'mock';
@@ -52,14 +54,43 @@ function sendJson(res, statusCode, payload) {
     res.end(body);
 }
 
-const server = http.createServer((req, res) => {
+const MAX_JSON_BODY_BYTES = 8 * 1024;
+
+function readJsonBody(req) {
+    return new Promise((resolve, reject) => {
+        let received = 0;
+        const chunks = [];
+        req.on('data', (chunk) => {
+            received += chunk.length;
+            if (received > MAX_JSON_BODY_BYTES) {
+                reject(Object.assign(new Error('body_too_large'), { code: 'body_too_large' }));
+                req.destroy();
+                return;
+            }
+            chunks.push(chunk);
+        });
+        req.on('end', () => {
+            if (!chunks.length) return resolve({});
+            try {
+                resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+            } catch (error) {
+                reject(Object.assign(new Error('invalid_json'), { code: 'invalid_json' }));
+            }
+        });
+        req.on('error', reject);
+    });
+}
+
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/realtime'];
+
+const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
         return sendJson(res, 200, {
             ok: true,
             service: 'lunara-realtime-lab',
             provider,
             model: providerFactory.metadata.model,
-            endpoints: ['/health', '/', '/lab', '/lab-config', '/parent', '/realtime'],
+            endpoints: KNOWN_ENDPOINTS,
         });
     }
 
@@ -69,7 +100,7 @@ const server = http.createServer((req, res) => {
             status: 'realtime-ready',
             provider,
             model: providerFactory.metadata.model,
-            endpoints: ['/health', '/lab', '/lab-config', '/parent', '/realtime'],
+            endpoints: KNOWN_ENDPOINTS,
             next: 'Open /lab in a browser and test streaming.',
         });
     }
@@ -119,6 +150,40 @@ const server = http.createServer((req, res) => {
             })
             .pipe(res);
         return undefined;
+    }
+
+    if (req.method === 'GET' && req.url === '/api/voices') {
+        return sendJson(res, 200, {
+            ok: true,
+            default_voice: DEFAULT_VOICE_NAME,
+            voices: GEMINI_VOICES,
+        });
+    }
+
+    if (req.method === 'POST' && req.url === '/api/voice-preview') {
+        let body;
+        try {
+            body = await readJsonBody(req);
+        } catch (error) {
+            return sendJson(res, error.code === 'body_too_large' ? 413 : 400, { ok: false, error: error.code || 'invalid_request' });
+        }
+        try {
+            const preview = await synthesizeVoicePreview({
+                voiceName: body.voice_name || body.voiceName,
+                text: body.text,
+            });
+            return sendJson(res, 200, {
+                ok: true,
+                voice_name: preview.voiceName,
+                mime_type: preview.mimeType,
+                sample_rate: preview.sampleRate,
+                audio_base64: preview.audioBase64,
+            });
+        } catch (error) {
+            const code = error.code || 'voice_preview_failed';
+            const statusCode = code === 'gemini_api_key_missing' ? 503 : 502;
+            return sendJson(res, statusCode, { ok: false, error: code, max_chars: MAX_PREVIEW_TEXT_CHARS });
+        }
     }
 
     return sendJson(res, 404, {
