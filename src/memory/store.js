@@ -6,6 +6,7 @@ const { Pool } = require('pg');
 const DEFAULT_DEVICE_ID = 'browser-lab';
 const MAX_FACTS_PER_PROFILE = 40;
 const RESTRICTIONS_ADDITION_MAX_CHARS = 5000;
+const CUSTOM_PROMPT_MAX_CHARS = 10000;
 
 const PROFILE_FIELDS = [
     'child_name', 'age_group', 'child_gender', 'interests',
@@ -123,9 +124,18 @@ async function init() {
             evening_mode_enabled BOOLEAN DEFAULT false,
             evening_mode_start TEXT DEFAULT '20:00',
             restrictions_addition TEXT DEFAULT '',
+            custom_prompt_enabled BOOLEAN DEFAULT false,
+            custom_prompt_text TEXT DEFAULT '',
             created_at TIMESTAMPTZ DEFAULT now(),
             updated_at TIMESTAMPTZ DEFAULT now()
         );
+    `);
+    // device_settings already exists in production — CREATE TABLE IF NOT EXISTS
+    // above won't retroactively add columns to an existing table.
+    await pool.query(`
+        ALTER TABLE device_settings
+            ADD COLUMN IF NOT EXISTS custom_prompt_enabled BOOLEAN DEFAULT false,
+            ADD COLUMN IF NOT EXISTS custom_prompt_text TEXT DEFAULT '';
     `);
 
     ready = true;
@@ -338,6 +348,14 @@ async function updateSettings(deviceId, patch = {}) {
         values.push(safeText(patch.restrictions_addition, RESTRICTIONS_ADDITION_MAX_CHARS));
         setClauses.push(`restrictions_addition = $${values.length}`);
     }
+    if ('custom_prompt_enabled' in patch) {
+        values.push(!!patch.custom_prompt_enabled);
+        setClauses.push(`custom_prompt_enabled = $${values.length}`);
+    }
+    if ('custom_prompt_text' in patch) {
+        values.push(safeText(patch.custom_prompt_text, CUSTOM_PROMPT_MAX_CHARS));
+        setClauses.push(`custom_prompt_text = $${values.length}`);
+    }
 
     if (!setClauses.length) return getOrCreateSettings(id);
 
@@ -428,6 +446,7 @@ module.exports = {
     deleteSettings,
     formatParentRulesAddition,
     RESTRICTIONS_ADDITION_MAX_CHARS,
+    CUSTOM_PROMPT_MAX_CHARS,
     formatChildContext,
     PROFILE_FIELDS,
     MAX_FACTS_PER_PROFILE,

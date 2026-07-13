@@ -1057,6 +1057,15 @@
           if (payload.lab_prompt.current_context) {
             currentContextPreview.value = payload.lab_prompt.current_context;
           }
+          // Ground truth: what actually got sent to the model for this
+          // session (may come from Parent Panel / Postgres, not just the
+          // hardcoded defaults or whatever this editor last sent).
+          const applied = payload.lab_prompt.applied_blocks;
+          if (applied) {
+            corePromptInput.value = applied.core_prompt || corePromptInput.value;
+            childContextInput.value = applied.child_context || childContextInput.value;
+            parentRulesInput.value = applied.parent_rules || parentRulesInput.value;
+          }
           updatePromptMeta();
         }
         promptStatus.textContent = `Prompt config: applied (${payload.prompt_source || 'default'})`;

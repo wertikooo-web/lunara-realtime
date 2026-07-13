@@ -198,6 +198,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     const contentToolsEnabled = areContentToolsEnabled(providerMetadata.contentToolsEnabled);
     const contentLibrary = providerMetadata.contentLibrary || createContentLibrary(providerMetadata.contentLibraryOptions || {});
     let activeActivity = null;
+    // Set from device_settings.allowed_content at session.start (see below).
+    // null means "no device settings fetched yet / memory disabled" — content
+    // tools are not gated in that case, matching pre-memory behavior.
+    let allowedContentSettings = null;
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
     let deviceId = memoryStore.normalizeDeviceId();
     const memoryEnabledFlag = memoryEnabledFromEnv();
@@ -450,6 +454,15 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 max_chars: LAB_PROMPT_MAX_CHARS,
                 current_context: prompt.blocks.currentContext,
                 meta: prompt.meta,
+                // Actual text that was applied to this session (may come from
+                // device_settings/child_profiles in Postgres, not just the
+                // client-sent config or hardcoded defaults) — lets the Lab UI
+                // show what's really driving the model instead of only hashes.
+                applied_blocks: {
+                    core_prompt: prompt.blocks.corePrompt,
+                    child_context: prompt.blocks.childContext,
+                    parent_rules: prompt.blocks.parentRules,
+                },
             },
         });
         log('prompt_config_applied', {
@@ -1267,6 +1280,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                         }
                         if (dbSettings) {
                             promptBlocks = { ...promptBlocks, parentRules: composeParentRules(dbSettings.restrictions_addition) };
+                            if (dbSettings.custom_prompt_enabled && dbSettings.custom_prompt_text) {
+                                promptBlocks = { ...promptBlocks, corePrompt: dbSettings.custom_prompt_text };
+                                log('session_custom_core_prompt_applied', { deviceId, chars: dbSettings.custom_prompt_text.length });
+                            }
                             const dbVoiceName = normalizeProviderVoiceName(dbSettings.voice_name);
                             if (dbVoiceName && dbVoiceName !== sessionVoiceName) {
                                 sessionVoiceName = dbVoiceName;
