@@ -1004,7 +1004,7 @@ async function refreshProfilesSelect() {
     : `<option value="">${translate('profilesEmpty')}</option>`;
 }
 
-function saveSettings() {
+async function saveSettings() {
   readFormIntoCurrent();
   store.current = { ...current };
   if (store.activeProfileId && store.profiles[store.activeProfileId]) {
@@ -1013,9 +1013,18 @@ function saveSettings() {
   saveStore(store);
   renderStatusOverview();
   renderPreview();
-  document.getElementById('saveStatus').textContent = translate('savedOk');
-  showToast(translate('savedOk'), true);
-  pushToServer();
+
+  const result = await pushToServer();
+  const statusEl = document.getElementById('saveStatus');
+  if (result.ok || !serverReachable) {
+    statusEl.classList.remove('error');
+    statusEl.textContent = translate('savedOk');
+    showToast(translate('savedOk'), true);
+  } else {
+    statusEl.classList.add('error');
+    statusEl.textContent = translate('savedLocalOnly') + ' (' + result.error + ')';
+    showToast(translate('savedLocalOnly'), false);
+  }
 }
 
 // Snapshots the CURRENT server state (child + toy/character/content/time
@@ -1284,7 +1293,7 @@ const I18N = {
     chipToyName: 'Игрушка', chipProfile: 'Профиль', chipProfileNone: 'нет активного', chipMemory: 'Память',
     chipDailyLimit: 'Дневной лимит', chipNightMode: 'Ночной режим', chipRealtime: 'Realtime-соединение', chipGemini: 'Gemini Live',
     chipNotConnected: 'не подключено', on: 'вкл', off: 'выкл', unlimited: 'без лимита', min: 'мин',
-    savedOk: 'Сохранено', profileNameRequired: 'Введите название профиля', profileSavedOk: 'Профиль сохранён',
+    savedOk: 'Сохранено', savedLocalOnly: 'Сохранено только локально — сервер не принял (см. ошибку)', profileNameRequired: 'Введите название профиля', profileSavedOk: 'Профиль сохранён',
     activeProfileIs: 'Активный профиль:', profileLoadedOk: 'Профиль загружен', noActiveProfile: 'Нет активного профиля',
     confirmDeleteProfile: 'Удалить текущий профиль ребёнка? Это действие нельзя отменить.', deletedOk: 'Удалено',
     confirmReset: 'Сбросить текущие настройки к базовому профилю?', resetOk: 'Сброшено к базовым настройкам',
@@ -1357,7 +1366,7 @@ const I18N = {
     chipToyName: 'Jucărie', chipProfile: 'Profil', chipProfileNone: 'niciunul activ', chipMemory: 'Memorie',
     chipDailyLimit: 'Limită zilnică', chipNightMode: 'Mod nocturn', chipRealtime: 'Conexiune realtime', chipGemini: 'Gemini Live',
     chipNotConnected: 'neconectat', on: 'activ', off: 'inactiv', unlimited: 'fără limită', min: 'min',
-    savedOk: 'Salvat', profileNameRequired: 'Introdu numele profilului', profileSavedOk: 'Profil salvat',
+    savedOk: 'Salvat', savedLocalOnly: 'Salvat doar local — serverul nu a acceptat (vezi eroarea)', profileNameRequired: 'Introdu numele profilului', profileSavedOk: 'Profil salvat',
     activeProfileIs: 'Profil activ:', profileLoadedOk: 'Profil încărcat', noActiveProfile: 'Niciun profil activ',
     confirmDeleteProfile: 'Ștergi profilul curent al copilului? Această acțiune nu poate fi anulată.', deletedOk: 'Șters',
     confirmReset: 'Resetezi setările curente la profilul de bază?', resetOk: 'Resetat la setările de bază',
@@ -1430,7 +1439,7 @@ const I18N = {
     chipToyName: 'Toy', chipProfile: 'Profile', chipProfileNone: 'none active', chipMemory: 'Memory',
     chipDailyLimit: 'Daily limit', chipNightMode: 'Night mode', chipRealtime: 'Realtime connection', chipGemini: 'Gemini Live',
     chipNotConnected: 'not connected', on: 'on', off: 'off', unlimited: 'unlimited', min: 'min',
-    savedOk: 'Saved', profileNameRequired: 'Enter a profile name', profileSavedOk: 'Profile saved',
+    savedOk: 'Saved', savedLocalOnly: 'Saved locally only — server rejected it (see error)', profileNameRequired: 'Enter a profile name', profileSavedOk: 'Profile saved',
     activeProfileIs: 'Active profile:', profileLoadedOk: 'Profile loaded', noActiveProfile: 'No active profile',
     confirmDeleteProfile: 'Delete the current child profile? This cannot be undone.', deletedOk: 'Deleted',
     confirmReset: 'Reset current settings to the base profile?', resetOk: 'Reset to base settings',
@@ -1524,8 +1533,12 @@ async function syncFromServer() {
 // (session.start -> deviceId lookup) picks them up. Best-effort: local save
 // already succeeded via saveStore() regardless of whether this reaches the
 // server (e.g. REALTIME_MEMORY_ENABLED off in this environment).
+// Returns { ok, error } — fetch() only rejects on network failure, NOT on
+// HTTP error statuses (4xx/5xx resolve normally with res.ok === false), so
+// callers that only used try/catch here were silently treating a rejected
+// save (e.g. 413 body too large) as success.
 async function pushToServer() {
-  if (!serverReachable) return;
+  if (!serverReachable) return { ok: false, error: 'server_unreachable' };
   const settingsPayload = {};
   for (const [serverKey, clientKey] of Object.entries(SETTINGS_FIELD_MAP)) {
     settingsPayload[serverKey] = current[clientKey];
@@ -1535,12 +1548,19 @@ async function pushToServer() {
     profilePayload[serverKey] = current[clientKey];
   }
   try {
-    await Promise.all([
+    const [settingsRes, memoryRes] = await Promise.all([
       fetch(`/api/settings/${DEVICE_ID}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(settingsPayload) }),
       fetch(`/api/memory/${DEVICE_ID}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(profilePayload) }),
     ]);
+    if (!settingsRes.ok || !memoryRes.ok) {
+      const failed = !settingsRes.ok ? settingsRes : memoryRes;
+      let error = `http_${failed.status}`;
+      try { error = (await failed.json()).error || error; } catch (parseErr) { /* keep http_NNN */ }
+      return { ok: false, error };
+    }
+    return { ok: true };
   } catch (err) {
-    // local save already happened; server sync just didn't go through this time
+    return { ok: false, error: 'network_error' };
   }
 }
 

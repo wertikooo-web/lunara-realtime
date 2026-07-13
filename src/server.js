@@ -65,7 +65,12 @@ function sendJson(res, statusCode, payload) {
     res.end(body);
 }
 
-const MAX_JSON_BODY_BYTES = 8 * 1024;
+// Must comfortably fit custom_prompt_text (10000 chars) + restrictions_addition
+// (5000 chars) + the rest of a settings payload, with room for JSON escaping
+// overhead (e.g. every newline becomes 2 bytes as \n). A too-small limit here
+// fails silently on the client (fetch() doesn't throw on HTTP error statuses),
+// so err generously rather than tightly.
+const MAX_JSON_BODY_BYTES = 64 * 1024;
 
 function readJsonBody(req) {
     return new Promise((resolve, reject) => {
