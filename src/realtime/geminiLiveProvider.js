@@ -232,6 +232,7 @@ class GeminiLiveProviderSession {
         this.lastOutputEndCause = null;
         this.invalidPcmDroppedCount = 0;
         this.suspiciousTurnCompleteDropCount = 0;
+        this.turnClosedDuringInput = null;
         this.apiKey = apiKey;
         this.instanceId = instanceId;
         this.closed = false;
@@ -470,6 +471,24 @@ class GeminiLiveProviderSession {
             sessionInputBytes: context.sessionInputBytes,
             model: this.model,
         });
+        if (this.turnClosedDuringInput?.generationId === context.generationId) {
+            context.log('provider_turn_closed_during_input', {
+                generationId: context.generationId,
+                turnId: context.turnId,
+                reason: this.turnClosedDuringInput.reason,
+                providerInstanceId: this.instanceId,
+                msSinceClose: Date.now() - this.turnClosedDuringInput.closedAt,
+            });
+            context.onEvent?.({
+                type: 'response.failed',
+                response_id: context.responseId,
+                turn_id: context.turnId,
+                reason: 'provider_turn_closed_during_input',
+                provider_instance_id: this.instanceId,
+            });
+            this.turnClosedDuringInput = null;
+            return;
+        }
         await this.connect(context.log);
         this.flushPendingAudio();
         if (context.mode === 'push_to_talk') {
@@ -590,6 +609,7 @@ class GeminiLiveProviderSession {
             chunkIndex: 0,
             inputTranscriptionReceived: false,
         };
+        this.turnClosedDuringInput = null;
         this.connect(context.log).then(() => {
             this.flushPendingAudio();
         }).catch((error) => {
@@ -895,6 +915,14 @@ class GeminiLiveProviderSession {
         if (content.turnComplete) {
             if (!this.active.modelOutputStarted) {
                 if (this.shouldDropTurnCompleteWithoutModelOutput()) {
+                    if (!this.active.inputEnded) {
+                        this.turnClosedDuringInput = {
+                            generationId: this.active.generationId,
+                            turnId: this.active.turnId,
+                            reason: 'late_turn_complete_without_model_output',
+                            closedAt: Date.now(),
+                        };
+                    }
                     this.dropActiveProviderEvent('audio.end', 'late_turn_complete_without_model_output', {
                         inputEnded: Boolean(this.active.inputEnded),
                         inputTranscriptionReceived: Boolean(this.active.inputTranscriptionReceived),
