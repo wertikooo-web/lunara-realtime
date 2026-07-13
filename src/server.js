@@ -92,7 +92,7 @@ function readJsonBody(req) {
     });
 }
 
-const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/realtime'];
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
@@ -283,6 +283,58 @@ const server = http.createServer(async (req, res) => {
                 : code === 'body_too_large' ? 413
                     : code === 'invalid_json' ? 400
                         : 500;
+            return sendJson(res, statusCode, { ok: false, error: code });
+        }
+    }
+
+    const profilesMatch = /^\/api\/profiles\/([^/]+)(\/load\/([^/]+))?\/?$/.exec(req.url);
+    if (profilesMatch) {
+        const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(profilesMatch[1]));
+        const loadProfileId = profilesMatch[3] ? decodeURIComponent(profilesMatch[3]) : null;
+
+        try {
+            await ensureMemoryReady();
+
+            if (req.method === 'GET' && !loadProfileId) {
+                const profiles = await memoryStore.listProfiles(deviceId);
+                return sendJson(res, 200, { ok: true, profiles });
+            }
+
+            if (req.method === 'POST' && !loadProfileId) {
+                const body = await readJsonBody(req);
+                const profile = await memoryStore.saveProfileSnapshot(deviceId, body.name);
+                return sendJson(res, 200, { ok: true, profile });
+            }
+
+            if (req.method === 'POST' && loadProfileId) {
+                const { profile, settings } = await memoryStore.loadProfileSnapshot(deviceId, loadProfileId);
+                return sendJson(res, 200, { ok: true, profile, settings });
+            }
+
+            return sendJson(res, 404, { ok: false, error: 'not_found' });
+        } catch (error) {
+            const code = error.code || 'profiles_request_failed';
+            const statusCode = code === 'memory_disabled' ? 503
+                : code === 'body_too_large' ? 413
+                    : code === 'invalid_json' ? 400
+                        : code === 'profile_name_required' ? 400
+                            : code === 'profile_not_found' ? 404
+                                : 500;
+            return sendJson(res, statusCode, { ok: false, error: code });
+        }
+    }
+
+    const profileDeleteMatch = /^\/api\/profiles\/([^/]+)\/([^/]+)\/?$/.exec(req.url);
+    if (profileDeleteMatch && req.method === 'DELETE') {
+        const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(profileDeleteMatch[1]));
+        const profileId = decodeURIComponent(profileDeleteMatch[2]);
+        try {
+            await ensureMemoryReady();
+            await memoryStore.deleteProfileSnapshot(deviceId, profileId);
+            return sendJson(res, 200, { ok: true });
+        } catch (error) {
+            const code = error.code || 'profiles_request_failed';
+            const statusCode = code === 'memory_disabled' ? 503 : 500;
             return sendJson(res, statusCode, { ok: false, error: code });
         }
     }

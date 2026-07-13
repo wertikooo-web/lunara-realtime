@@ -978,8 +978,26 @@ function showToast(text, ok = true) {
   setTimeout(() => toast.classList.add('hidden'), 2600);
 }
 
-function refreshProfilesSelect() {
+// Server-side named snapshots (device_profiles table) — for switching
+// between children sharing one toy. Falls back to the old local-only
+// list if the server/memory feature is unavailable.
+let serverProfiles = [];
+
+async function refreshProfilesSelect() {
   const select = document.getElementById('savedProfiles');
+  if (serverReachable) {
+    try {
+      const res = await fetch(`/api/profiles/${DEVICE_ID}`);
+      const data = await res.json();
+      serverProfiles = Array.isArray(data.profiles) ? data.profiles : [];
+    } catch (err) {
+      serverProfiles = [];
+    }
+  }
+  if (serverProfiles.length) {
+    select.innerHTML = serverProfiles.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    return;
+  }
   const ids = Object.keys(store.profiles);
   select.innerHTML = ids.length
     ? ids.map((id) => `<option value="${id}" ${id === store.activeProfileId ? 'selected' : ''}>${escapeHtml(store.profiles[id].name)}</option>`).join('')
@@ -1000,13 +1018,32 @@ function saveSettings() {
   pushToServer();
 }
 
-function saveProfileAs() {
+// Snapshots the CURRENT server state (child + toy/character/content/time
+// settings) under a name — so it must save to the server first, otherwise
+// the snapshot would miss whatever's only sitting in the form right now.
+async function saveProfileAs() {
   readFormIntoCurrent();
   const nameInput = document.getElementById('profileName');
   const name = nameInput.value.trim();
   if (!name) {
     document.getElementById('profileStatus').textContent = translate('profileNameRequired');
     return;
+  }
+  saveSettings();
+  if (serverReachable) {
+    try {
+      const res = await fetch(`/api/profiles/${DEVICE_ID}`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error('save_failed');
+      nameInput.value = '';
+      await refreshProfilesSelect();
+      document.getElementById('profileStatus').textContent = translate('profileSavedOk');
+      showToast(translate('profileSavedOk'), true);
+      return;
+    } catch (err) {
+      document.getElementById('profileStatus').textContent = translate('profileSavedOk') + ' (local only)';
+    }
   }
   const id = 'p_' + Date.now().toString(36);
   store.profiles[id] = { name, settings: { ...current } };
@@ -1019,9 +1056,28 @@ function saveProfileAs() {
   showToast(translate('profileSavedOk'), true);
 }
 
-function loadProfile() {
+// Loading a profile overwrites the device's active settings on the server,
+// then pulls that back into the form. Takes effect for the toy on its next
+// session.start (not mid-conversation).
+async function loadProfile() {
   const id = document.getElementById('savedProfiles').value;
-  if (!id || !store.profiles[id]) return;
+  if (!id) return;
+  if (serverReachable && serverProfiles.some((p) => p.id === id)) {
+    try {
+      const res = await fetch(`/api/profiles/${DEVICE_ID}/load/${encodeURIComponent(id)}`, { method: 'POST' });
+      if (!res.ok) throw new Error('load_failed');
+      await syncFromServer();
+      applyCurrentToForm();
+      const name = serverProfiles.find((p) => p.id === id)?.name || id;
+      document.getElementById('activeProfileStatus').textContent = translate('activeProfileIs') + ' ' + name;
+      showToast(translate('profileLoadedOk'), true);
+      return;
+    } catch (err) {
+      showToast(translate('profileLoadedOk') + ' — error', false);
+      return;
+    }
+  }
+  if (!store.profiles[id]) return;
   current = { ...BASE_SETTINGS, ...store.profiles[id].settings };
   store.activeProfileId = id;
   saveStore(store);
@@ -1030,14 +1086,26 @@ function loadProfile() {
   showToast(translate('profileLoadedOk'), true);
 }
 
-function deleteActiveProfile() {
-  if (!store.activeProfileId || !store.profiles[store.activeProfileId]) {
+async function deleteActiveProfile() {
+  const id = document.getElementById('savedProfiles').value;
+  if (!id) {
     document.getElementById('deletionStatus').textContent = translate('noActiveProfile');
     return;
   }
   if (!confirm(translate('confirmDeleteProfile'))) return;
-  delete store.profiles[store.activeProfileId];
-  store.activeProfileId = null;
+
+  if (serverReachable && serverProfiles.some((p) => p.id === id)) {
+    try {
+      await fetch(`/api/profiles/${DEVICE_ID}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } catch (err) { /* fall through to refresh anyway */ }
+    await refreshProfilesSelect();
+    document.getElementById('deletionStatus').textContent = translate('deletedOk');
+    showToast(translate('deletedOk'), true);
+    return;
+  }
+
+  delete store.profiles[id];
+  if (store.activeProfileId === id) store.activeProfileId = null;
   saveStore(store);
   refreshProfilesSelect();
   renderStatusOverview();

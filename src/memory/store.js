@@ -140,6 +140,25 @@ async function init() {
             ADD COLUMN IF NOT EXISTS custom_toy_type TEXT DEFAULT '';
     `);
 
+    // Named snapshots a parent can save/load, e.g. one per child sharing the
+    // same toy. Simple version: no live "active profile" resolution layer —
+    // saving snapshots the current child_profiles + device_settings row for
+    // this device_id, loading overwrites that same row (same one
+    // session.start already reads). Switching profiles takes effect on the
+    // next session.start, not mid-conversation.
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS device_profiles (
+            id TEXT PRIMARY KEY,
+            device_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            child_snapshot JSONB DEFAULT '{}',
+            settings_snapshot JSONB DEFAULT '{}',
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        );
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS device_profiles_device_id_idx ON device_profiles (device_id, created_at);');
+
     ready = true;
 }
 
@@ -369,6 +388,80 @@ async function updateSettings(deviceId, patch = {}) {
     return rows[0];
 }
 
+async function listProfiles(deviceId) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    const { rows } = await pool.query(
+        'SELECT id, name, created_at, updated_at FROM device_profiles WHERE device_id = $1 ORDER BY created_at ASC;',
+        [id],
+    );
+    return rows;
+}
+
+// Snapshots the current child_profiles + device_settings row for this
+// device into a new named profile. Memory facts are intentionally NOT
+// included — they stay tied to whatever is actually live on the device,
+// not to a saved snapshot.
+async function saveProfileSnapshot(deviceId, name) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    const safeName = safeText(name, 40);
+    if (!safeName) {
+        const error = new Error('profile_name_required');
+        error.code = 'profile_name_required';
+        throw error;
+    }
+    const profile = await getOrCreateProfile(id);
+    const settings = await getOrCreateSettings(id);
+    const profileId = 'p_' + crypto.randomBytes(8).toString('hex');
+
+    const childSnapshot = {};
+    for (const field of PROFILE_FIELDS) childSnapshot[field] = profile[field];
+    const settingsSnapshot = {};
+    for (const field of [...SETTINGS_TEXT_FIELDS, ...SETTINGS_INT_FIELDS, ...SETTINGS_BOOL_FIELDS, ...SETTINGS_TIME_FIELDS]) {
+        settingsSnapshot[field] = settings[field];
+    }
+    settingsSnapshot.allowed_content = settings.allowed_content;
+    settingsSnapshot.restrictions_addition = settings.restrictions_addition;
+    settingsSnapshot.custom_prompt_enabled = settings.custom_prompt_enabled;
+    settingsSnapshot.custom_prompt_text = settings.custom_prompt_text;
+
+    const { rows } = await pool.query(
+        `INSERT INTO device_profiles (id, device_id, name, child_snapshot, settings_snapshot)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id, name, created_at, updated_at;`,
+        [profileId, id, safeName, JSON.stringify(childSnapshot), JSON.stringify(settingsSnapshot)],
+    );
+    return rows[0];
+}
+
+// Overwrites the device's single active child_profiles/device_settings row
+// with a saved snapshot. Takes effect on the next session.start, not
+// mid-conversation (no live "active profile" resolution layer in this
+// simple version).
+async function loadProfileSnapshot(deviceId, profileId) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    const { rows } = await pool.query(
+        'SELECT * FROM device_profiles WHERE id = $1 AND device_id = $2;',
+        [profileId, id],
+    );
+    const snapshot = rows[0];
+    if (!snapshot) {
+        const error = new Error('profile_not_found');
+        error.code = 'profile_not_found';
+        throw error;
+    }
+    const profile = await updateProfileFields(id, snapshot.child_snapshot || {});
+    const settings = await updateSettings(id, snapshot.settings_snapshot || {});
+    return { profile, settings };
+}
+
+async function deleteProfileSnapshot(deviceId, profileId) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    await pool.query('DELETE FROM device_profiles WHERE id = $1 AND device_id = $2;', [profileId, id]);
+}
+
 const STYLE_TEXT = {
     character_style: { kind_friend: 'kind friend', funny_explorer: 'funny explorer', calm_narrator: 'calm storyteller', learning_helper: 'learning helper' },
     address_style: {
@@ -468,6 +561,10 @@ module.exports = {
     formatParentRulesAddition,
     RESTRICTIONS_ADDITION_MAX_CHARS,
     CUSTOM_PROMPT_MAX_CHARS,
+    listProfiles,
+    saveProfileSnapshot,
+    loadProfileSnapshot,
+    deleteProfileSnapshot,
     formatChildContext,
     PROFILE_FIELDS,
     MAX_FACTS_PER_PROFILE,
