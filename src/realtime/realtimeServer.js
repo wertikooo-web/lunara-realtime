@@ -1279,7 +1279,18 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                             promptBlocks = { ...promptBlocks, childContext: dbChildContext };
                         }
                         if (dbSettings) {
-                            promptBlocks = { ...promptBlocks, parentRules: composeParentRules(dbSettings.restrictions_addition) };
+                            // Rebuilt fresh from current device_settings columns on every
+                            // session.start (not a frozen snapshot) — this is what makes
+                            // character/content/time dropdowns in the parent panel take
+                            // effect on save, not just after a manual "regenerate" click.
+                            // restrictions_addition is now a free-text addendum on top of
+                            // the generated block, not the only carrier of these settings.
+                            const generated = memoryStore.formatParentRulesAddition(dbSettings);
+                            const parentAddition = [generated, dbSettings.restrictions_addition]
+                                .map((part) => String(part || '').trim())
+                                .filter(Boolean)
+                                .join('\n\n');
+                            promptBlocks = { ...promptBlocks, parentRules: composeParentRules(parentAddition) };
                             if (dbSettings.custom_prompt_enabled && dbSettings.custom_prompt_text) {
                                 promptBlocks = { ...promptBlocks, corePrompt: dbSettings.custom_prompt_text };
                                 log('session_custom_core_prompt_applied', { deviceId, chars: dbSettings.custom_prompt_text.length });

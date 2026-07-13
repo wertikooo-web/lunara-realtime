@@ -22,14 +22,14 @@ const FIELD_LIMITS = {
 // character, allowed content, time limits) and the parent-addition text
 // that gets appended to BASE_RESTRICTIONS (see realtimePrompt.js).
 const SETTINGS_TEXT_FIELDS = [
-    'toy_name', 'toy_type', 'toy_gender', 'voice_name', 'voice_speed',
+    'toy_name', 'toy_type', 'custom_toy_type', 'toy_gender', 'voice_name', 'voice_speed',
     'character_style', 'address_style', 'reply_length', 'energy_level',
     'humor_level', 'initiative_level', 'custom_character_notes',
     'content_mode', 'preferred_themes', 'blocked_themes', 'sensitive_themes',
     'story_length', 'scary_elements',
 ];
 const SETTINGS_TEXT_LIMITS = {
-    toy_name: 40, toy_type: 40, toy_gender: 12, voice_name: 40, voice_speed: 12,
+    toy_name: 40, toy_type: 40, custom_toy_type: 40, toy_gender: 12, voice_name: 40, voice_speed: 12,
     character_style: 40, address_style: 20, reply_length: 20, energy_level: 20,
     humor_level: 20, initiative_level: 20, custom_character_notes: 500,
     content_mode: 30, preferred_themes: 200, blocked_themes: 200, sensitive_themes: 200,
@@ -97,6 +97,7 @@ async function init() {
             device_id TEXT PRIMARY KEY,
             toy_name TEXT DEFAULT 'Луми',
             toy_type TEXT DEFAULT 'bear',
+            custom_toy_type TEXT DEFAULT '',
             toy_gender TEXT DEFAULT 'female',
             voice_name TEXT DEFAULT 'Kore',
             voice_speed TEXT DEFAULT 'normal',
@@ -135,7 +136,8 @@ async function init() {
     await pool.query(`
         ALTER TABLE device_settings
             ADD COLUMN IF NOT EXISTS custom_prompt_enabled BOOLEAN DEFAULT false,
-            ADD COLUMN IF NOT EXISTS custom_prompt_text TEXT DEFAULT '';
+            ADD COLUMN IF NOT EXISTS custom_prompt_text TEXT DEFAULT '',
+            ADD COLUMN IF NOT EXISTS custom_toy_type TEXT DEFAULT '';
     `);
 
     ready = true;
@@ -385,15 +387,34 @@ const STYLE_TEXT = {
     },
     story_length: { up_to_1min: 'up to about 1 minute', '2_3min': 'about 2-3 minutes', '4_6min': 'about 4-6 minutes' },
     scary_elements: { off: 'no scary elements at all', mild: 'only very mild scary elements', age_appropriate: 'scary elements allowed if age-appropriate' },
+    toy_type: { bear: 'a bear', bunny: 'a bunny', cat: 'a cat', star: 'a traveling star' },
+    voice_speed: {
+        slow: 'Speak at a slightly slower, calmer pace than usual.',
+        fast: 'Speak at a slightly faster, more energetic pace than usual.',
+    },
 };
 
-// Auto-generates the default text for the panel's editable "restrictions
-// addition" field from the structured toy/character/content/time settings.
-// This is only ever a starting point a parent can edit/reset — the fixed
-// BASE_RESTRICTIONS (realtimePrompt.js) is what actually can't be weakened.
+// Called fresh on every session.start (realtimeServer.js) — NOT a one-time
+// default for an editable text field. This is what makes character/content/
+// time dropdowns in the parent panel actually take effect on save, instead
+// of only affecting a frozen text snapshot. The fixed BASE_RESTRICTIONS
+// (realtimePrompt.js) is what actually can't be weakened; this block is
+// layered on top of it by composeParentRules().
 function formatParentRulesAddition(settings) {
     const s = settings || {};
     const lines = [];
+
+    lines.push('TOY');
+    const toyName = s.toy_name || 'Lumi';
+    const toyKind = s.toy_type === 'custom' && s.custom_toy_type
+        ? s.custom_toy_type
+        : (STYLE_TEXT.toy_type[s.toy_type] || 'a bear');
+    lines.push(`- The toy's name is ${toyName}, appearing as ${toyKind}.`);
+    if (s.toy_gender) lines.push(`- Toy character gender: ${s.toy_gender === 'male' ? 'male' : 'female'}.`);
+    const paceHint = STYLE_TEXT.voice_speed[s.voice_speed];
+    if (paceHint) lines.push(`- ${paceHint}`);
+
+    lines.push('');
     lines.push('STYLE');
     lines.push(`- Character: ${STYLE_TEXT.character_style[s.character_style] || 'kind friend'}.`);
     lines.push(`- ${STYLE_TEXT.reply_length[s.reply_length] || 'Keep replies short.'}`);

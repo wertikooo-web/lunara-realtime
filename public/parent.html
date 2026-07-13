@@ -420,13 +420,13 @@
     <h2 data-i18n="restrictionsTitle">PARENT SETTINGS / RESTRICTIONS</h2>
     <label data-i18n="baseRestrictionsLabel">Базовые ограничения (нередактируемо)</label>
     <div id="baseRestrictionsBox" class="preview-box"></div>
-    <p class="small" data-i18n="restrictionsAdditionHint">Дополнение родителя ниже может только усиливать ограничения — оно никогда не заменяет и не ослабляет базовые правила выше. До 5000 знаков.</p>
-    <label data-i18n="restrictionsAdditionLabel">Дополнение родителя</label>
+    <p class="small" data-i18n="restrictionsAdditionHint">Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 5000 знаков.</p>
+    <label data-i18n="restrictionsAdditionLabel">Дополнительные заметки родителя</label>
     <textarea id="restrictionsAddition" maxlength="5000" oninput="updateRestrictionsCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:160px"></textarea>
     <div class="row-actions" style="justify-content: space-between;">
       <span id="restrictionsCounter" class="small">0 / 5000</span>
       <div>
-        <button class="secondary" type="button" data-i18n="restrictionsResetButton" onclick="resetRestrictionsAddition()">Сбросить к автосгенерированному</button>
+        <button class="secondary" type="button" data-i18n="restrictionsResetButton" onclick="resetRestrictionsAddition()">Очистить заметки</button>
       </div>
     </div>
     <label data-i18n="previewTitle">Предпросмотр PARENT SETTINGS / RESTRICTIONS</label>
@@ -621,16 +621,12 @@ function updateRestrictionsCounter() {
   document.getElementById('restrictionsCounter').textContent = `${textarea.value.length} / 5000`;
 }
 
+// TOY/STYLE/CONTENT/TIME are generated fresh automatically (see renderPreview)
+// from the structured fields above — this field is only free-text extra
+// notes on top of that, so "reset" here just means "clear my own notes".
 async function resetRestrictionsAddition() {
   const textarea = document.getElementById('restrictionsAddition');
-  try {
-    const res = await fetch(`/api/settings/${DEVICE_ID}`);
-    if (!res.ok) throw new Error('bad_status');
-    const data = await res.json();
-    textarea.value = data.generated_restrictions_addition || '';
-  } catch (err) {
-    textarea.value = buildGeneratedRestrictionsAddition(current);
-  }
+  textarea.value = '';
   updateRestrictionsCounter();
   readFormIntoCurrent();
   renderPreview();
@@ -877,6 +873,16 @@ function applyCurrentToForm() {
 function buildGeneratedRestrictionsAddition(s) {
   const themeList = (value) => value.split(',').map((v) => v.trim()).filter(Boolean);
   const lines = [];
+
+  lines.push('TOY');
+  const toyKindMap = { bear: 'a bear', bunny: 'a bunny', cat: 'a cat', star: 'a traveling star' };
+  const toyKind = s.toyType === 'custom' && s.customToyType ? s.customToyType : (toyKindMap[s.toyType] || 'a bear');
+  lines.push(`- The toy's name is ${s.toyName || 'Lumi'}, appearing as ${toyKind}.`);
+  if (s.toyGender) lines.push(`- Toy character gender: ${s.toyGender === 'male' ? 'male' : 'female'}.`);
+  const paceHint = { slow: 'Speak at a slightly slower, calmer pace than usual.', fast: 'Speak at a slightly faster, more energetic pace than usual.' }[s.voiceSpeed];
+  if (paceHint) lines.push(`- ${paceHint}`);
+
+  lines.push('');
   lines.push('STYLE');
   const styleText = {
     kind_friend: 'kind friend',
@@ -930,10 +936,15 @@ function buildGeneratedRestrictionsAddition(s) {
   return lines.join('\n');
 }
 
-// Mirrors realtimePrompt.js composeParentRules(): BASE_RESTRICTIONS always
-// comes first and is never edited here, the parent addition can only follow it.
+// Mirrors realtimeServer.js session.start exactly: BASE_RESTRICTIONS first
+// (never edited here), then the TOY/STYLE/CONTENT/TIME block rebuilt fresh
+// from the current structured fields (so dropdown changes show up here
+// immediately, without needing a separate "regenerate" step), then the
+// parent's free-text notes on top.
 function renderPreview() {
-  const addition = (current.restrictionsAddition || '').trim();
+  const generated = buildGeneratedRestrictionsAddition(current);
+  const freeNotes = (current.restrictionsAddition || '').trim();
+  const addition = [generated, freeNotes].filter(Boolean).join('\n\n');
   const text = addition
     ? [
         baseRestrictionsText,
@@ -1195,8 +1206,8 @@ const I18N = {
     safety1: 'Луми не просит личные данные', safety2: 'Не даёт опасных инструкций', safety3: 'Не просит хранить секреты от родителей',
     safety4: 'Не заменяет врача или взрослого', safety5: 'Не создаёт эмоциональную зависимость', safety6: 'При опасности направляет ребёнка к безопасному взрослому',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Базовые ограничения (нередактируемо)',
-    restrictionsAdditionHint: 'Дополнение родителя ниже может только усиливать ограничения — оно никогда не заменяет и не ослабляет базовые правила выше. До 5000 знаков.',
-    restrictionsAdditionLabel: 'Дополнение родителя', restrictionsResetButton: 'Сбросить к автосгенерированному',
+    restrictionsAdditionHint: 'Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 5000 знаков.',
+    restrictionsAdditionLabel: 'Дополнительные заметки родителя', restrictionsResetButton: 'Очистить заметки',
     previewTitle: 'Предпросмотр PARENT SETTINGS / RESTRICTIONS', previewHint: 'Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.',
     saveButton: 'Сохранить настройки', resetButton: 'Сбросить к базовым',
     deletionTitle: 'Удаление данных', deletionHint: 'Опасные действия собраны отдельно, чтобы не нажать их случайно.',
@@ -1268,8 +1279,8 @@ const I18N = {
     safety1: 'Lumi nu cere date personale', safety2: 'Nu oferă instrucțiuni periculoase', safety3: 'Nu cere să se ascundă secrete de părinți',
     safety4: 'Nu înlocuiește un medic sau un adult', safety5: 'Nu creează dependență emoțională', safety6: 'În caz de pericol, îndrumă copilul către un adult sigur',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Restricții de bază (needitabile)',
-    restrictionsAdditionHint: 'Adăugarea părintelui de mai jos poate doar întări restricțiile — nu le înlocuiește și nu le slăbește niciodată pe cele de mai sus. Până la 5000 de caractere.',
-    restrictionsAdditionLabel: 'Adăugarea părintelui', restrictionsResetButton: 'Revino la varianta generată automat',
+    restrictionsAdditionHint: 'Caracterul, conținutul și programul sunt deja incluse automat mai sus în previzualizare — acest câmp este pentru note suplimentare libere ale părintelui. Până la 5000 de caractere.',
+    restrictionsAdditionLabel: 'Note suplimentare ale părintelui', restrictionsResetButton: 'Șterge notele',
     previewTitle: 'Previzualizare PARENT SETTINGS / RESTRICTIONS', previewHint: 'Așa vor fi transmise aceste setări în promptul de sistem Gemini Live. Se actualizează automat.',
     saveButton: 'Salvează setările', resetButton: 'Resetează la valorile de bază',
     deletionTitle: 'Ștergere date', deletionHint: 'Acțiunile periculoase sunt separate, pentru a nu fi apăsate din greșeală.',
@@ -1341,8 +1352,8 @@ const I18N = {
     safety1: 'Lumi does not ask for personal data', safety2: 'Does not give dangerous instructions', safety3: 'Does not ask to keep secrets from parents',
     safety4: 'Does not replace a doctor or an adult', safety5: 'Does not create emotional dependency', safety6: 'Directs the child to a safe adult in danger',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Base restrictions (not editable)',
-    restrictionsAdditionHint: 'The parent addition below can only add further restrictions — it never replaces or weakens the base rules above. Up to 5000 characters.',
-    restrictionsAdditionLabel: 'Parent addition', restrictionsResetButton: 'Reset to auto-generated',
+    restrictionsAdditionHint: 'Character, content, and working hours are already automatically included above in the preview — this field is for additional free-form parent notes on top of that. Up to 5000 characters.',
+    restrictionsAdditionLabel: 'Additional parent notes', restrictionsResetButton: 'Clear notes',
     previewTitle: 'PARENT SETTINGS / RESTRICTIONS preview', previewHint: 'This is how these settings will be passed into the Gemini Live system prompt. Updates automatically.',
     saveButton: 'Save settings', resetButton: 'Reset to base',
     deletionTitle: 'Data deletion', deletionHint: 'Dangerous actions are grouped separately so they are not pressed by accident.',
@@ -1390,7 +1401,7 @@ function setUiLanguage(lang) {
 // --- init -----------------------------------------------------------------
 // device_settings (server, snake_case) -> current (client, camelCase).
 const SETTINGS_FIELD_MAP = {
-  toy_name: 'toyName', toy_type: 'toyType', toy_gender: 'toyGender',
+  toy_name: 'toyName', toy_type: 'toyType', custom_toy_type: 'customToyType', toy_gender: 'toyGender',
   voice_name: 'voiceName', voice_speed: 'voiceSpeed', volume_level: 'volumeLevel',
   character_style: 'characterStyle', address_style: 'addressStyle', reply_length: 'replyLength',
   energy_level: 'energyLevel', humor_level: 'humorLevel', initiative_level: 'initiativeLevel',
