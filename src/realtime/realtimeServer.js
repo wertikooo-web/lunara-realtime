@@ -15,6 +15,7 @@ const {
     buildRealtimeSystemInstruction,
     defaultPromptBlocks,
     sanitizePromptConfig,
+    composeParentRules,
 } = require('./realtimePrompt');
 const { createContentLibrary } = require('../content/contentLibrary');
 const memoryStore = require('../memory/store');
@@ -208,6 +209,18 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             return memoryStore.formatChildContext({ profile, facts });
         } catch (error) {
             log('memory_fetch_error', { deviceId: forDeviceId, message: error.message });
+            return null;
+        }
+    }
+
+    // BASE_RESTRICTIONS is always prepended by composeParentRules() — a
+    // parent's restrictions_addition can only add to it, never replace it.
+    async function fetchParentRules(forDeviceId) {
+        try {
+            const settings = await memoryStore.getOrCreateSettings(forDeviceId);
+            return composeParentRules(settings.restrictions_addition);
+        } catch (error) {
+            log('settings_fetch_error', { deviceId: forDeviceId, message: error.message });
             return null;
         }
     }
@@ -1248,9 +1261,15 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     // memory" for itself. childContext from DB is a hard override,
                     // not merged with sanitized.blocks.childContext.
                     if (memoryEnabledFlag) {
-                        const dbChildContext = await fetchChildContext(deviceId);
+                        const [dbChildContext, dbParentRules] = await Promise.all([
+                            fetchChildContext(deviceId),
+                            fetchParentRules(deviceId),
+                        ]);
                         if (dbChildContext) {
                             promptBlocks = { ...promptBlocks, childContext: dbChildContext };
+                        }
+                        if (dbParentRules) {
+                            promptBlocks = { ...promptBlocks, parentRules: dbParentRules };
                         }
                     }
 

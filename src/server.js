@@ -92,7 +92,7 @@ function readJsonBody(req) {
     });
 }
 
-const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/realtime'];
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
@@ -242,6 +242,43 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 404, { ok: false, error: 'not_found' });
         } catch (error) {
             const code = error.code || 'memory_request_failed';
+            const statusCode = code === 'memory_disabled' ? 503
+                : code === 'body_too_large' ? 413
+                    : code === 'invalid_json' ? 400
+                        : 500;
+            return sendJson(res, statusCode, { ok: false, error: code });
+        }
+    }
+
+    const settingsMatch = /^\/api\/settings\/([^/]+)\/?$/.exec(req.url);
+    if (settingsMatch) {
+        const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(settingsMatch[1]));
+        try {
+            await ensureMemoryReady();
+
+            if (req.method === 'GET') {
+                const settings = await memoryStore.getOrCreateSettings(deviceId);
+                return sendJson(res, 200, {
+                    ok: true,
+                    settings,
+                    generated_restrictions_addition: memoryStore.formatParentRulesAddition(settings),
+                });
+            }
+
+            if (req.method === 'PUT') {
+                const body = await readJsonBody(req);
+                const settings = await memoryStore.updateSettings(deviceId, body);
+                return sendJson(res, 200, { ok: true, settings });
+            }
+
+            if (req.method === 'DELETE') {
+                await memoryStore.deleteSettings(deviceId);
+                return sendJson(res, 200, { ok: true });
+            }
+
+            return sendJson(res, 404, { ok: false, error: 'not_found' });
+        } catch (error) {
+            const code = error.code || 'settings_request_failed';
             const statusCode = code === 'memory_disabled' ? 503
                 : code === 'body_too_large' ? 413
                     : code === 'invalid_json' ? 400

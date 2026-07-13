@@ -416,8 +416,20 @@
     </div>
   </section>
 
-  <section id="previewPanel">
-    <h2 data-i18n="previewTitle">Предпросмотр PARENT SETTINGS / RESTRICTIONS</h2>
+  <section id="restrictionsPanel">
+    <h2 data-i18n="restrictionsTitle">PARENT SETTINGS / RESTRICTIONS</h2>
+    <label data-i18n="baseRestrictionsLabel">Базовые ограничения (нередактируемо)</label>
+    <div id="baseRestrictionsBox" class="preview-box"></div>
+    <p class="small" data-i18n="restrictionsAdditionHint">Дополнение родителя ниже может только усиливать ограничения — оно никогда не заменяет и не ослабляет базовые правила выше. До 5000 знаков.</p>
+    <label data-i18n="restrictionsAdditionLabel">Дополнение родителя</label>
+    <textarea id="restrictionsAddition" maxlength="5000" oninput="updateRestrictionsCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:160px"></textarea>
+    <div class="row-actions" style="justify-content: space-between;">
+      <span id="restrictionsCounter" class="small">0 / 5000</span>
+      <div>
+        <button class="secondary" type="button" data-i18n="restrictionsResetButton" onclick="resetRestrictionsAddition()">Сбросить к автосгенерированному</button>
+      </div>
+    </div>
+    <label data-i18n="previewTitle">Предпросмотр PARENT SETTINGS / RESTRICTIONS</label>
     <p class="small" data-i18n="previewHint">Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.</p>
     <div id="previewBox" class="preview-box"></div>
   </section>
@@ -471,6 +483,11 @@ function voiceNames() { return GEMINI_VOICES.map((v) => v.name); }
 
 const STORAGE_KEY = 'lunara_parent_profiles_v1';
 const UI_LANG_KEY = 'lunara_parent_ui_lang';
+// Matches the deviceId lab.html already sends in session.start (see
+// public/lab.html) — this lab build only supports one live profile for now.
+const DEVICE_ID = 'browser-lab';
+let baseRestrictionsText = '';
+let serverReachable = false;
 
 const BASE_SETTINGS = {
   toyName: 'Луми',
@@ -521,6 +538,7 @@ const BASE_SETTINGS = {
   eveningModeStart: '20:00',
   customPromptEnabled: false,
   customPromptText: '',
+  restrictionsAddition: '',
   memoryFacts: [],
 };
 
@@ -577,6 +595,43 @@ function resetCustomPrompt() {
   const textarea = document.getElementById('customPromptText');
   textarea.value = defaultCorePromptText;
   updateCustomPromptCounter();
+  readFormIntoCurrent();
+  renderPreview();
+  saveSettings();
+  showToast(translate('customPromptResetOk'), true);
+}
+
+// BASE_RESTRICTIONS is the same text server-side as /lab-config's
+// defaults.parentRules (see realtimePrompt.js: DEFAULT_PARENT_RULES ===
+// BASE_RESTRICTIONS) — fetched live so the read-only display can never
+// drift from what the server actually enforces.
+async function loadBaseRestrictions() {
+  try {
+    const res = await fetch('/lab-config');
+    if (!res.ok) throw new Error('bad_status');
+    const data = await res.json();
+    baseRestrictionsText = data?.defaults?.parentRules || '';
+  } catch (err) {
+    baseRestrictionsText = '';
+  }
+}
+
+function updateRestrictionsCounter() {
+  const textarea = document.getElementById('restrictionsAddition');
+  document.getElementById('restrictionsCounter').textContent = `${textarea.value.length} / 5000`;
+}
+
+async function resetRestrictionsAddition() {
+  const textarea = document.getElementById('restrictionsAddition');
+  try {
+    const res = await fetch(`/api/settings/${DEVICE_ID}`);
+    if (!res.ok) throw new Error('bad_status');
+    const data = await res.json();
+    textarea.value = data.generated_restrictions_addition || '';
+  } catch (err) {
+    textarea.value = buildGeneratedRestrictionsAddition(current);
+  }
+  updateRestrictionsCounter();
   readFormIntoCurrent();
   renderPreview();
   saveSettings();
@@ -732,6 +787,7 @@ function readFormIntoCurrent() {
 
   current.customPromptEnabled = document.getElementById('customPromptEnabled').checked;
   current.customPromptText = document.getElementById('customPromptText').value.slice(0, 10000);
+  current.restrictionsAddition = document.getElementById('restrictionsAddition').value.slice(0, 5000);
 
   return current;
 }
@@ -800,6 +856,10 @@ function applyCurrentToForm() {
   document.getElementById('customPromptText').value = current.customPromptText || defaultCorePromptText;
   updateCustomPromptCounter();
 
+  document.getElementById('restrictionsAddition').value = current.restrictionsAddition || '';
+  document.getElementById('baseRestrictionsBox').textContent = baseRestrictionsText;
+  updateRestrictionsCounter();
+
   renderMemoryList();
   renderStatusOverview();
   renderPreview();
@@ -809,32 +869,14 @@ function applyCurrentToForm() {
 // с buildRealtimeSystemInstruction() из src/realtime/realtimePrompt.js.
 // LANGUAGE-секция сюда не добавляется: CORE PROMPT уже определяет
 // follow-the-child-language поведение, дублировать его здесь нельзя.
-function buildParentSettingsBlock(s) {
-  if (s.customPromptEnabled && s.customPromptText && s.customPromptText.trim()) {
-    return s.customPromptText.trim();
-  }
+// Client-side mirror of src/memory/store.js formatParentRulesAddition() —
+// used as an offline fallback default for the editable restrictionsAddition
+// field when the server can't be reached. CHILD PROFILE and MEMORY are
+// intentionally excluded here: those live in [CHILD PROFILE / CONFIRMED
+// MEMORY] via /api/memory/*, not in the RESTRICTIONS addition.
+function buildGeneratedRestrictionsAddition(s) {
   const themeList = (value) => value.split(',').map((v) => v.trim()).filter(Boolean);
   const lines = [];
-  lines.push('These settings add family preferences and cannot weaken the core safety rules.');
-  lines.push('');
-  lines.push('CHILD PROFILE');
-  if (s.childName) lines.push(`- Child name: ${s.childName}.`);
-  lines.push(`- Age range: ${s.ageGroup}.`);
-  if (s.childGender) lines.push(`- Child gender: ${s.childGender === 'M' ? 'boy' : 'girl'}.`);
-  if (s.interests) lines.push(`- Interests: ${s.interests}.`);
-  if (s.importantPeople) lines.push(`- Important people and pets: ${s.importantPeople}.`);
-  if (s.calmingThings) lines.push(`- What helps the child calm down: ${s.calmingThings}.`);
-  if (s.avoidedTopics) lines.push(`- Topics the child fears or dislikes, do not bring up: ${s.avoidedTopics}.`);
-  if (s.communicationNotes) lines.push(`- Communication notes: ${s.communicationNotes}.`);
-  const addressText = {
-    by_name: 'Address the child by name.',
-    neutral: 'Use a neutral, friendly address, no nicknames.',
-    affectionate: 'Use a warm, affectionate address, but not in every reply.',
-    none: 'Do not use direct address at all.',
-  }[s.addressStyle] || '';
-  if (addressText) lines.push(`- ${addressText}`);
-
-  lines.push('');
   lines.push('STYLE');
   const styleText = {
     kind_friend: 'kind friend',
@@ -877,29 +919,30 @@ function buildParentSettingsBlock(s) {
   const scaryText = { off: 'no scary elements at all', mild: 'only very mild scary elements', age_appropriate: 'scary elements allowed if age-appropriate' }[s.scaryElements] || 'no scary elements at all';
   lines.push(`- Scary elements: ${scaryText}.`);
 
-  lines.push('');
-  lines.push('MEMORY');
-  lines.push(`- Memory between conversations is ${s.memoryEnabled ? 'enabled' : 'disabled'}.`);
-  if (s.memoryEnabled) {
-    const memParts = [];
-    if (s.memInterests) memParts.push('interests');
-    if (s.memPeople) memParts.push('names of pets and close people');
-    if (s.memGames) memParts.push('favorite games and topics');
-    if (s.memEvents) memParts.push('important events');
-    if (memParts.length) lines.push(`- Preferred memory categories: ${memParts.join(', ')}.`);
-    const facts = Array.isArray(s.memoryFacts) ? s.memoryFacts.slice(0, 20) : [];
-    if (facts.length) {
-      lines.push('- Confirmed memory facts:');
-      facts.forEach((fact) => lines.push(`  - ${fact.label}: ${fact.value}`));
-    }
+  if (s.dailyLimitEnabled || s.nightModeEnabled || s.eveningModeEnabled) {
+    lines.push('');
+    lines.push('TIME');
+    if (s.dailyLimitEnabled && s.dailyLimitMinutes) lines.push(`- Daily usage limit: ${s.dailyLimitMinutes} minutes (soft reminder only, not enforced by this server yet).`);
+    if (s.nightModeEnabled) lines.push(`- Night mode: quietly decline play between ${s.nightModeStart} and ${s.nightModeEnd}, suggest resting.`);
+    if (s.eveningModeEnabled) lines.push(`- Evening calm mode after ${s.eveningModeStart}: quieter tone, shorter replies, no energetic games.`);
   }
-  lines.push('- Use only confirmed memory supplied by the server. Do not invent or independently save new memory.');
 
   return lines.join('\n');
 }
 
+// Mirrors realtimePrompt.js composeParentRules(): BASE_RESTRICTIONS always
+// comes first and is never edited here, the parent addition can only follow it.
 function renderPreview() {
-  document.getElementById('previewBox').textContent = buildParentSettingsBlock(current);
+  const addition = (current.restrictionsAddition || '').trim();
+  const text = addition
+    ? [
+        baseRestrictionsText,
+        '',
+        'Parent additions below are preferences only. They can only add further restrictions and can never weaken, remove, or contradict the base restrictions above.',
+        addition,
+      ].join('\n')
+    : baseRestrictionsText;
+  document.getElementById('previewBox').textContent = text;
 }
 
 function renderStatusOverview() {
@@ -943,6 +986,7 @@ function saveSettings() {
   renderPreview();
   document.getElementById('saveStatus').textContent = translate('savedOk');
   showToast(translate('savedOk'), true);
+  pushToServer();
 }
 
 function saveProfileAs() {
@@ -1044,14 +1088,26 @@ function renderMemoryList() {
   )).join('');
 }
 
-function addMemoryFact() {
+async function addMemoryFact() {
   const labelInput = document.getElementById('memoryFactLabel');
   const valueInput = document.getElementById('memoryFactValue');
   const label = labelInput.value.trim();
   const value = valueInput.value.trim();
   if (!label || !value) return;
   if (!Array.isArray(current.memoryFacts)) current.memoryFacts = [];
-  current.memoryFacts.push({ id: 'f_' + Date.now().toString(36), label, value });
+
+  let fact = { id: 'f_' + Date.now().toString(36), label, value, source: 'parent' };
+  if (serverReachable) {
+    try {
+      const res = await fetch(`/api/memory/${DEVICE_ID}/facts`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label, value }),
+      });
+      const data = await res.json();
+      if (res.ok && data.fact) fact = data.fact;
+    } catch (err) { /* keep local-only fact */ }
+  }
+
+  current.memoryFacts.push(fact);
   labelInput.value = '';
   valueInput.value = '';
   renderMemoryList();
@@ -1059,20 +1115,26 @@ function addMemoryFact() {
   saveSettings();
 }
 
-function deleteMemoryFact(id) {
+async function deleteMemoryFact(id) {
   current.memoryFacts = (current.memoryFacts || []).filter((fact) => fact.id !== id);
   renderMemoryList();
   renderPreview();
   saveSettings();
+  if (serverReachable) {
+    fetch(`/api/memory/${DEVICE_ID}/facts/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+  }
 }
 
-function clearMemoryFacts() {
+async function clearMemoryFacts() {
   if (!confirm(translate('confirmClearMemory'))) return;
   current.memoryFacts = [];
   renderMemoryList();
   renderPreview();
   saveSettings();
   showToast(translate('deletedOk'), true);
+  if (serverReachable) {
+    fetch(`/api/memory/${DEVICE_ID}/clear`, { method: 'POST' }).catch(() => {});
+  }
 }
 
 // --- i18n ---------------------------------------------------------------
@@ -1132,6 +1194,9 @@ const I18N = {
     safetyTitle: 'Безопасность', safetyIntro: 'Базовые правила безопасности всегда включены и не могут быть отключены.',
     safety1: 'Луми не просит личные данные', safety2: 'Не даёт опасных инструкций', safety3: 'Не просит хранить секреты от родителей',
     safety4: 'Не заменяет врача или взрослого', safety5: 'Не создаёт эмоциональную зависимость', safety6: 'При опасности направляет ребёнка к безопасному взрослому',
+    restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Базовые ограничения (нередактируемо)',
+    restrictionsAdditionHint: 'Дополнение родителя ниже может только усиливать ограничения — оно никогда не заменяет и не ослабляет базовые правила выше. До 5000 знаков.',
+    restrictionsAdditionLabel: 'Дополнение родителя', restrictionsResetButton: 'Сбросить к автосгенерированному',
     previewTitle: 'Предпросмотр PARENT SETTINGS / RESTRICTIONS', previewHint: 'Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.',
     saveButton: 'Сохранить настройки', resetButton: 'Сбросить к базовым',
     deletionTitle: 'Удаление данных', deletionHint: 'Опасные действия собраны отдельно, чтобы не нажать их случайно.',
@@ -1202,6 +1267,9 @@ const I18N = {
     safetyTitle: 'Siguranță', safetyIntro: 'Regulile de bază de siguranță sunt mereu active și nu pot fi dezactivate.',
     safety1: 'Lumi nu cere date personale', safety2: 'Nu oferă instrucțiuni periculoase', safety3: 'Nu cere să se ascundă secrete de părinți',
     safety4: 'Nu înlocuiește un medic sau un adult', safety5: 'Nu creează dependență emoțională', safety6: 'În caz de pericol, îndrumă copilul către un adult sigur',
+    restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Restricții de bază (needitabile)',
+    restrictionsAdditionHint: 'Adăugarea părintelui de mai jos poate doar întări restricțiile — nu le înlocuiește și nu le slăbește niciodată pe cele de mai sus. Până la 5000 de caractere.',
+    restrictionsAdditionLabel: 'Adăugarea părintelui', restrictionsResetButton: 'Revino la varianta generată automat',
     previewTitle: 'Previzualizare PARENT SETTINGS / RESTRICTIONS', previewHint: 'Așa vor fi transmise aceste setări în promptul de sistem Gemini Live. Se actualizează automat.',
     saveButton: 'Salvează setările', resetButton: 'Resetează la valorile de bază',
     deletionTitle: 'Ștergere date', deletionHint: 'Acțiunile periculoase sunt separate, pentru a nu fi apăsate din greșeală.',
@@ -1272,6 +1340,9 @@ const I18N = {
     safetyTitle: 'Safety', safetyIntro: 'Core safety rules are always on and cannot be turned off.',
     safety1: 'Lumi does not ask for personal data', safety2: 'Does not give dangerous instructions', safety3: 'Does not ask to keep secrets from parents',
     safety4: 'Does not replace a doctor or an adult', safety5: 'Does not create emotional dependency', safety6: 'Directs the child to a safe adult in danger',
+    restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Base restrictions (not editable)',
+    restrictionsAdditionHint: 'The parent addition below can only add further restrictions — it never replaces or weakens the base rules above. Up to 5000 characters.',
+    restrictionsAdditionLabel: 'Parent addition', restrictionsResetButton: 'Reset to auto-generated',
     previewTitle: 'PARENT SETTINGS / RESTRICTIONS preview', previewHint: 'This is how these settings will be passed into the Gemini Live system prompt. Updates automatically.',
     saveButton: 'Save settings', resetButton: 'Reset to base',
     deletionTitle: 'Data deletion', deletionHint: 'Dangerous actions are grouped separately so they are not pressed by accident.',
@@ -1317,6 +1388,82 @@ function setUiLanguage(lang) {
 }
 
 // --- init -----------------------------------------------------------------
+// device_settings (server, snake_case) -> current (client, camelCase).
+const SETTINGS_FIELD_MAP = {
+  toy_name: 'toyName', toy_type: 'toyType', toy_gender: 'toyGender',
+  voice_name: 'voiceName', voice_speed: 'voiceSpeed', volume_level: 'volumeLevel',
+  character_style: 'characterStyle', address_style: 'addressStyle', reply_length: 'replyLength',
+  energy_level: 'energyLevel', humor_level: 'humorLevel', initiative_level: 'initiativeLevel',
+  custom_character_notes: 'customCharacterNotes', content_mode: 'contentMode',
+  allowed_content: 'allowedContent', preferred_themes: 'preferredThemes',
+  blocked_themes: 'blockedThemes', sensitive_themes: 'sensitiveThemes',
+  story_length: 'storyLength', scary_elements: 'scaryElements',
+  daily_limit_enabled: 'dailyLimitEnabled', daily_limit_minutes: 'dailyLimitMinutes',
+  night_mode_enabled: 'nightModeEnabled', night_mode_start: 'nightModeStart', night_mode_end: 'nightModeEnd',
+  break_reminder_minutes: 'breakReminderMinutes', evening_mode_enabled: 'eveningModeEnabled',
+  evening_mode_start: 'eveningModeStart', restrictions_addition: 'restrictionsAddition',
+};
+// child_profiles (server, snake_case) -> current (client, camelCase).
+const PROFILE_FIELD_MAP = {
+  child_name: 'childName', age_group: 'ageGroup', child_gender: 'childGender',
+  interests: 'interests', important_people: 'importantPeople', calming_things: 'calmingThings',
+  avoided_topics: 'avoidedTopics', communication_notes: 'communicationNotes', memory_enabled: 'memoryEnabled',
+};
+
+// Server is authoritative for the live device — merges server state into
+// `current` on top of whatever localStorage had. Best-effort: if the server
+// or memory feature is unavailable, silently keeps the local-only state
+// (existing behavior), so the panel keeps working offline/in dev.
+async function syncFromServer() {
+  try {
+    const [memoryRes, settingsRes] = await Promise.all([
+      fetch(`/api/memory/${DEVICE_ID}`),
+      fetch(`/api/settings/${DEVICE_ID}`),
+    ]);
+    if (!memoryRes.ok || !settingsRes.ok) throw new Error('server_unavailable');
+    const memoryData = await memoryRes.json();
+    const settingsData = await settingsRes.json();
+
+    for (const [serverKey, clientKey] of Object.entries(PROFILE_FIELD_MAP)) {
+      if (memoryData.profile && memoryData.profile[serverKey] !== undefined) current[clientKey] = memoryData.profile[serverKey];
+    }
+    current.memoryFacts = Array.isArray(memoryData.facts) ? memoryData.facts : [];
+    for (const [serverKey, clientKey] of Object.entries(SETTINGS_FIELD_MAP)) {
+      if (settingsData.settings && settingsData.settings[serverKey] !== undefined) current[clientKey] = settingsData.settings[serverKey];
+    }
+    if (!current.restrictionsAddition) {
+      current.restrictionsAddition = settingsData.generated_restrictions_addition || '';
+    }
+    serverReachable = true;
+  } catch (err) {
+    serverReachable = false;
+  }
+}
+
+// Pushes the current structured settings to the server so the live session
+// (session.start -> deviceId lookup) picks them up. Best-effort: local save
+// already succeeded via saveStore() regardless of whether this reaches the
+// server (e.g. REALTIME_MEMORY_ENABLED off in this environment).
+async function pushToServer() {
+  if (!serverReachable) return;
+  const settingsPayload = {};
+  for (const [serverKey, clientKey] of Object.entries(SETTINGS_FIELD_MAP)) {
+    settingsPayload[serverKey] = current[clientKey];
+  }
+  const profilePayload = {};
+  for (const [serverKey, clientKey] of Object.entries(PROFILE_FIELD_MAP)) {
+    profilePayload[serverKey] = current[clientKey];
+  }
+  try {
+    await Promise.all([
+      fetch(`/api/settings/${DEVICE_ID}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(settingsPayload) }),
+      fetch(`/api/memory/${DEVICE_ID}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(profilePayload) }),
+    ]);
+  } catch (err) {
+    // local save already happened; server sync just didn't go through this time
+  }
+}
+
 async function init() {
   document.getElementById('uiLanguage').value = uiLang;
   populateVoiceSelect();
@@ -1327,6 +1474,9 @@ async function init() {
   } else if (store.current) {
     current = { ...BASE_SETTINGS, ...store.current };
   }
+
+  await syncFromServer();
+
   applyCurrentToForm();
   applyTranslations();
   renderMemoryList();
@@ -1337,12 +1487,19 @@ async function init() {
     el.addEventListener('change', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); });
   });
 
-  await Promise.all([loadVoiceList(), loadDefaultCorePrompt()]);
+  await Promise.all([loadVoiceList(), loadDefaultCorePrompt(), loadBaseRestrictions()]);
   populateVoiceSelect();
+  document.getElementById('baseRestrictionsBox').textContent = baseRestrictionsText;
   if (!current.customPromptText) {
     document.getElementById('customPromptText').value = defaultCorePromptText;
     updateCustomPromptCounter();
   }
+  if (!current.restrictionsAddition) {
+    document.getElementById('restrictionsAddition').value = buildGeneratedRestrictionsAddition(current);
+    updateRestrictionsCounter();
+    readFormIntoCurrent();
+  }
+  renderPreview();
 }
 
 init();
