@@ -23,6 +23,10 @@ async function runCase(durationMs) {
     };
     session.active = {
         generationId: 'generation_tail_smoke',
+        turnId: 'turn_tail_smoke',
+        log(stage, payload) {
+            logs.push({ stage, payload });
+        },
     };
     await session.sendSilenceTail({
         generationId: 'generation_tail_smoke',
@@ -43,7 +47,8 @@ async function runCase(durationMs) {
     });
 
     const audioPayloads = sent.filter((payload) => payload.audio);
-    const streamEndPayloads = sent.filter((payload) => payload.audioStreamEnd);
+    const activityStartPayloads = sent.filter((payload) => payload.activityStart);
+    const activityEndPayloads = sent.filter((payload) => payload.activityEnd);
 
     if (durationMs === 0) {
         if (audioPayloads.length !== 0) throw new Error('0ms tail must not send audio');
@@ -58,8 +63,14 @@ async function runCase(durationMs) {
     if (bytes !== expectedBytes(durationMs)) {
         throw new Error(`Bad total tail size for ${durationMs}ms: ${bytes}`);
     }
-    if (streamEndPayloads.length !== 1) {
-        throw new Error(`Expected one audioStreamEnd for ${durationMs}ms, got ${streamEndPayloads.length}`);
+    if (activityStartPayloads.length !== 1) {
+        throw new Error(`Expected one activityStart for ${durationMs}ms, got ${activityStartPayloads.length}`);
+    }
+    if (activityEndPayloads.length !== 1) {
+        throw new Error(`Expected one activityEnd for ${durationMs}ms, got ${activityEndPayloads.length}`);
+    }
+    if (sent.some((payload) => payload.audioStreamEnd)) {
+        throw new Error('Manual PTT must not send audioStreamEnd');
     }
     const started = logs.find((entry) => entry.stage === 'silence_tail_started');
     const completed = logs.find((entry) => entry.stage === 'silence_tail_completed');

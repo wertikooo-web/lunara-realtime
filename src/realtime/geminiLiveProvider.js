@@ -61,6 +61,16 @@ function hashText(text) {
     return crypto.createHash('sha256').update(String(text || ''), 'utf8').digest('hex').slice(0, 12);
 }
 
+function buildGeminiRealtimeInputConfig({ ActivityHandling, TurnCoverage }) {
+    return {
+        automaticActivityDetection: {
+            disabled: true,
+        },
+        activityHandling: ActivityHandling.NO_INTERRUPTION,
+        turnCoverage: TurnCoverage.TURN_INCLUDES_ALL_INPUT,
+    };
+}
+
 const GET_RIDDLE_TOOL_DECLARATION = {
     name: 'get_riddle',
     description: 'Mandatory first step for any child request for a riddle. Call get_riddle before saying any riddle text. Never invent or speak a riddle before this tool result. The server may return a library item or a controlled generated fallback in the same format.',
@@ -276,7 +286,12 @@ class GeminiLiveProviderSession {
                 promptApplyCount: this.promptApplyCount,
                 contentToolsEnabled: this.contentToolsEnabled,
             });
-            const { ActivityHandling, GoogleGenAI, Modality } = await import('@google/genai');
+            const {
+                ActivityHandling,
+                GoogleGenAI,
+                Modality,
+                TurnCoverage,
+            } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey: this.apiKey });
             const systemPrompt = this.systemInstructionText;
             const speechConfig = buildGeminiSpeechConfig(this.voiceName);
@@ -339,14 +354,7 @@ class GeminiLiveProviderSession {
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
                     tools: buildLiveTools({ enabled: this.contentToolsEnabled }),
-                    realtimeInputConfig: {
-                        automaticActivityDetection: {
-                            disabled: false,
-                            silenceDurationMs: Number(process.env.GEMINI_VAD_SILENCE_MS || 350),
-                            prefixPaddingMs: Number(process.env.GEMINI_VAD_PREFIX_PADDING_MS || 100),
-                        },
-                        activityHandling: ActivityHandling.NO_INTERRUPTION,
-                    },
+                    realtimeInputConfig: buildGeminiRealtimeInputConfig({ ActivityHandling, TurnCoverage }),
                     systemInstruction: {
                         parts: [{
                             text: systemPrompt,
@@ -455,12 +463,39 @@ class GeminiLiveProviderSession {
 
     sendAudioNow(buffer) {
         if (this.closed || !this.session) return;
+        this.sendActivityStartIfNeeded();
         this.session.sendRealtimeInput({
             audio: {
                 data: buffer.toString('base64'),
                 mimeType: INPUT_MIME_TYPE,
             },
         });
+    }
+
+    sendActivityStartIfNeeded() {
+        if (this.closed || !this.session || !this.active || this.active.activityStarted) return;
+        this.session.sendRealtimeInput({ activityStart: {} });
+        this.active.activityStarted = true;
+        this.active.log?.('gemini_activity_start', {
+            generationId: this.active.generationId,
+            turnId: this.active.turnId,
+            providerInstanceId: this.instanceId,
+        });
+    }
+
+    sendActivityEnd(context) {
+        if (this.closed || !this.session) return false;
+        if (!this.active?.activityStarted) {
+            this.sendActivityStartIfNeeded();
+        }
+        this.session.sendRealtimeInput({ activityEnd: {} });
+        if (this.active) this.active.activityEnded = true;
+        context.log?.('gemini_activity_end', {
+            generationId: context.generationId,
+            turnId: context.turnId,
+            providerInstanceId: this.instanceId,
+        });
+        return true;
     }
 
     async endInput(context) {
@@ -503,9 +538,11 @@ class GeminiLiveProviderSession {
         this.flushPendingAudio();
         if (context.mode === 'push_to_talk') {
             await this.sendSilenceTail(context);
+        } else {
+            this.sendActivityEnd(context);
         }
-        // With server-side VAD enabled, input_audio.end is only a UI marker.
-        // Gemini decides turn boundaries from the live audio stream.
+        // PTT uses manual activity markers. Gemini must wait for activityEnd,
+        // not infer end-of-turn from a speech pause while the button is held.
     }
 
     isTailActive(context) {
@@ -573,7 +610,7 @@ class GeminiLiveProviderSession {
 
         if (!aborted && this.isTailActive(context)) {
             try {
-                this.session.sendRealtimeInput({ audioStreamEnd: true });
+                this.sendActivityEnd(context);
             } catch (error) {
                 aborted = true;
                 abortReason = safeErrorMessage(error);
@@ -616,6 +653,8 @@ class GeminiLiveProviderSession {
             audioStarted: false,
             modelOutputStarted: false,
             inputEnded: false,
+            activityStarted: false,
+            activityEnded: false,
             chunkIndex: 0,
             inputTranscriptionReceived: false,
         };
@@ -1057,6 +1096,7 @@ module.exports = {
     MODEL_ID,
     DEFAULT_GEMINI_LIVE_VOICE,
     buildGeminiSpeechConfig,
+    buildGeminiRealtimeInputConfig,
     describeSpeechConfigShape,
     normalizeRotationMode,
     MIN_VALID_PCM_BYTES,

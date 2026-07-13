@@ -7,6 +7,7 @@ const {
     DEFAULT_GEMINI_LIVE_VOICE,
     areContentToolsEnabled,
     buildLiveTools,
+    buildGeminiRealtimeInputConfig,
     buildGeminiSpeechConfig,
 } = require('../src/realtime/geminiLiveProvider');
 const {
@@ -82,6 +83,19 @@ async function main() {
     }
     if (speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName !== 'Kore') {
         throw new Error(`Expected Gemini voiceName=Kore, got ${speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName}`);
+    }
+    const realtimeInputConfig = buildGeminiRealtimeInputConfig({
+        ActivityHandling: { NO_INTERRUPTION: 'NO_INTERRUPTION' },
+        TurnCoverage: { TURN_INCLUDES_ALL_INPUT: 'TURN_INCLUDES_ALL_INPUT' },
+    });
+    if (realtimeInputConfig.automaticActivityDetection?.disabled !== true) {
+        throw new Error('PTT must disable Gemini automatic activity detection');
+    }
+    if (realtimeInputConfig.activityHandling !== 'NO_INTERRUPTION') {
+        throw new Error('PTT activity handling must remain NO_INTERRUPTION');
+    }
+    if (realtimeInputConfig.turnCoverage !== 'TURN_INCLUDES_ALL_INPUT') {
+        throw new Error('PTT turn coverage must include all held input');
     }
     for (const method of ['sendAudio', 'endInput', 'interrupt', 'close']) {
         if (typeof first[method] !== 'function') {
@@ -268,8 +282,11 @@ async function main() {
         },
     };
     buffered.flushPendingAudio();
-    if (sentPayloads.length !== 1 || buffered.pendingAudioBytes !== 0) {
+    if (sentPayloads.length !== 2 || buffered.pendingAudioBytes !== 0) {
         throw new Error('Buffered audio must flush after provider session is ready');
+    }
+    if (!sentPayloads[0].activityStart || !sentPayloads[1].audio) {
+        throw new Error('Buffered audio must send activityStart before audio');
     }
     if (!bufferLogs.find((entry) => entry.stage === 'input_buffer_started')) {
         throw new Error('Buffering must log input_buffer_started');
