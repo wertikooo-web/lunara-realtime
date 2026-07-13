@@ -59,7 +59,7 @@ const server = http.createServer((req, res) => {
             service: 'lunara-realtime-lab',
             provider,
             model: providerFactory.metadata.model,
-            endpoints: ['/health', '/', '/lab', '/lab-config', '/realtime'],
+            endpoints: ['/health', '/', '/lab', '/lab-config', '/parent', '/realtime'],
         });
     }
 
@@ -69,7 +69,7 @@ const server = http.createServer((req, res) => {
             status: 'realtime-ready',
             provider,
             model: providerFactory.metadata.model,
-            endpoints: ['/health', '/lab', '/lab-config', '/realtime'],
+            endpoints: ['/health', '/lab', '/lab-config', '/parent', '/realtime'],
             next: 'Open /lab in a browser and test streaming.',
         });
     }
@@ -97,6 +97,20 @@ const server = http.createServer((req, res) => {
         const filePath = path.join(publicDir, 'lab.html');
         fs.createReadStream(filePath)
             .on('error', () => sendJson(res, 500, { ok: false, error: 'lab_not_available' }))
+            .once('open', () => {
+                res.writeHead(200, {
+                    'content-type': 'text/html; charset=utf-8',
+                    'cache-control': 'no-store',
+                });
+            })
+            .pipe(res);
+        return undefined;
+    }
+
+    if (req.method === 'GET' && req.url === '/parent') {
+        const filePath = path.join(publicDir, 'parent.html');
+        fs.createReadStream(filePath)
+            .on('error', () => sendJson(res, 500, { ok: false, error: 'parent_not_available' }))
             .once('open', () => {
                 res.writeHead(200, {
                     'content-type': 'text/html; charset=utf-8',
