@@ -30,6 +30,10 @@ const MAX_TURN_REPLAY_BYTES = Number.isFinite(configuredTurnReplayBytes)
     : 512 * 1024;
 let warnedInvalidRotationMode = false;
 
+function areContentToolsEnabled(value = process.env.REALTIME_CONTENT_TOOLS) {
+    return !/^(0|false|no|off|disabled)$/i.test(String(value || ''));
+}
+
 function normalizeProviderVoiceName(voiceName) {
     return String(voiceName || '').trim();
 }
@@ -175,6 +179,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let sessionLanguage = null;
     let pendingLanguageSwitch = null;
     let pendingLanguageCandidate = null;
+    const contentToolsEnabled = areContentToolsEnabled(providerMetadata.contentToolsEnabled);
     const contentLibrary = providerMetadata.contentLibrary || createContentLibrary(providerMetadata.contentLibraryOptions || {});
     let activeActivity = null;
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
@@ -229,9 +234,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             promptSource,
             rotationReason,
             rotationMode,
-            toolHandlers: {
+            contentToolsEnabled,
+            toolHandlers: contentToolsEnabled ? {
                 get_riddle: handleGetRiddleTool,
-            },
+            } : {},
         };
     }
 

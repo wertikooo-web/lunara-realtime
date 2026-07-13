@@ -5,6 +5,8 @@ const {
     MIN_VALID_PCM_BYTES,
     MODEL_ID,
     DEFAULT_GEMINI_LIVE_VOICE,
+    areContentToolsEnabled,
+    buildLiveTools,
     buildGeminiSpeechConfig,
 } = require('../src/realtime/geminiLiveProvider');
 const {
@@ -30,6 +32,16 @@ async function main() {
         rotationReason: 'initial',
     });
     const second = provider.createSession();
+
+    if (areContentToolsEnabled('off') !== false) {
+        throw new Error('REALTIME_CONTENT_TOOLS=off must disable content tools');
+    }
+    if (buildLiveTools({ enabled: false }).length !== 0) {
+        throw new Error('Disabled content tools must not be sent to Gemini');
+    }
+    if (buildLiveTools({ enabled: true }).length !== 1) {
+        throw new Error('Enabled content tools must include get_riddle');
+    }
 
     if (provider.name !== 'gemini') {
         throw new Error('Gemini provider name mismatch');

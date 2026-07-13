@@ -16,6 +16,10 @@ const VALID_ROTATION_MODES = new Set(['per_turn', 'errors_only']);
 const DEFAULT_ROTATION_MODE = 'per_turn';
 let warnedInvalidRotationMode = false;
 
+function areContentToolsEnabled(value = process.env.REALTIME_CONTENT_TOOLS) {
+    return !/^(0|false|no|off|disabled)$/i.test(String(value || ''));
+}
+
 function normalizeRotationMode(value) {
     const mode = String(value || process.env.GEMINI_ROTATION_MODE || DEFAULT_ROTATION_MODE).trim().toLowerCase();
     if (VALID_ROTATION_MODES.has(mode)) return mode;
@@ -69,7 +73,8 @@ const GET_RIDDLE_TOOL_DECLARATION = {
     },
 };
 
-function buildLiveTools() {
+function buildLiveTools({ enabled = areContentToolsEnabled() } = {}) {
+    if (!enabled) return [];
     return [{ functionDeclarations: [GET_RIDDLE_TOOL_DECLARATION] }];
 }
 
@@ -196,6 +201,7 @@ class GeminiLiveProvider {
             rotationReason: options.rotationReason,
             rotationMode: normalizeRotationMode(options.rotationMode),
             toolHandlers: options.toolHandlers,
+            contentToolsEnabled: options.contentToolsEnabled,
         });
     }
 }
@@ -213,6 +219,7 @@ class GeminiLiveProviderSession {
         rotationReason,
         rotationMode,
         toolHandlers,
+        contentToolsEnabled,
     }) {
         this.name = 'gemini';
         this.rotationMode = normalizeRotationMode(rotationMode);
@@ -248,6 +255,7 @@ class GeminiLiveProviderSession {
         this.sessionInputBytes = 0;
         this.promptApplyCount = 0;
         this.rawTraceSeq = 0;
+        this.contentToolsEnabled = areContentToolsEnabled(contentToolsEnabled);
         this.toolHandlers = toolHandlers && typeof toolHandlers === 'object' ? toolHandlers : {};
     }
 
@@ -266,6 +274,7 @@ class GeminiLiveProviderSession {
                 voiceConfigSource: this.voiceConfigSource,
                 rotationMode: this.rotationMode,
                 promptApplyCount: this.promptApplyCount,
+                contentToolsEnabled: this.contentToolsEnabled,
             });
             const { ActivityHandling, GoogleGenAI, Modality } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey: this.apiKey });
@@ -329,7 +338,7 @@ class GeminiLiveProviderSession {
                     speechConfig,
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
-                    tools: buildLiveTools(),
+                    tools: buildLiveTools({ enabled: this.contentToolsEnabled }),
                     realtimeInputConfig: {
                         automaticActivityDetection: {
                             disabled: false,
@@ -370,6 +379,7 @@ class GeminiLiveProviderSession {
                 voiceConfigSource: this.voiceConfigSource,
                 rotationMode: this.rotationMode,
                 promptApplyCount: this.promptApplyCount,
+                contentToolsEnabled: this.contentToolsEnabled,
             });
             log('provider_prompt_config', {
                 providerInstanceId: this.instanceId,
@@ -1043,6 +1053,7 @@ class GeminiLiveProviderSession {
 module.exports = {
     GeminiLiveProvider,
     buildLiveTools,
+    areContentToolsEnabled,
     MODEL_ID,
     DEFAULT_GEMINI_LIVE_VOICE,
     buildGeminiSpeechConfig,
