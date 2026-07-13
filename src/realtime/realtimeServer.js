@@ -539,7 +539,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     function armPttTurnTimeout(generation) {
         if (!generation || currentMode !== 'push_to_talk') return;
         clearGenerationTimeout(generation);
-        const timeoutMs = Math.max(0, Number(process.env.PTT_TURN_TIMEOUT_MS || 8000));
+        const timeoutMs = Math.max(0, Number(process.env.PTT_TURN_TIMEOUT_MS || 4500));
         if (timeoutMs <= 0) return;
         generation.timeoutTimer = setTimeout(() => {
             if (
