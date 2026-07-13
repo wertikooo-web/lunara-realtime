@@ -1,6 +1,7 @@
 # ESP32 Realtime Protocol — аудит и спецификация
 
-Дата аудита: 2026-07-13.
+Дата аудита: 2026-07-13. Обновлено: 2026-07-14 (уточнены 7 пунктов после дополнительной проверки кода, см. changelog в конце файла).
+
 Источники истины (только код, ничего не выдумано):
 - `src/realtime/wsProtocol.js` — свой минимальный WebSocket-сервер (ручная реализация RFC6455, без сторонних библиотек).
 - `src/realtime/realtimeServer.js` — вся lifecycle-логика, все исходящие/входящие сообщения.
@@ -13,6 +14,16 @@
 
 ---
 
+## Protocol V1 (зафиксировано)
+
+Это версия протокола, которую нужно считать неизменной точкой отсчёта для ESP32-реализации. Любое изменение формата аудио в будущем должно бампать версию и явно отмечаться в этом файле.
+
+- **Вход (ESP32 → сервер):** PCM16LE, 16000 Hz, mono, без обёртки, **binary WebSocket frame** (opcode `0x2`).
+- **Выход (сервер → ESP32):** PCM16LE, 24000 Hz, mono, внутри `audio.chunk` как `audio_base64` (Base64), **JSON-фрейм** (opcode `0x1`), НЕ binary frame.
+- Оба формата подтверждены реальным production-логом и кодом провайдера — см. разделы 2 и 6.
+
+---
+
 ## 1. WebSocket endpoint
 
 - **Production URL:** `wss://lunara-realtime-production.up.railway.app/realtime`
@@ -21,7 +32,7 @@
 - **Путь:** только `/realtime` принимается на upgrade; всё остальное — `404 Not Found` и закрытие сокета (`src/realtime/realtimeServer.js:154-160`).
 - **Query-параметры / headers:** **не требуются и не проверяются**. `acceptWebSocket()` проверяет только обязательный по спецификации WebSocket header `Sec-WebSocket-Key` (`src/realtime/wsProtocol.js:7-12`) — это не авторизация, а часть стандартного WS handshake.
 - **Авторизация: отсутствует.** Нет токена, нет API-ключа, нет проверки Origin. Любой клиент, знающий URL, может подключиться и открыть сессию. Это осознанный факт текущего состояния кода, не предположение.
-  - **Решение (2026-07-13, от пользователя):** пока в проекте один экземпляр устройства — не критично. На следующем этапе, при переходе к нескольким физическим ESP32-устройствам, авторизацию делать через поля **Device ID + PIN** (эта же схема уже использовалась в старом проекте `lunara-toy-server` — `modules/parentConfig.js`, `hashPin()`/`DEFAULT_PARENT_PIN`). Не реализовано в текущем коде `lunara-realtime` — только зафиксировано как согласованное направление, реализация в раздел 14 п.1 переносится из "открытый вопрос" в "решённое направление, ждёт реализации".
+  - **Решение (2026-07-13, от пользователя):** пока в проекте один экземпляр устройства — не критично. На следующем этапе, при переходе к нескольким физическим ESP32-устройствам, авторизацию делать через поля **Device ID + PIN** (эта же схема уже использовалась в старом проекте `lunara-toy-server` — `modules/parentConfig.js`, `hashPin()`/`DEFAULT_PARENT_PIN`). Не реализовано в текущем коде `lunara-realtime` — только зафиксировано как согласованное направление, реализация в разделе 14 п.1 переносится из "открытый вопрос" в "решённое направление, ждёт реализации".
 - **deviceId:** `lab.html` отправляет `deviceId: 'browser-lab'` в теле `session.start` (не как query-параметр и не как header) — `public/lab.html:699`. Сервер читает это поле (`src/realtime/realtimeServer.js:1249-1251`) и использует его для подтягивания памяти/настроек из Postgres, если `REALTIME_MEMORY_ENABLED=true`. Если поле не передано — используется дефолт `browser-lab` (`memoryStore.normalizeDeviceId()` без аргумента, `src/realtime/realtimeServer.js:206`; дефолт задан в `src/memory/store.js`).
 
 ---
@@ -62,6 +73,16 @@
 11. **Завершение ответа** — `audio.end`; если `rotationMode === 'per_turn'` (дефолт), сессия с провайдером **пересоздаётся** после каждого хода (`shouldRotateProviderAfterOutputComplete`, `realtimeServer.js:1094-1096`, вызов `rotateProviderSession` на `audio.end`, `realtimeServer.js:965-974`).
 12. **Возврат в idle** — клиентская state machine (в `lab.html`, не в протоколе) переходит в `IDLE`, когда `playbackQueue` и `activeSources` пусты (`lab.html:1191-1193`).
 
+### Когда ESP32 может безопасно начинать первую запись
+
+Важное уточнение, отсутствовавшее в первой версии этого документа. `provider.ready` **не гарантирован на первом подключении вообще**: он эмитится только внутри `warmProviderSession()` (`realtimeServer.js:656-704`), а этот вызов происходит только при: восстановлении после таймаута хода (`recoverFromTurnTimeout`), восстановлении после сбоя провайдера (`recoverFromProviderFailure`), подтверждённой смене языка (`applyPendingLanguageSwitchBeforeInput`) и после ротации сразу за `audio.end`. В обработчике `session.start` (`realtimeServer.js:1307-1308`) вызывается только `rotateProviderSession()` + `emitPromptApplied()` — `warmProviderSession()` там **не вызывается**. Значит на первом коннекте `provider.ready` может вообще не прийти до первого хода — **ждать его для разрешения записи нельзя, ESP32 повиснет**.
+
+Реальный порядок готовности: `session.ready` приходит сразу и всегда. `session.config.applied` — после асинхронной обработки `session.start`, когда voice/prompt/childContext/parentRules из БД уже применены к живой provider-сессии (`realtimeServer.js:1281-1308`). Само соединение с Gemini устанавливается лениво, при первом реальном аудио, внутри `beginResponse()` (`geminiLiveProvider.js:648-674`) — это никак не сигнализируется отдельным событием на первом ходу.
+
+`lab.html` сам переходит в `IDLE` (разрешает нажатие PTT) сразу на `session.ready`, **не дожидаясь** `session.config.applied` (`lab.html:1009-1011`) — это гонка в эталонном клиенте: теоретически первый ход может уйти до того, как персонализация (голос/промт/память) из БД подтянулась и была применена к provider-сессии.
+
+**Рекомендация для ESP32 (вывод из кода, не установленное поведение lab.html):** дожидаться `session.config.applied`, а не `session.ready` и не `provider.ready`, прежде чем разрешать первое нажатие PTT. Для последующих ходов в рамках уже установленной сессии этого ждать не нужно — персонализация применяется один раз при `session.start`.
+
 ---
 
 ## 4. JSON-пакеты ESP32 → server
@@ -73,9 +94,15 @@
 - **Обязательные поля (по факту, что сервер реально читает):** нет строго обязательных — `payload.type === 'session.start'` достаточно.
 - **Необязательные поля, которые сервер читает:**
   - `deviceId` (string) — используется для подтягивания памяти/настроек, только если `REALTIME_MEMORY_ENABLED=true` (`realtimeServer.js:1249-1251, 1264-1281`).
-  - `config` (object) — `core_prompt`/`corePrompt`, `child_context`/`childContext`, `parent_rules`/`parentRules` (`src/realtime/realtimePrompt.js:182-189`). **Работает только если `LAB_ALLOW_CUSTOM_PROMPT=true`** на сервере (env-флаг, по умолчанию `false` — `realtimePrompt.js:6`); иначе `config` полностью игнорируется и берутся дефолты.
+  - `config` (object) — `core_prompt`/`corePrompt`, `child_context`/`childContext`, `parent_rules`/`parentRules` (`src/realtime/realtimePrompt.js:182-189`). **Работает только если `LAB_ALLOW_CUSTOM_PROMPT=true`** на сервере (env-флаг, по умолчанию `false` — `realtimePrompt.js:6`); иначе `config` полностью игнорируется и берутся дефолты/данные из БД.
 - **Поля, которые клиент шлёт, но сервер НЕ читает вообще (мёртвые поля):** `lang`, `codec`, `sampleRate` (`lab.html:700-702`) — в `handleCommand` нет ни одного обращения к `payload.lang`/`payload.codec`/`payload.sampleRate`. ESP32 может их не отправлять.
-- **Пример JSON** (как реально шлёт `lab.html:696-704`):
+
+**Минимальный `session.start` для ESP32** (рекомендуемый, а не просто технически достаточный `{"type":"session.start"}` — без `deviceId` устройство разделит профиль/память/настройки с Browser Lab через общий дефолт `browser-lab`):
+```json
+{ "type": "session.start", "deviceId": "esp32-<серийник устройства>" }
+```
+
+- **Полный пример JSON** (как реально шлёт `lab.html:696-704`, для сравнения — ESP32 поля `lang`/`codec`/`sampleRate`/`config` слать не обязан):
 ```json
 {
   "type": "session.start",
@@ -87,7 +114,7 @@
 }
 ```
 - **Когда отправляется:** сразу после открытия сокета (`lab.html:695-705`); также при `applyPromptByReconnect()` — переподключение после смены prompt-конфига (только в lab, не относится к ESP32).
-- **Что делает сервер:** если уже идёт активный ход — отклоняет с ошибкой `session_config_busy` (см. ниже). Иначе асинхронно собирает промпт-блоки, при необходимости подтягивает БД, затем **пересоздаёт provider-сессию** (`rotateProviderSession('session_start_config')`, `realtimeServer.js:1283`) и шлёт `session.config.applied`.
+- **Что делает сервер:** если уже идёт активный ход — отклоняет с ошибкой `session_config_busy` (см. ниже). Иначе асинхронно собирает промпт-блоки, при необходимости подтягивает БД, затем **пересоздаёт provider-сессию** (`rotateProviderSession('session_start_config')`, `realtimeServer.js:1307`) и шлёт `session.config.applied`.
 - **Возможные ошибки:** `session_config_busy` (если есть активная генерация в нетерминальном статусе, `realtimeServer.js:1238-1248`); `prompt_config_invalid` (если `config`-текст превышает лимит символов, `realtimeServer.js:1285-1298`).
 
 ### 4.2 `input_audio.start`
@@ -125,7 +152,7 @@
 { "type": "session.interrupt", "reason": "manual_ptt_interrupt", "client_time_ms": 1731234567890 }
 ```
 - **Когда отправляется:** ручное прерывание — в `lab.html` это происходит при новом pointerdown во время состояния `PLAYING` (`manualInterrupt()`, вызывается из `startTurn`, `lab.html:813-815`).
-- **Что делает сервер:** отменяет текущую generation, шлёт провайдеру `interrupt()`, эмитит клиенту `response.cancelled` (раздел 5). Подробности barge-in — раздел 8.
+- **Что делает сервер:** отменяет текущую generation, шлёт провайдеру `interrupt()`, эмитит клиенту `response.cancelled` (раздел 5). Точный порядок и вопрос "ждать ли `response.cancelled`" — раздел 8.
 - **Возможные ошибки:** нет — если активной генерации нет, `cancelCurrent` просто возвращает `false` и ничего не происходит (`realtimeServer.js:990-996`).
 
 ### 4.5 `ping`
@@ -133,7 +160,7 @@
 - **Поля:** `timestamp_ms` (опционально, эхо возвращается в `pong`).
 - **Пример:** `{ "type": "ping", "timestamp_ms": 1731234567890 }`
 - **Когда отправляется:** решает клиент (в `lab.html` не используется вообще — нет вызова `ping` нигде в файле; это чисто серверная возможность, доступная, но не задействованная текущим клиентом).
-- **Что делает сервер:** отвечает `pong` с тем же `timestamp_ms` (`realtimeServer.js:1311-1315`).
+- **Что делает сервер:** отвечает `pong` с тем же `timestamp_ms` (`realtimeServer.js:1311-1315`). Это JSON-уровневый heartbeat, отдельный от стандартного WS ping/pong — подробности в разделе 9.
 
 ### Неизвестный `type`
 
@@ -151,8 +178,8 @@
 
 | type | Ключевые поля | Когда шлётся | Реакция прошивки (по аналогии с lab.html) |
 |---|---|---|---|
-| `session.ready` | `session_id`, `provider`, `provider_instance_id`, `rotation_mode`, `model`, `config`, `lab_prompt` | Сразу на коннект (`realtimeServer.js:1399-1408`) | Разблокировать PTT-кнопку, перейти в IDLE (`lab.html:998-1011`) |
-| `session.config.applied` | `reason`, `prompt_source`, `lab_prompt.{allow_custom_prompt,max_chars,current_context,meta}` | После обработки `session.start` (`realtimeServer.js:446-458`) | Информационное; `lab.html` использует только для UI prompt-редактора |
+| `session.ready` | `session_id`, `provider`, `provider_instance_id`, `rotation_mode`, `model`, `config`, `lab_prompt` | Сразу на коннект (`realtimeServer.js:1399-1408`) | Держать кнопку заблокированной до `session.config.applied` (см. раздел 3) |
+| `session.config.applied` | `reason`, `prompt_source`, `lab_prompt.{allow_custom_prompt,max_chars,current_context,meta}` | После обработки `session.start` (`realtimeServer.js:446-473`) | **Разблокировать PTT-кнопку здесь**, не на `session.ready` — персонализация (голос/промт/память) уже применена |
 | `input_audio.start` | `turn_id`, `generation_id`, `response_id: null` | Эхо на клиентский `input_audio.start`, с реальными ID (`realtimeServer.js:1125-1130`) | Обновить текущие ID (`lab.html:995-997`) |
 | `input_audio.end` | `turn_id`, `generation_id`, `response_id`, `duration_ms`, `turn_input_bytes`, `session_input_bytes`, `end_reason` | Эхо на клиентский `input_audio.end` (`realtimeServer.js:1181-1190`) | Информационное |
 | `response.created` | `generation_id`, `response_id`, `turn_id`, `cause`, `turn_input_bytes`, `session_input_bytes` | Когда провайдер начал отвечать (`realtimeServer.js:869-877`) | Переход в WAITING→получен первый признак ответа |
@@ -161,9 +188,9 @@
 | `audio.start` | `format: 'audio/pcm'`, `sample_rate: 24000`, `elapsed_ms`, `provider_instance_id`, `turn_input_bytes`, `session_input_bytes` | Первый валидный аудио-байт ответа (`geminiLiveProvider.js:929-942`) | Начать буферизацию/подготовку плеера, LED → speaking |
 | `audio.chunk` | `chunk_index`, `mime_type: 'audio/pcm'`, `sample_rate: 24000`, `audio_base64`, `elapsed_ms` | Каждый чанк аудио ответа (см. раздел 6) | Декодировать и проигрывать по очереди |
 | `audio.end` | `elapsed_ms`, `cause` (`'generationComplete'` или `'turnComplete'`) | Конец аудио-ответа (`geminiLiveProvider.js:1054-1089`) | Доиграть очередь, вернуться в IDLE, LED → idle |
-| `response.cancelled` | `generation_id`, `response_id`, `turn_id`, `reason`, `cancel_latency_ms` | При `session.interrupt` (`realtimeServer.js:1009-1016`) | Остановить воспроизведение немедленно (раздел 8) |
+| `response.cancelled` | `generation_id`, `response_id`, `turn_id`, `reason`, `cancel_latency_ms` | При `session.interrupt` (`realtimeServer.js:1009-1016`) | Информационное подтверждение постфактум — **не блокирует** начало нового хода, см. раздел 8 |
 | `response.failed` | `generation_id`, `response_id`, `turn_id`, `reason` | Таймаут (`realtimeServer.js:723-730`), сбой провайдера (`realtimeServer.js:766-773`), внутренние causes типа `provider_turn_closed_before_output`/`provider_turn_complete_without_model_output` (`geminiLiveProvider.js:975-1001`) | Сбросить состояние, вернуться в IDLE, можно показать "ошибка, попробуй снова" |
-| `provider.ready` | `reason`, `provider`, `provider_instance_id` | После (пере)подключения к провайдеру (`realtimeServer.js:698-703`) | `lab.html` использует, чтобы вернуться в IDLE после ротации, если не идёт запись/воспроизведение (`lab.html:1052-1053`) |
+| `provider.ready` | `reason`, `provider`, `provider_instance_id` | После (пере)подключения к провайдеру — **не гарантирован на первом коннекте**, только на восстановлении/ротации (см. раздел 3) — `realtimeServer.js:698-703` | `lab.html` использует, чтобы вернуться в IDLE после ротации, если не идёт запись/воспроизведение (`lab.html:1052-1053`) |
 | `provider.rotated` | `old_provider_instance_id`, `new_provider_instance_id`, `voice_preserved`, `*_hash`, `*_preserved`, `rotation_mode`, счётчики | Каждая пересоздача provider-сессии (`realtimeServer.js:1066-1087`) | Диагностическое; `lab.html` явно не обрабатывает (падает в общий `logLine`) |
 | `language.switch_detected` | `from_language`, `to_language`, `significant_word_count`, `confirmation_count`, `reason`, `action` | Автодетект смены языка ребёнка (`realtimeServer.js:495-505`) | Диагностическое |
 | `activity.started` | `activity_type: 'riddle'`, `content_id`, `generation_id`, `turn_id` | Вызов инструмента загадки (`realtimeServer.js:378-384`) | Диагностическое, только если контент-тулы включены (`REALTIME_CONTENT_TOOLS`) |
@@ -171,7 +198,7 @@
 | `tool.call` / `tool.response` | `tool_name`/`tool_names`, `provider_instance_id` | Вызов и ответ function-calling инструмента у Gemini (`geminiLiveProvider.js:785-791, 828-834`) | Диагностическое, безопасно игнорировать |
 | `provider_interrupt_ack` | `interrupted_generation_id`, `interrupted_turn_id`, `interrupted_response_id`, `matched`, `elapsed_ms` | Gemini подтвердил interruption (`geminiLiveProvider.js:719-729`) | Диагностическое |
 | `silence_tail_started` / `silence_tail_completed` | `configured_duration_ms`/`sent_frames`, `sent_bytes`, `aborted`, `abort_reason` | Отправка тишины после `input_audio.end` (`geminiLiveProvider.js:579-590, 635-645`) | Диагностическое |
-| `pong` | `timestamp_ms` | Ответ на `ping` (`realtimeServer.js:1312-1315`) | — |
+| `pong` | `timestamp_ms` | Ответ на JSON `ping` (`realtimeServer.js:1312-1315`) | — |
 | `error` | `code`, `message`, доп. поля по коду | См. коды в разделе 4 и 10 | Обработать по `code`, часто → ERROR-состояние |
 
 **Ничего из этого не влияет напрямую на LED/кнопку "по протоколу"** — сервер не шлёт отдельных LED-команд. Маппинг на LED/UX (раздел 11) — это интерпретация lifecycle-состояний клиентом, а не отдельный канал управления.
@@ -186,24 +213,26 @@
 - **Валидация на сервере (только для исходящего аудио от Gemini, НЕ входящего от клиента):** чанк с audio отбрасывается, если `audioBytes < 4` или `audioBytes % 2 !== 0` (`MIN_VALID_PCM_BYTES = 4`, `BYTES_PER_PCM16_SAMPLE = 2`, `geminiLiveProvider.js:913-928`).
 - **mock-провайдер (не прод!) шлёт WAV** (`mime_type: 'audio/wav'`, с полным RIFF/WAVE-заголовком — `mockRealtimeProvider.js:16-44, 148`), это только для локальной разработки без Gemini API key. **На проде всегда `audio/pcm`.**
 
+Формат зафиксирован как Protocol V1 (см. врез в начале документа).
+
 ---
 
 ## 7. Состояния прошивки — предложенная state machine
 
 Запрошенный в задаче набор (`DISCONNECTED, CONNECTING, IDLE, LISTENING, WAITING_RESPONSE, PLAYING, INTERRUPTING, ERROR, RECONNECTING`) **не совпадает буквально** с набором в `lab.html` — там `STATES = { DISCONNECTED, IDLE, LISTENING, ENDING_TURN, WAITING_PROVIDER, PLAYING, INTERRUPTING, ERROR }` (`lab.html:351-360`) — нет отдельных `CONNECTING`/`RECONNECTING`/`WAITING_RESPONSE` (у lab.html это `WAITING_PROVIDER`), и есть промежуточное `ENDING_TURN`, которого в запрошенном списке нет.
 
-Ниже — состояния из запрошенного списка, дополненные `ENDING_TURN` из реального клиента (рекомендуется сохранить, так как это реальный промежуточный шаг между "отпустил кнопку" и "запрос ушёл"), с точным описанием переходов из `lab.html`:
+Ниже — состояния из запрошенного списка, дополненные `ENDING_TURN` из реального клиента (рекомендуется сохранить, так как это реальный промежуточный шаг между "отпустил кнопку" и "запрос ушёл"), с точным описанием переходов из `lab.html`. **Важно (уточнение раздела 3):** переход `CONNECTING → IDLE` ниже показан по `session.ready`, как это делает `lab.html`, но для ESP32 рекомендуется делать этот переход по `session.config.applied`, чтобы не попасть в гонку с персонализацией из БД.
 
 | Состояние | Разрешённые входящие события | Разрешённые действия ESP32 | Переход |
 |---|---|---|---|
 | **DISCONNECTED** | — | Подключиться | На `pointerdown` или явный коннект → **CONNECTING** (`lab.html:1280-1282` — коннект прямо из pointerdown, если состояние `DISCONNECTED`) |
-| **CONNECTING** | `session.ready` | Ждать | На `session.ready` → **IDLE** (`lab.html:1010`, `realtimeServer.js:1399-1408`) |
+| **CONNECTING** | `session.ready`, затем `session.config.applied` | Ждать | `lab.html` переходит в **IDLE** уже на `session.ready` (`lab.html:1010`); ESP32 рекомендуется дождаться `session.config.applied` (см. раздел 3) |
 | **IDLE** | `input_audio.start` (от пользователя, т.е. нажатие) | Отправить `input_audio.start`, начать писать PCM | На нажатие PTT → **LISTENING** (`lab.html:847`) |
 | **LISTENING** | поток PCM исходящий | Слать бинарные PCM-фреймы | На отпускание кнопки → **ENDING_TURN** (`lab.html:890`) |
 | **ENDING_TURN** | — | Ждать (80 мс искусственная пауза в `lab.html:891-896`, не требование протокола) | → **WAITING_RESPONSE** |
 | **WAITING_RESPONSE** | `transcript.user`, `response.created`, `audio.start`, `response.failed` | Ждать, таймаут 5000 мс на клиенте (`lab.html:937-949`) / 4500 мс на сервере (`realtimeServer.js:614`) | На первый `audio.chunk` → **PLAYING** (`lab.html:1126-1134`); на `response.failed` → **IDLE** (`lab.html:1050`) |
 | **PLAYING** | `audio.chunk`, `audio.end`, новое нажатие PTT (barge-in) | Проигрывать чанки | На пустую очередь после `audio.end` → **IDLE** (`lab.html:1037, 1191-1193`); на новое нажатие → **INTERRUPTING** (`lab.html:813-815`, `899-918`) |
-| **INTERRUPTING** | `response.cancelled` | Остановить плеер немедленно, отправить `session.interrupt` | Сразу переходит в новый ход (**LISTENING**), если interruption вызван новым pointerdown (`lab.html:1293` — `startTurn` вызывается сразу же после `manualInterrupt()`) |
+| **INTERRUPTING** | — | Остановить плеер немедленно, отправить `session.interrupt`, **сразу же** начать новый ход | Переходит в **LISTENING** немедленно, не дожидаясь `response.cancelled` (`lab.html:1293` — `startTurn` вызывается сразу же после `manualInterrupt()`; подробности — раздел 8) |
 | **ERROR** | `error`, `close` сокета | Показать ошибку, ждать reconnect | Кнопка "Reconnect" доступна (`lab.html:263, 619`) |
 | **RECONNECTING** | — | Пересоздать сокет | В `lab.html` это не отдельное состояние — `reconnect()` синхронно вызывает `disconnect()` → **DISCONNECTED**, затем через `setTimeout(connect, 200)` → **CONNECTING** (`lab.html:751-756`) |
 
@@ -217,23 +246,29 @@
 2. Клиент **сразу** вызывает `manualInterrupt()` (`lab.html:813-815, 899-918`), **до** отправки `session.interrupt` на сервер:
    - Добавляет текущий `generation_id`/`response_id` в локальные Set'ы `cancelledGenerations`/`cancelledResponses` (`lab.html:902-903`) — это чисто клиентский механизм фильтрации "опоздавших" сообщений.
    - **Локально останавливает воспроизведение немедленно**: `clearPlayback('manual_interrupt')` — `stop()` на всех активных `AudioBufferSourceNode`, полностью очищает `playbackQueue` и `activeSources` (`lab.html:968-981`). Это происходит **до** какого-либо ответа сервера — задержки сети не влияют на скорость остановки звука на клиенте.
-3. Затем отправляется `session.interrupt` (`lab.html:905-909`, поля — раздел 4.4).
-4. Сервер: `cancelCurrent(reason)` — помечает текущую generation `cancelled`, вызывает `providerSession.interrupt()` (шлёт Gemini `sendRealtimeInput({ text: '[Interrupted by user]' })`, `geminiLiveProvider.js:695-701`), эмитит `response.cancelled` клиенту (`realtimeServer.js:990-1024`).
-5. Если у провайдера `rotateOnInterrupt === true` (для Gemini — всегда `true`, `geminiLiveProvider.js:236`) — сервер **пересоздаёт** provider-сессию (`rotateProviderSession(reason)`, `realtimeServer.js:1113-1115`).
-6. **Как не проиграть запоздалый старый ответ:** двойная защита.
+3. Затем отправляется `session.interrupt` (`lab.html:905-909`, поля — раздел 4.4) — **fire-and-forget**, без ожидания ответа.
+4. **Клиент НЕ ждёт `response.cancelled`.** Сразу вслед за `manualInterrupt()`, синхронно в том же вызове `startTurn()`, идёт проверка состояния (`lifecycleState` уже `INTERRUPTING`, что разрешено списком `[STATES.IDLE, STATES.INTERRUPTING, STATES.ERROR]`, `lab.html:816`) и немедленный старт нового хода — `input_audio.start` уходит без паузы на подтверждение сервера (`lab.html:808-816`, весь блок синхронный до `await ensureMic()`, который ждёт микрофон, а не сервер).
+5. Сервер параллельно: `cancelCurrent(reason)` — помечает текущую generation `cancelled`, вызывает `providerSession.interrupt()` (шлёт Gemini `sendRealtimeInput({ text: '[Interrupted by user]' })`, `geminiLiveProvider.js:695-701`), эмитит `response.cancelled` клиенту (`realtimeServer.js:990-1024`) — это событие приходит **уже после** того, как клиент начал слушать новый ход, и используется только как постфактум-подтверждение в UI/метриках, не как gate.
+6. Если у провайдера `rotateOnInterrupt === true` (для Gemini — всегда `true`, `geminiLiveProvider.js:236`) — сервер **пересоздаёт** provider-сессию (`rotateProviderSession(reason)`, `realtimeServer.js:1113-1115`).
+7. **Как не проиграть запоздалый старый ответ (без ожидания `response.cancelled`):** двойная защита именно потому, что ждать нечего.
    - На клиенте: `isLateEvent(payload)` проверяет `cancelledGenerations`/`cancelledResponses` Set, а также несовпадение `generation_id`/`response_id` с текущими — если совпадение "просрочено", событие дропается (`lab.html:1081-1088`, применяется в `handleAudioChunk`, `audio.start`, `audio.end`, `transcript.model`).
    - На сервере: `emitProviderEvent` при `generation.status` в `cancelled/completed/failed` дропает "model output events" (`transcript.model`, `audio.start`, `audio.chunk`, `audio.end`) через `droppedProviderEvent()`, **не пересылая клиенту** (`realtimeServer.js:902-907`).
-7. **Сброс старых чанков:** явного "flush"-сообщения в протоколе нет — сброс это следствие (а) клиентского `clearPlayback()` (очистка локальной очереди) и (б) серверного дропа опоздавших событий до их отправки. Никакого специального пакета `flush`/`clear_buffer` в протоколе не существует — **это нужно решить инженеру** (см. раздел 14), если для ESP32 потребуется явный сигнал очистки буфера.
+8. **Сброс старых чанков:** явного "flush"-сообщения в протоколе нет — сброс это следствие (а) клиентского `clearPlayback()` (очистка локальной очереди) и (б) серверного дропа опоздавших событий до их отправки. Никакого специального пакета `flush`/`clear_buffer` в протоколе не существует — **это нужно решить инженеру** (см. раздел 14), если для ESP32 потребуется явный сигнал очистки буфера.
+
+**Итог для ESP32:** ждать `response.cancelled` перед стартом нового хода — не нужно и не соответствует референсному поведению. Останавливать локальное воспроизведение нужно немедленно, синхронно, до отправки `session.interrupt`.
 
 ---
 
 ## 9. Reconnect
 
-- **Heartbeat / ping-pong:** механизм `ping`/`pong` **существует на сервере** (раздел 4.5, 5), но **не используется `lab.html` вообще** — ни один `setInterval` с `ping` не найден в файле. То есть на сегодня это неиспользуемая, но рабочая возможность протокола.
-- **Timeout:** нет server-side idle-timeout на уровне сокета в коде (`wsProtocol.js` не закрывает соединение по неактивности). Единственный таймаут — `PTT_TURN_TIMEOUT_MS` (сервер, 4500 мс дефолт, `realtimeServer.js:614`) и клиентский аналог 5000 мс (`lab.html:937`) — это таймаут ожидания **ответа**, а не таймаут соединения.
+- **Heartbeat / ping-pong — два независимых механизма, оба реализованы на сервере уже сейчас:**
+  1. **JSON-уровень:** клиент шлёт `{"type":"ping","timestamp_ms":...}` (раздел 4.5) → сервер отвечает `{"type":"pong","timestamp_ms":...}` с тем же значением (`realtimeServer.js:1311-1315`).
+  2. **WS-протокол:** стандартный ping-фрейм (opcode `0x9`) → сервер отвечает стандартным pong-фреймом (opcode `0xA`) через `sendPong()` (`wsProtocol.js:100-101, 128-132`, обработчик `realtimeServer.js:1372-1374`).
+  - **`lab.html` не использует ни один из них** — ни `setInterval` с JSON `ping`, ни явных WS ping-фреймов в файле нет. Оба варианта одинаково рабочие и доступны ESP32 уже сейчас; выбор конкретного — на усмотрение инженера (см. раздел 14 п.6), код не диктует предпочтение.
+- **Timeout:** нет server-side idle-timeout на уровне сокета в коде (`wsProtocol.js` не закрывает соединение по неактивности, ни для JSON, ни для WS ping/pong). Единственный таймаут — `PTT_TURN_TIMEOUT_MS` (сервер, 4500 мс дефолт, `realtimeServer.js:614`) и клиентский аналог 5000 мс (`lab.html:937`) — это таймаут ожидания **ответа на ход**, а не таймаут соединения или heartbeat. Значение таймаута простоя (когда считать сокет мёртвым и начинать reconnect) код не определяет — это решение инженера, не выведено из существующего поведения.
 - **Backoff:** отсутствует. `reconnect()` в `lab.html` ждёт фиксированные **200 мс** и переподключается — без экспоненциального backoff и без ограничения числа попыток (`lab.html:751-756`).
 - **Восстановление после Wi-Fi loss:** протокол это не решает — при разрыве сокета (`close`/`error`) клиент переходит в `ERROR`, вся серверная сессия (генерация, provider-сессия, deviceId в памяти closure) **уничтожается** (`socket.on('close', ...)` → `closeProvider('disconnect')`, `realtimeServer.js:1393-1397`).
-- **Можно ли продолжить старую сессию или нужна новая:** **всегда нужна новая.** `sessionId` генерируется заново на каждый коннект (`id('session')`, `realtimeServer.js:168`), нет никакого resume-токена или session-id, который клиент мог бы переиспользовать. Все in-memory состояния (recentTurns, promptBlocks, providerSession) теряются безвозвратно при разрыве — единственное, что переживает разрыв, это данные в Postgres (child_profiles/memory_facts/device_settings), которые заново подтягиваются по `deviceId` при новом `session.start`.
+- **Можно ли продолжить старую сессию или нужна новая:** **всегда нужна новая**, с новым `session.start`. `sessionId` генерируется заново на каждый коннект (`id('session')`, `realtimeServer.js:168`), нет никакого resume-токена или session-id, который клиент мог бы переиспользовать. Все in-memory состояния (recentTurns, promptBlocks, providerSession) теряются безвозвратно при разрыве — единственное, что переживает разрыв, это данные в Postgres (child_profiles/memory_facts/device_settings), которые заново подтягиваются по `deviceId` при новом `session.start`.
 
 ---
 
@@ -245,8 +280,9 @@
 | Что при overflow этого буфера | Replay-буфер **сбрасывается** (`currentInputChunks = []`), но живой поток в Gemini продолжает идти нормально — просто retry после сбоя провайдера станет невозможен для этого хода | `realtimeServer.js:1351-1361` |
 | Макс. буфер аудио до готовности provider-сессии | `GEMINI_PENDING_AUDIO_MAX_BYTES`, дефолт **512 КБ** | `geminiLiveProvider.js:14, 423-431` |
 | Что при overflow этого буфера | Новые входящие чанки **отбрасываются** (`input_buffer_dropped`), уже отправленные — нет | `geminiLiveProvider.js:423-430` |
-| Макс. длина реплики (текст промпта) | `LAB_PROMPT_MAX_CHARS`, дефолт **8000** символов на каждый из блоков (`core_prompt`/`child_context`/`parent_rules`), это ограничение промпта, не голосового ввода | `src/realtime/realtimePrompt.js:5` |
+| Макс. длина промпт-блока (core/child/parent) | `LAB_PROMPT_MAX_CHARS`, дефолт **16000** символов на каждый из блоков (`core_prompt`/`child_context`/`parent_rules`) — поднят с исходных 8000, чтобы вместить текущий `DEFAULT_CORE_PROMPT` (~10235 символов) плюс запас под `custom_prompt_text` (до 10000 символов). Это ограничение промпта, не голосового ввода | `src/realtime/realtimePrompt.js:5-9` |
 | Ограничение длины родительского дополнения к RESTRICTIONS | **5000** символов | `src/memory/store.js` (`RESTRICTIONS_ADDITION_MAX_CHARS`) |
+| Макс. размер тела HTTP-запроса к `/api/*` (панель, не относится к `/realtime`) | **64 КБ** (`MAX_JSON_BODY_BYTES`), поднят с исходных 8 КБ — при 8 КБ длинный кастомный промт молча не сохранялся | `src/server.js` |
 | Таймаут ожидания начала ответа (turn timeout) | `PTT_TURN_TIMEOUT_MS`, дефолт **4500 мс** | `realtimeServer.js:614` |
 | Что при коротком/пустом аудио | Нет отдельной проверки минимальной длительности на сервере для **входящего** аудио. Для исходящего (ответ) — есть `isPlayableBuffer()` на клиенте, отбрасывает буфер короче 5 мс или полностью тихий (`lab.html:1139-1146`) — это клиентская, не серверная проверка |
 | Invalid PCM (исходящее от Gemini) | Отбрасывается, если байт < 4 или нечётное число байт; логируется раз в `GEMINI_INVALID_PCM_LOG_EVERY` (дефолт 20) раз, чтобы не спамить лог | `geminiLiveProvider.js:914-927`, `.env` — но переменная не в `.env.example`, дефолт в коде |
@@ -282,6 +318,7 @@
 → (JSON)   session.start { deviceId: "browser-lab", config: {...} }
 ← (JSON)   session.ready { session_id: "session_8bb1879a2311e86a", provider: "gemini", model: "gemini-3.1-flash-live-preview", ... }
 ← (JSON)   session.config.applied { reason: "session.start", prompt_source: "default" | "lab", ... }
+           // ESP32: только теперь разрешать первое нажатие PTT — см. раздел 3
 
 → (JSON)   input_audio.start { turn_id: "trn_mrjlcuok_c12436", mode: "push_to_talk" }
 ← (JSON)   input_audio.start { turn_id: "trn_mrjlcuok_c12436", generation_id: "generation_df86bfe7a52abb43", response_id: null }
@@ -317,13 +354,14 @@
 | Формат исходящего фрейма | `ArrayBuffer` через `ws.send()` | Обязательно **бинарный** WS-фрейм (opcode `0x2`), не JSON/base64 |
 | `deviceId` | Хардкод `'browser-lab'` | ESP32 должен слать свой (стабильный на устройство) `deviceId`, иначе будет делить память/настройки с Browser Lab через дефолт `browser-lab` |
 | `lang`/`codec`/`sampleRate` в `session.start` | Отправляются, сервер игнорирует | Можно не отправлять |
+| Момент разблокировки PTT | На `session.ready` (гонка с персонализацией, см. раздел 3) | На `session.config.applied` |
 | Прогрев/удержание кнопки | Pointer Events API (`pointerdown/up/cancel`, `lostpointercapture`) + обработка `window blur`/`visibilitychange` как принудительного отпускания | ESP32 должен сам решить аналог для физической кнопки — минимум debounce и защита от "залипания" при потере сети |
 | Декодирование ответа | Web Audio API `AudioContext.createBuffer` + ручной PCM16→Float32 (`lab.html:1148-1166`) | ESP32 должен уметь декодировать PCM16LE 24000Hz mono напрямую в DAC/I2S |
-| Barge-in | Клиентская мгновенная остановка плеера + серверный `session.interrupt` (раздел 8) | Обязательно реализовать оба уровня — иначе будет слышен "хвост" старого ответа при сетевой задержке |
+| Barge-in | Клиентская мгновенная остановка плеера + серверный `session.interrupt`, **без ожидания `response.cancelled`** (раздел 8) | Обязательно реализовать оба уровня защиты от опоздавших событий — иначе будет слышен "хвост" старого ответа при сетевой задержке |
 | Reconnect | Fixed 200ms delay, без backoff, без лимита попыток, новая сессия каждый раз | Рекомендуется добавить backoff на стороне ESP32 (сервер этого не требует и не ограничивает) |
-| Ping/pong | Реализовано на сервере, не используется клиентом | Опционально для ESP32 — protocol-level keepalive, если понадобится обнаруживать мёртвый сокет на прошивке |
-| Auth | Нет ни на сервере, ни в `lab.html` | Открытый вопрос — см. раздел 14 |
-| Voice/prompt config | `lab.html` шлёт кастомный prompt в `session.start.config`, работает только при `LAB_ALLOW_CUSTOM_PROMPT=true` | ESP32, скорее всего, НЕ должен слать `config` вообще — сервер и так подтягивает `parentRules`/`childContext`/`voice_name` из Postgres по `deviceId`, если `REALTIME_MEMORY_ENABLED=true` (уже включено на проде) |
+| Ping/pong | Оба механизма (JSON и WS-протокольный) реализованы на сервере, ни один не используется клиентом | Выбор варианта — на усмотрение инженера, оба одинаково поддержаны уже сейчас |
+| Auth | Нет ни на сервере, ни в `lab.html` | Решено, не реализовано — Device ID + PIN, см. раздел 14 п.1 |
+| Voice/prompt config | `lab.html` шлёт кастомный prompt в `session.start.config`, работает только при `LAB_ALLOW_CUSTOM_PROMPT=true` | ESP32, скорее всего, НЕ должен слать `config` вообще — сервер и так подтягивает `parentRules`/`childContext`/`voice_name`/`custom_prompt_text` из Postgres по `deviceId`, если `REALTIME_MEMORY_ENABLED=true` (уже включено на проде) |
 
 ---
 
@@ -332,22 +370,23 @@
 ### Что уже точно реализовано и стабильно работает (проверено production-логами)
 - Полный PTT lifecycle: start → PCM stream → end → silence tail → activityEnd → ответ → audio.end → ротация сессии.
 - Streaming ответа чанками (`audio.chunk`) с реальным `mime_type: 'audio/pcm'`, `sample_rate: 24000`.
-- Barge-in с двухуровневой защитой от "просроченных" событий (клиент + сервер).
+- Barge-in с двухуровневой защитой от "просроченных" событий (клиент + сервер), без ожидания `response.cancelled`.
 - Автовосстановление при таймауте/сбое провайдера (retry на свежей provider-сессии для ряда причин).
 - Автодетект языка ребёнка и ротация сессии при смене языка.
-- Серверная память/настройки (Postgres) уже подключены и работают на проде: `deviceId` → `childContext`/`parentRules`/`voice_name` при `session.start`.
+- Серверная память/настройки (Postgres) уже подключены и работают на проде: `deviceId` → `childContext`/`parentRules`/`voice_name`/`custom_prompt_text` при `session.start`.
 
 ### Что пока Browser Lab-specific (не часть протокола, а поведение конкретного клиента)
 - Web Audio API захват/декодирование.
 - Pointer Events для PTT-кнопки, обработка `blur`/`visibilitychange` как отпускания.
 - Локальные Set'ы `cancelledGenerations`/`cancelledResponses` для фильтрации поздних событий (клиентский паттерн, не протокольное требование, но настоятельно рекомендуется повторить).
+- Разблокировка PTT на `session.ready` вместо `session.config.applied` — гонка в самом `lab.html`, не копировать буквально (раздел 3).
 - UI prompt-редактор (`corePromptInput`/`childContextInput`/`parentRulesInput`) — не нужен ESP32, так как сервер сам берёт эти блоки из БД.
 - Reconnect без backoff — это слабость самого lab.html, не требование протокола.
 
 ### Что ещё нужно добавить на сервере для ESP32 (не сделано сегодня)
 - Никакой явной поддержки бинарного стриминга **ответа** (сейчас это base64-в-JSON, что даёт ~33% оверхеда трафика — для Wi-Fi/ESP32 может быть значимо).
-- Никакого heartbeat/keepalive, который клиент обязан использовать — `ping`/`pong` есть, но не обязателен и не используется существующим клиентом.
-- Никакой авторизации/идентификации устройства на уровне соединения.
+- Никакого heartbeat/keepalive, который клиент обязан использовать — оба варианта `ping`/`pong` (JSON и WS-протокольный) есть, но не обязательны и не используются существующим клиентом.
+- Никакой авторизации/идентификации устройства на уровне соединения (решение принято, реализация — нет, см. п.1 ниже).
 - Нет явного "flush audio buffer" пакета — сброс плейбека сейчас чисто клиентская реализация.
 - allowed_content (разрешённые типы контента из панели) сейчас **не влияет** на `get_riddle`-тул в коде — это отдельная незавершённая работа, не относится к ESP32-протоколу напрямую, но важно знать, что не всё, что видно в панели, реально гейтит поведение сервера.
 
@@ -356,8 +395,8 @@
 2. **Формат передачи ответа** — оставить base64-в-JSON (проще) или перейти на чистый бинарный поток для ответа тоже (эффективнее по трафику, но требует протокольного изменения — сейчас сервер шлёт ответ только текстовым JSON-фреймом).
 3. **Reconnect-стратегия** — экспоненциальный backoff, лимит попыток, поведение при долгом отсутствии сети (буферизовать локально? игнорировать?).
 4. **`deviceId`-схема для реальных устройств** — как каждое физическое ESP32-устройство получает свой стабильный `deviceId` (сейчас это работает только для одного захардкоженного `'browser-lab'`).
-5. **Явный сигнал сброса аудио-буфера** при barge-in — нужен ли отдельный пакет, или клиентской остановки плеера + серверного дропа "просроченных" событий достаточно.
-6. **Heartbeat-политика** — обязателен ли `ping`/`pong` для реального железа (Wi-Fi менее надёжен, чем браузер на десктопе/телефоне) — сейчас это полностью опционально и не используется.
+5. **Явный сигнал сброса аудио-буфера** при barge-in — нужен ли отдельный пакет, или клиентской остановки плеера + серверного дропа "просроченных" событий (раздел 8) достаточно.
+6. **Heartbeat-политика** — JSON `ping`/`pong` или стандартный WS-протокольный ping/pong (оба реализованы на сервере, раздел 9), какой конкретно таймаут простоя считать разрывом соединения — код этого не диктует, решение целиком за инженером.
 7. **Ограничение размера входного PCM-фрейма** — сейчас никак не регламентировано и не провалидировано сервером; для ESP32 стоит выбрать конкретный размер и задокументировать явно, а не полагаться на 4096-байтовый паттерн Browser Lab.
 
 ---
@@ -365,12 +404,18 @@
 ## Индекс файлов, использованных в аудите
 
 - `src/realtime/wsProtocol.js` — WS handshake, framing, `sendJson`/`sendBinary`/`sendPong`/`sendClose`.
-- `src/realtime/realtimeServer.js` — вся серверная lifecycle-логика, `handleCommand`, `emitProviderEvent`, `rotateProviderSession`, memory/settings integration.
+- `src/realtime/realtimeServer.js` — вся серверная lifecycle-логика, `handleCommand`, `emitProviderEvent`, `rotateProviderSession`, `warmProviderSession`, memory/settings integration.
 - `src/realtime/geminiLiveProvider.js` — маппинг на Gemini Live API, формат аудио, `handleMessage`, tool calling, activity markers.
 - `src/realtime/mockRealtimeProvider.js` — mock-провайдер (для сравнения, не прод).
-- `src/realtime/realtimePrompt.js` — лимиты промпта, `LAB_ALLOW_CUSTOM_PROMPT`.
-- `src/memory/store.js` — `RESTRICTIONS_ADDITION_MAX_CHARS`, дефолт `deviceId`.
-- `src/server.js` — `/realtime` upgrade routing, `PORT`.
+- `src/realtime/realtimePrompt.js` — лимиты промпта (`LAB_PROMPT_MAX_CHARS`, сейчас 16000), `LAB_ALLOW_CUSTOM_PROMPT`.
+- `src/memory/store.js` — `RESTRICTIONS_ADDITION_MAX_CHARS`, `CUSTOM_PROMPT_MAX_CHARS`, дефолт `deviceId`.
+- `src/server.js` — `/realtime` upgrade routing, `PORT`, `MAX_JSON_BODY_BYTES` (сейчас 64 КБ).
 - `public/lab.html` — единственный существующий клиент, полный референс UX/lifecycle.
 - `.env.example` — доступные env-переменные (часть из них, `GEMINI_VAD_SILENCE_MS`/`GEMINI_VAD_PREFIX_PADDING_MS`, **не используются нигде в коде** — мёртвые настройки, не вводить в заблуждение).
 - Реальные production-логи сервиса `lunara-realtime` (Railway), сессия `session_8bb1879a2311e86a`, снято 2026-07-13.
+
+---
+
+## Changelog
+
+- **2026-07-14:** уточнены 5 пунктов по запросу перед передачей инженеру — момент разблокировки PTT (`session.config.applied`, не `session.ready`/`provider.ready`, с объяснением почему `provider.ready` не гарантирован на первом коннекте), минимальный `session.start` для ESP32, Protocol V1 зафиксирован явным врезом, точный порядок barge-in без ожидания `response.cancelled`, heartbeat как два независимых уже реализованных механизма (JSON и WS-протокольный). Заодно актуализированы значения `LAB_PROMPT_MAX_CHARS` (8000 → 16000) и `MAX_JSON_BODY_BYTES` (8 КБ → 64 КБ), изменившиеся в коде после исходного аудита от 2026-07-13.
