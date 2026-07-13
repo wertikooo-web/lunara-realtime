@@ -160,10 +160,52 @@ async function main() {
             turnComplete: true,
         },
     });
-    if (lateEvents.length !== 0 || first.active?.generationId !== 'generation_late') {
-        throw new Error('turnComplete without model output must not finish the current active turn');
+    if (lateEvents.find((event) => event.type === 'response.failed') || first.active?.generationId !== 'generation_late') {
+        throw new Error('turnComplete without model output must not fail or finish the current active turn');
     }
+    if (!lateEvents.find((event) => event.type === 'provider.dropped_event')) {
+        throw new Error('turnComplete without model output while listening must be reported as provider.dropped_event');
+    }
+    const staleCompletionEvents = [];
+    first.lastOutputEndedAt = Date.now();
+    first.lastOutputEndCause = 'generationComplete';
+    first.active = {
+        generationId: 'generation_stale_completion',
+        responseId: null,
+        turnId: 'turn_stale_completion',
+        signal: { cancelled: false },
+        startedAt: Date.now(),
+        audioStarted: false,
+        modelOutputStarted: false,
+        inputTranscriptionReceived: false,
+        inputEnded: true,
+        chunkIndex: 0,
+        onEvent(event) {
+            staleCompletionEvents.push(event);
+        },
+        onAudioChunk(event) {
+            staleCompletionEvents.push(event);
+        },
+        log() {},
+    };
+    first.handleMessage({
+        serverContent: {
+            turnComplete: true,
+        },
+    });
+    if (staleCompletionEvents.find((event) => event.type === 'response.failed')) {
+        throw new Error('Late turnComplete after previous generationComplete must not fail the new active turn');
+    }
+    if (!staleCompletionEvents.find((event) => event.type === 'provider.dropped_event')) {
+        throw new Error('Late turnComplete must be reported as provider.dropped_event');
+    }
+    if (first.active?.generationId !== 'generation_stale_completion') {
+        throw new Error('Late turnComplete must not clear the new active provider turn');
+    }
+
     const noOutputEvents = [];
+    first.lastOutputEndedAt = 0;
+    first.lastOutputEndCause = null;
     first.active = {
         generationId: 'generation_no_output',
         responseId: null,
@@ -172,6 +214,7 @@ async function main() {
         startedAt: Date.now(),
         audioStarted: false,
         modelOutputStarted: false,
+        inputTranscriptionReceived: true,
         inputEnded: true,
         chunkIndex: 0,
         onEvent(event) {

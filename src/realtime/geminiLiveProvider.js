@@ -9,6 +9,8 @@ const INPUT_SAMPLE_RATE = 16000;
 const BYTES_PER_PCM16_SAMPLE = 2;
 const MIN_VALID_PCM_BYTES = 4;
 const DEFAULT_TAIL_FRAME_MS = 20;
+const STALE_TURN_COMPLETE_GRACE_MS = Math.max(0, Number(process.env.GEMINI_STALE_TURN_COMPLETE_GRACE_MS || 15000));
+const INVALID_PCM_LOG_EVERY = Math.max(1, Number(process.env.GEMINI_INVALID_PCM_LOG_EVERY || 20));
 const MAX_PENDING_AUDIO_BYTES = Number(process.env.GEMINI_PENDING_AUDIO_MAX_BYTES || 512 * 1024);
 const VALID_ROTATION_MODES = new Set(['per_turn', 'errors_only']);
 const DEFAULT_ROTATION_MODE = 'per_turn';
@@ -226,6 +228,10 @@ class GeminiLiveProviderSession {
         };
         this.promptSource = promptSource || 'provider_default';
         this.rotationReason = rotationReason || 'initial';
+        this.lastOutputEndedAt = 0;
+        this.lastOutputEndCause = null;
+        this.invalidPcmDroppedCount = 0;
+        this.suspiciousTurnCompleteDropCount = 0;
         this.apiKey = apiKey;
         this.instanceId = instanceId;
         this.closed = false;
@@ -582,6 +588,7 @@ class GeminiLiveProviderSession {
             modelOutputStarted: false,
             inputEnded: false,
             chunkIndex: 0,
+            inputTranscriptionReceived: false,
         };
         this.connect(context.log).then(() => {
             this.flushPendingAudio();
@@ -811,6 +818,7 @@ class GeminiLiveProviderSession {
         if (!this.active || this.active.signal.cancelled) return;
 
         if (content.inputTranscription?.text) {
+            this.active.inputTranscriptionReceived = true;
             this.active.onEvent({
                 type: 'transcript.user',
                 response_id: this.active.responseId,
@@ -835,13 +843,18 @@ class GeminiLiveProviderSession {
             if (!audioBase64 || this.active.signal.cancelled) continue;
             const audioBytes = Buffer.byteLength(audioBase64, 'base64');
             if (audioBytes < MIN_VALID_PCM_BYTES || audioBytes % BYTES_PER_PCM16_SAMPLE !== 0) {
-                this.active.log('dropped_provider_event', {
-                    generationId: this.active.generationId,
-                    responseId: this.active.responseId,
-                    eventType: 'audio.chunk',
-                    reason: 'invalid_pcm',
-                    bytes: audioBytes,
-                });
+                this.invalidPcmDroppedCount += 1;
+                if (this.invalidPcmDroppedCount === 1 || this.invalidPcmDroppedCount % INVALID_PCM_LOG_EVERY === 0) {
+                    this.active.log('dropped_provider_event', {
+                        generationId: this.active.generationId,
+                        responseId: this.active.responseId,
+                        eventType: 'audio.chunk',
+                        reason: 'invalid_pcm',
+                        bytes: audioBytes,
+                        droppedCount: this.invalidPcmDroppedCount,
+                        aggregated: this.invalidPcmDroppedCount > 1,
+                    });
+                }
                 continue;
             }
             if (!this.active.audioStarted) {
@@ -881,6 +894,15 @@ class GeminiLiveProviderSession {
 
         if (content.turnComplete) {
             if (!this.active.modelOutputStarted) {
+                if (this.shouldDropTurnCompleteWithoutModelOutput()) {
+                    this.dropActiveProviderEvent('audio.end', 'late_turn_complete_without_model_output', {
+                        inputEnded: Boolean(this.active.inputEnded),
+                        inputTranscriptionReceived: Boolean(this.active.inputTranscriptionReceived),
+                        lastOutputEndCause: this.lastOutputEndCause || 'none',
+                        msSinceLastOutputEnd: this.lastOutputEndedAt ? Date.now() - this.lastOutputEndedAt : null,
+                    });
+                    return;
+                }
                 if (this.active.inputEnded) {
                     this.active.onEvent({
                         type: 'response.failed',
@@ -904,6 +926,41 @@ class GeminiLiveProviderSession {
             }
             this.emitOutputEnd('turnComplete');
         }
+    }
+
+    shouldDropTurnCompleteWithoutModelOutput() {
+        if (!this.active) return true;
+        if (!this.active.inputEnded) return true;
+        if (!this.active.inputTranscriptionReceived) return true;
+        if (this.lastOutputEndedAt && Date.now() - this.lastOutputEndedAt <= STALE_TURN_COMPLETE_GRACE_MS) {
+            return true;
+        }
+        return false;
+    }
+
+    dropActiveProviderEvent(eventType, reason, extra = {}) {
+        if (!this.active) return;
+        this.suspiciousTurnCompleteDropCount += 1;
+        const payload = {
+            type: 'provider.dropped_event',
+            event_type: eventType,
+            reason,
+            response_id: this.active.responseId,
+            turn_id: this.active.turnId,
+            provider_instance_id: this.instanceId,
+            dropped_count: this.suspiciousTurnCompleteDropCount,
+            ...extra,
+        };
+        this.active.log('dropped_provider_event', {
+            generationId: this.active.generationId,
+            responseId: this.active.responseId,
+            eventType,
+            reason,
+            providerInstanceId: this.instanceId,
+            droppedCount: this.suspiciousTurnCompleteDropCount,
+            ...extra,
+        });
+        this.active.onEvent?.(payload);
     }
 
     emitOutputEnd(cause) {
@@ -930,6 +987,8 @@ class GeminiLiveProviderSession {
             });
             return;
         }
+        this.lastOutputEndedAt = Date.now();
+        this.lastOutputEndCause = cause;
         this.active.onEvent({
             type: 'audio.end',
             response_id: this.active.responseId,

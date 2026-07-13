@@ -708,6 +708,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         if (eventType === 'provider_interrupt_ack') {
             return emit(payload);
         }
+        if (eventType === 'provider.dropped_event') {
+            droppedProviderEvent(generation, payload.event_type || 'unknown', payload.reason || 'provider_dropped_event');
+            return true;
+        }
         if (eventType === 'response.failed') {
             recoverFromProviderFailure(generation, payload.reason || 'provider_failed', payload).catch((error) => {
                 log('turn_timeout_recovery_error', {

@@ -246,6 +246,17 @@ class RegressionProviderSession {
             language_en_short_ptt: 'speak english',
             language_en_short_confirm_ptt: 'speak english',
         };
+        if (context.turnId === 'late_completion_target_ptt') {
+            context.onEvent({
+                type: 'provider.dropped_event',
+                event_type: 'audio.end',
+                reason: 'late_turn_complete_without_model_output',
+                response_id: context.responseId,
+                turn_id: context.turnId,
+                provider_instance_id: this.instanceId,
+            });
+            await sleep(5);
+        }
         context.onEvent({
             type: 'transcript.user',
             response_id: context.responseId,
@@ -562,6 +573,25 @@ async function main() {
         }
         if (!logs.some((line) => line.includes('stage=provider_session_reused') && line.includes('providerSessionReuseCount=20'))) {
             throw new Error('Missing provider_session_reused count for 20 same-session turns');
+        }
+
+        const beforeLateCompletionSessions = provider.sessions.length;
+        const lateCompletionTurn = await runTurn(errorsOnlyClient, 'late_completion_target_ptt', 1300, { waitForEnd: true });
+        expectedAudioBytes += 1300;
+        if (!lateCompletionTurn.responseCreated.response_id) {
+            throw new Error('Turn after delayed completion did not receive response.created');
+        }
+        if (provider.sessions.length !== beforeLateCompletionSessions) {
+            throw new Error('Late provider completion must not rotate provider in errors_only mode');
+        }
+        if (errorsOnlyClient.events.some((event) => event.type === 'response.failed' && event.turn_id === 'late_completion_target_ptt')) {
+            throw new Error('Late provider completion must not fail the active turn');
+        }
+        if (logs.some((line) => line.includes('stage=ptt_turn_timeout') && line.includes('late_completion_target_ptt'))) {
+            throw new Error('Late provider completion must not cause ptt_turn_timeout');
+        }
+        if (!logs.some((line) => line.includes('stage=dropped_provider_event') && line.includes('reason=late_turn_complete_without_model_output'))) {
+            throw new Error('Missing dropped_provider_event log for late provider completion');
         }
 
         const languageRu = await runTurn(errorsOnlyClient, 'language_ru_ptt', 1400, { waitForEnd: true });
