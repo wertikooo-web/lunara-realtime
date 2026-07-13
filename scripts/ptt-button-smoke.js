@@ -38,10 +38,13 @@ const endTurn = sectionBetween('function endTurn(reason, pointerInfo = {})', 'fu
 const canPressPtt = sectionBetween('function canPressPtt()', 'function updateIds()');
 const setState = sectionBetween('function setState(next, hint = \'\')', 'function stateClass(state)');
 const renderPttButton = sectionBetween('function renderPttButton()', 'function stateClass(state)');
+const pointerDiagnostics = sectionBetween('function pointerDiagnostics(event, stopReason = \'none\')', 'function finishPointerTurn(event, endReason)');
 
 requireSectionIncludes(pointerDown, 'event.preventDefault();', 'pointerdown must prevent default browser selection/dragging');
+requireSectionIncludes(pointerDown, "event.pointerType === 'mouse' && event.button !== 0", 'pointerdown must ignore non-left mouse buttons');
 requireSectionIncludes(pointerDown, 'capturePointer(event);', 'pointerdown must capture the pointer');
 requireSectionIncludes(pointerDown, 'renderPttButton();', 'pointerdown must immediately render the held visual state');
+requireSectionIncludes(pointerDown, "logLine('ptt_pointer_event'", 'pointerdown must emit pointer diagnostics');
 requireIncludes('pttButton.setPointerCapture(event.pointerId);', 'Hold-to-Talk must use pointer capture');
 requireIncludes("logLine('ptt_pointer_down'", 'pointerdown diagnostic log is required');
 
@@ -54,6 +57,11 @@ requireIncludes("document.addEventListener('visibilitychange', onVisibilityChang
 
 requireSectionIncludes(finishPointerTurn, 'if (!isActivePointer(event)) return;', 'pointerup/cancel must ignore non-active pointers');
 requireSectionIncludes(finishPointerTurn, 'releasePointerCapture(event);', 'pointerup/cancel must release pointer capture');
+requireSectionIncludes(finishPointerTurn, "logLine('ptt_pointer_event'", 'pointerup/cancel must emit pointer diagnostics');
+requireSectionIncludes(pointerDiagnostics, 'button:', 'pointer diagnostics must include button');
+requireSectionIncludes(pointerDiagnostics, 'buttons:', 'pointer diagnostics must include buttons');
+requireSectionIncludes(pointerDiagnostics, 'hasPointerCapture:', 'pointer diagnostics must include capture state');
+requireSectionIncludes(pointerDiagnostics, 'stopReason', 'pointer diagnostics must include explicit stop reason');
 
 requireSectionIncludes(endTurn, 'if (pttEndSent) return;', 'input_audio.end must be duplicate-guarded');
 requireSectionIncludes(endTurn, 'renderPttButton();', 'ending the turn must refresh the button after pointer state changes');

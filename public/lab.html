@@ -1225,13 +1225,38 @@
       return activePointerId == null || event.pointerId === activePointerId;
     }
 
+    function pointerDiagnostics(event, stopReason = 'none') {
+      const pointerId = event?.pointerId ?? activePointerId ?? 'none';
+      let hasCapture = false;
+      try {
+        hasCapture = pointerId !== 'none' && Boolean(pttButton.hasPointerCapture?.(pointerId));
+      } catch (error) {
+        hasCapture = false;
+      }
+      return {
+        type: event?.type || 'unknown',
+        timestamp: Math.round(performance.now()),
+        pointerId,
+        pointerType: event?.pointerType || activePointerType || 'unknown',
+        button: event?.button ?? 'none',
+        buttons: event?.buttons ?? 'none',
+        isPrimary: event?.isPrimary ?? 'unknown',
+        hasPointerCapture: hasCapture,
+        isPointerHeld: pointerHeld,
+        recording: isRecording,
+        generationId: currentGenerationId || clientGenerationId || 'none',
+        turnId: currentTurnId || 'none',
+        stopReason,
+      };
+    }
+
     function finishPointerTurn(event, endReason) {
       event.preventDefault();
       if (!isActivePointer(event)) return;
       const eventName = endReason === 'pointercancel' ? 'ptt_pointer_cancel' : 'ptt_pointer_up';
+      logLine('ptt_pointer_event', pointerDiagnostics(event, endReason));
       logLine(eventName, {
-        pointerId: event.pointerId,
-        pointerType: event.pointerType || activePointerType || 'unknown',
+        ...pointerDiagnostics(event, endReason),
         recordingDurationMs: recordingStartedAt ? Math.round(performance.now() - recordingStartedAt) : 0,
         endReason,
       });
@@ -1247,6 +1272,10 @@
 
     function onPointerDown(event) {
       event.preventDefault();
+      if (event.pointerType === 'mouse' && event.button !== 0) {
+        logLine('ptt_pointer_event', pointerDiagnostics(event, 'ignored_non_left_button'));
+        return;
+      }
       if (activePointerId != null || isRecording) return;
       if (lifecycleState === STATES.DISCONNECTED) {
         connect();
@@ -1255,9 +1284,9 @@
       capturePointer(event);
       pointerHeld = true;
       renderPttButton();
+      logLine('ptt_pointer_event', pointerDiagnostics(event, 'none'));
       logLine('ptt_pointer_down', {
-        pointerId: event.pointerId,
-        pointerType: event.pointerType || 'unknown',
+        ...pointerDiagnostics(event, 'none'),
         recordingDurationMs: 0,
         endReason: 'none',
       });
@@ -1277,9 +1306,9 @@
     }
 
     function onLostPointerCapture(event) {
+      logLine('ptt_pointer_event', pointerDiagnostics(event, 'lostpointercapture'));
       logLine('ptt_lost_pointer_capture', {
-        pointerId: event.pointerId,
-        pointerType: event.pointerType || activePointerType || 'unknown',
+        ...pointerDiagnostics(event, 'lostpointercapture'),
         recordingDurationMs: recordingStartedAt ? Math.round(performance.now() - recordingStartedAt) : 0,
         endReason: 'none',
       });
