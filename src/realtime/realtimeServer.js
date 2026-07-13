@@ -24,6 +24,10 @@ function id(prefix) {
 
 const VALID_ROTATION_MODES = new Set(['per_turn', 'errors_only']);
 const DEFAULT_ROTATION_MODE = 'per_turn';
+const configuredTurnReplayBytes = Number(process.env.REALTIME_TURN_REPLAY_MAX_BYTES);
+const MAX_TURN_REPLAY_BYTES = Number.isFinite(configuredTurnReplayBytes)
+    ? Math.max(0, configuredTurnReplayBytes)
+    : 512 * 1024;
 let warnedInvalidRotationMode = false;
 
 function normalizeProviderVoiceName(voiceName) {
@@ -114,6 +118,7 @@ function createGeneration({ turnId }) {
         cancel: createCancellation(),
         timeoutTimer: null,
         timeoutLogged: false,
+        providerRetryAttempted: false,
         inputEndedAt: 0,
         firstInputTranscriptionAt: 0,
         firstModelEventAt: 0,
@@ -154,6 +159,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let inputStartedAt = 0;
     let inputEndedAt = 0;
     let inputBytes = 0;
+    let currentInputChunks = [];
+    let currentInputBufferedBytes = 0;
     let sessionInputBytes = 0;
     let currentMode = 'push_to_talk';
     let turnCounter = 0;
@@ -545,6 +552,29 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         }, timeoutMs);
     }
 
+    function buildProviderContext(generation) {
+        return {
+            generationId: generation.generationId,
+            responseId: generation.responseId,
+            turnId: generation.turnId,
+            turnInputBytes: inputBytes,
+            sessionInputBytes,
+            mode: currentMode,
+            signal: generation.cancel,
+            onSessionEvent: (event) => emit(event),
+            isGenerationActive: () => (
+                currentGeneration === generation
+                && generation.status !== 'cancelled'
+                && generation.status !== 'completed'
+                && generation.status !== 'failed'
+                && !generation.cancel.cancelled
+            ),
+            onEvent: (event) => emitProviderEvent(generation, event),
+            onAudioChunk: (event) => emitProviderEvent(generation, event),
+            log,
+        };
+    }
+
     async function warmProviderSession(reason) {
         if (typeof providerSession?.connect !== 'function') return;
         await providerSession.connect(log);
@@ -642,6 +672,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             droppedProviderEvent(generation, 'response.failed', 'stale_generation');
             return;
         }
+        if (await retryGenerationOnFreshProvider(generation, reason)) {
+            return;
+        }
         generation.status = 'failed';
         generation.cancel.cancel(reason);
         clearGenerationTimeout(generation);
@@ -677,6 +710,72 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             elapsedMs: Date.now() - startedAt,
             reason,
         });
+    }
+
+    async function retryGenerationOnFreshProvider(generation, reason) {
+        const retryableReasons = new Set([
+            'provider_turn_closed_before_output',
+            'provider_turn_closed_during_input',
+        ]);
+        if (!retryableReasons.has(reason)) return false;
+        if (generation.providerRetryAttempted) return false;
+        if (!generation.inputEndedAt) return false;
+        if (generation.responseCreatedSent) return false;
+        if (currentInputChunks.length === 0 || currentInputBufferedBytes <= 0) return false;
+        if (generation.cancel.cancelled || generation.status === 'cancelled' || generation.status === 'completed') return false;
+
+        generation.providerRetryAttempted = true;
+        clearGenerationTimeout(generation);
+        const oldProviderInstanceId = providerSession?.instanceId || 'unknown';
+        const startedAt = Date.now();
+        log('provider_turn_retry_started', {
+            generationId: generation.generationId,
+            turnId: generation.turnId,
+            reason,
+            oldProviderInstanceId,
+            replayChunks: currentInputChunks.length,
+            replayBytes: currentInputBufferedBytes,
+        });
+
+        rotateProviderSession(reason);
+        generation.cancel = createCancellation();
+        generation.status = 'pending';
+        const retryContext = buildProviderContext(generation);
+        if (typeof providerSession.beginResponse === 'function') {
+            providerSession.beginResponse(retryContext);
+        }
+        for (const chunk of currentInputChunks) {
+            if (generation !== currentGeneration || generation.cancel.cancelled) {
+                droppedProviderEvent(generation, 'provider_retry_audio', 'stale_generation');
+                return true;
+            }
+            providerSession.sendAudio(chunk);
+        }
+        armPttTurnTimeout(generation);
+        providerSession.endInput(retryContext).catch((error) => {
+            recoverFromProviderFailure(generation, 'provider_retry_error', {
+                type: 'response.failed',
+                reason: 'provider_retry_error',
+                message: error.message,
+            }).catch((recoveryError) => {
+                log('turn_retry_recovery_error', {
+                    generationId: generation.generationId,
+                    turnId: generation.turnId,
+                    message: recoveryError.message,
+                });
+            });
+        });
+        log('provider_turn_retry_dispatched', {
+            generationId: generation.generationId,
+            turnId: generation.turnId,
+            reason,
+            oldProviderInstanceId,
+            newProviderInstanceId: providerSession?.instanceId || 'unknown',
+            replayChunks: currentInputChunks.length,
+            replayBytes: currentInputBufferedBytes,
+            elapsedMs: Date.now() - startedAt,
+        });
+        return true;
     }
 
     function emitResponseCreated(generation, cause) {
@@ -935,6 +1034,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         inputStartedAt = Date.now();
         inputEndedAt = 0;
         inputBytes = 0;
+        currentInputChunks = [];
+        currentInputBufferedBytes = 0;
         emit({
             type: 'input_audio.start',
             turn_id: currentTurnId,
@@ -1015,25 +1116,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         generationForStream.inputEndedAt = inputEndedAt;
         armPttTurnTimeout(generationForStream);
 
-        const endInputContext = {
-            generationId: generationForStream.generationId,
-            responseId: generationForStream.responseId,
-            turnId: generationForStream.turnId,
-            turnInputBytes: inputBytes,
-            sessionInputBytes,
-            mode: currentMode,
-            signal: generationForStream.cancel,
-            onSessionEvent: (event) => emit(event),
-            isGenerationActive: () => (
-                currentGeneration === generationForStream
-                && generationForStream.status !== 'cancelled'
-                && generationForStream.status !== 'completed'
-                && !generationForStream.cancel.cancelled
-            ),
-            onEvent: (event) => emitProviderEvent(generationForStream, event),
-            onAudioChunk: (event) => emitProviderEvent(generationForStream, event),
-            log,
-        };
+        const endInputContext = buildProviderContext(generationForStream);
 
         providerSession.endInput(endInputContext).catch((error) => {
             emit({
@@ -1146,6 +1229,21 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             }
             inputBytes += payload.length;
             sessionInputBytes += payload.length;
+            if (currentInputBufferedBytes + payload.length <= MAX_TURN_REPLAY_BYTES) {
+                const replayChunk = Buffer.from(payload);
+                currentInputChunks.push(replayChunk);
+                currentInputBufferedBytes += replayChunk.length;
+            } else if (currentInputBufferedBytes <= MAX_TURN_REPLAY_BYTES) {
+                log('input_replay_buffer_full', {
+                    bytes: payload.length,
+                    bufferedBytes: currentInputBufferedBytes,
+                    maxReplayBytes: MAX_TURN_REPLAY_BYTES,
+                    turnId: currentTurnId || 'none',
+                    generationId: currentGeneration?.generationId || 'none',
+                });
+                currentInputBufferedBytes = MAX_TURN_REPLAY_BYTES + 1;
+                currentInputChunks = [];
+            }
             providerSession.sendAudio(payload);
             log('input_audio_frame', {
                 turnId: currentTurnId || 'none',

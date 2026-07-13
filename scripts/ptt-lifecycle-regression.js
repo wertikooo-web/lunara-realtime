@@ -257,12 +257,28 @@ class RegressionProviderSession {
             });
             await sleep(5);
         }
-        if (context.turnId === 'turn_closed_during_input_ptt') {
+        if (
+            context.turnId === 'turn_closed_during_input_ptt'
+            && this.rotationReason !== 'provider_turn_closed_during_input'
+        ) {
             context.onEvent({
                 type: 'response.failed',
                 response_id: context.responseId,
                 turn_id: context.turnId,
                 reason: 'provider_turn_closed_during_input',
+                provider_instance_id: this.instanceId,
+            });
+            return;
+        }
+        if (
+            context.turnId === 'turn_closed_before_output_ptt'
+            && this.rotationReason !== 'provider_turn_closed_before_output'
+        ) {
+            context.onEvent({
+                type: 'response.failed',
+                response_id: context.responseId,
+                turn_id: context.turnId,
+                reason: 'provider_turn_closed_before_output',
                 provider_instance_id: this.instanceId,
             });
             return;
@@ -608,17 +624,6 @@ async function main() {
         errorsOnlyClient.sendJson({ type: 'input_audio.start', turn_id: 'turn_closed_during_input_ptt', mode: 'push_to_talk' });
         errorsOnlyClient.sendBinary(Buffer.alloc(1600, 5));
         errorsOnlyClient.sendJson({ type: 'input_audio.end' });
-        const turnClosedFailure = await errorsOnlyClient.waitFor(
-            'response.failed',
-            (event) => (
-                event.turn_id === 'turn_closed_during_input_ptt'
-                && event.reason === 'provider_turn_closed_during_input'
-            ),
-            2000,
-        );
-        if (turnClosedFailure.response_id) {
-            throw new Error('Provider turn-closed-during-input failure must not create response_id');
-        }
         const turnClosedRotation = await errorsOnlyClient.waitFor(
             'provider.rotated',
             (event) => event.reason === 'provider_turn_closed_during_input',
@@ -633,20 +638,71 @@ async function main() {
         if (logs.some((line) => line.includes('stage=ptt_turn_timeout') && line.includes('turn_closed_during_input_ptt'))) {
             throw new Error('Provider turn-closed-during-input must recover before ptt_turn_timeout');
         }
-
-        const afterTurnClosed = await runTurn(errorsOnlyClient, 'after_turn_closed_recovery_ptt', 1300, { waitForEnd: true });
-        if (!afterTurnClosed.responseCreated.response_id) {
-            throw new Error('Following turn after provider turn-closed recovery did not succeed');
+        const retriedTurn = await errorsOnlyClient.waitFor(
+            'response.created',
+            (event) => event.turn_id === 'turn_closed_during_input_ptt',
+            2000,
+        );
+        await errorsOnlyClient.waitFor('audio.end', (event) => event.turn_id === 'turn_closed_during_input_ptt', 2000);
+        if (!retriedTurn.response_id) {
+            throw new Error('Provider turn-closed-during-input retry did not create a response');
         }
-        const sessionsAfterTurnClosedRecovery = provider.sessions.length;
-        expectedAudioBytes = 1300;
+        if (errorsOnlyClient.events.some((event) => event.type === 'response.failed' && event.turn_id === 'turn_closed_during_input_ptt')) {
+            throw new Error('Provider turn-closed-during-input retry must be transparent to the client');
+        }
+        if (!logs.some((line) => line.includes('stage=provider_turn_retry_started') && line.includes('turn_closed_during_input_ptt'))) {
+            throw new Error('Missing provider_turn_retry_started log');
+        }
+        if (!logs.some((line) => line.includes('stage=provider_turn_retry_dispatched') && line.includes('turn_closed_during_input_ptt'))) {
+            throw new Error('Missing provider_turn_retry_dispatched log');
+        }
+        expectedAudioBytes = 1600;
+
+        const beforeTurnClosedAfterEndSessions = provider.sessions.length;
+        errorsOnlyClient.sendJson({ type: 'input_audio.start', turn_id: 'turn_closed_before_output_ptt', mode: 'push_to_talk' });
+        errorsOnlyClient.sendBinary(Buffer.alloc(1700, 6));
+        errorsOnlyClient.sendJson({ type: 'input_audio.end' });
+        const turnClosedAfterEndRotation = await errorsOnlyClient.waitFor(
+            'provider.rotated',
+            (event) => event.reason === 'provider_turn_closed_before_output',
+            2000,
+        );
+        if (provider.sessions.length !== beforeTurnClosedAfterEndSessions + 1) {
+            throw new Error('Provider turn-closed-before-output must rotate exactly one provider session');
+        }
+        if (turnClosedAfterEndRotation.old_provider_instance_id === turnClosedAfterEndRotation.new_provider_instance_id) {
+            throw new Error('Provider turn-closed-before-output recovery must create a new provider session');
+        }
+        const retriedAfterEndTurn = await errorsOnlyClient.waitFor(
+            'response.created',
+            (event) => event.turn_id === 'turn_closed_before_output_ptt',
+            2000,
+        );
+        await errorsOnlyClient.waitFor('audio.end', (event) => event.turn_id === 'turn_closed_before_output_ptt', 2000);
+        if (!retriedAfterEndTurn.response_id) {
+            throw new Error('Provider turn-closed-before-output retry did not create a response');
+        }
+        if (errorsOnlyClient.events.some((event) => event.type === 'response.failed' && event.turn_id === 'turn_closed_before_output_ptt')) {
+            throw new Error('Provider turn-closed-before-output retry must be transparent to the client');
+        }
+        if (logs.some((line) => line.includes('stage=ptt_turn_timeout') && line.includes('turn_closed_before_output_ptt'))) {
+            throw new Error('Provider turn-closed-before-output must recover before ptt_turn_timeout');
+        }
+        if (!logs.some((line) => line.includes('stage=provider_turn_retry_started') && line.includes('turn_closed_before_output_ptt'))) {
+            throw new Error('Missing provider_turn_retry_started log for turn_closed_before_output_ptt');
+        }
+        if (!logs.some((line) => line.includes('stage=provider_turn_retry_dispatched') && line.includes('turn_closed_before_output_ptt'))) {
+            throw new Error('Missing provider_turn_retry_dispatched log for turn_closed_before_output_ptt');
+        }
+        const sessionsAfterTurnClosedBeforeOutputRecovery = provider.sessions.length;
+        expectedAudioBytes = 1700;
 
         const languageRu = await runTurn(errorsOnlyClient, 'language_ru_ptt', 1400, { waitForEnd: true });
         expectedAudioBytes += 1400;
         if (!languageRu.userTranscript.text.includes('\u0440\u0443\u0441\u0441\u043a')) {
             throw new Error('Language RU fixture did not emit the expected transcript');
         }
-        if (provider.sessions.length !== sessionsAfterTurnClosedRecovery) {
+        if (provider.sessions.length !== sessionsAfterTurnClosedBeforeOutputRecovery) {
             throw new Error('Initial language detection must not rotate provider session');
         }
 
@@ -658,7 +714,7 @@ async function main() {
         if (errorsOnlyClient.events.some((event) => event.type === 'language.switch_detected' && event.from_language === 'ru' && event.to_language === 'en')) {
             throw new Error('Single short language candidate must not schedule language switch');
         }
-        if (provider.sessions.length !== sessionsAfterTurnClosedRecovery) {
+        if (provider.sessions.length !== sessionsAfterTurnClosedBeforeOutputRecovery) {
             throw new Error('Single short language candidate must not rotate provider session');
         }
         if (!logs.some((line) => line.includes('stage=language_switch_candidate') && line.includes('from=ru') && line.includes('to=en') && line.includes('confirmationCount=1'))) {
@@ -681,7 +737,7 @@ async function main() {
         if (languageSwitchEvent.action !== 'rotate_before_next_turn') {
             throw new Error('Language switch must be scheduled before the next turn');
         }
-        if (provider.sessions.length !== sessionsAfterTurnClosedRecovery) {
+        if (provider.sessions.length !== sessionsAfterTurnClosedBeforeOutputRecovery) {
             throw new Error('Language switch detection must not interrupt the current response');
         }
 

@@ -922,6 +922,17 @@ class GeminiLiveProviderSession {
                             reason: 'late_turn_complete_without_model_output',
                             closedAt: Date.now(),
                         };
+                    } else {
+                        this.active.onEvent({
+                            type: 'response.failed',
+                            response_id: this.active.responseId,
+                            turn_id: this.active.turnId,
+                            reason: 'provider_turn_closed_before_output',
+                            provider_instance_id: this.instanceId,
+                        });
+                        this.active = null;
+                        this.inputBytes = 0;
+                        return;
                     }
                     this.dropActiveProviderEvent('audio.end', 'late_turn_complete_without_model_output', {
                         inputEnded: Boolean(this.active.inputEnded),

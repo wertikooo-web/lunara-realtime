@@ -193,14 +193,12 @@ async function main() {
             turnComplete: true,
         },
     });
-    if (staleCompletionEvents.find((event) => event.type === 'response.failed')) {
-        throw new Error('Late turnComplete after previous generationComplete must not fail the new active turn');
+    const staleClosedFailure = staleCompletionEvents.find((event) => event.type === 'response.failed');
+    if (!staleClosedFailure || staleClosedFailure.reason !== 'provider_turn_closed_before_output') {
+        throw new Error('Late turnComplete after input end must emit provider_turn_closed_before_output for transparent retry');
     }
-    if (!staleCompletionEvents.find((event) => event.type === 'provider.dropped_event')) {
-        throw new Error('Late turnComplete must be reported as provider.dropped_event');
-    }
-    if (first.active?.generationId !== 'generation_stale_completion') {
-        throw new Error('Late turnComplete must not clear the new active provider turn');
+    if (first.active) {
+        throw new Error('Late turnComplete after input end must clear active provider turn for retry');
     }
 
     const noOutputEvents = [];
