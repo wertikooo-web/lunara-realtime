@@ -167,8 +167,8 @@ function attachRealtimeServer(server, options = {}) {
 function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     const sessionId = id('session');
     const connectedAt = Date.now();
-    const sessionVoiceName = normalizeProviderVoiceName(providerMetadata.defaultVoiceName || providerMetadata.voiceName);
-    const sessionVoiceConfigSource = sessionVoiceName
+    let sessionVoiceName = normalizeProviderVoiceName(providerMetadata.defaultVoiceName || providerMetadata.voiceName);
+    let sessionVoiceConfigSource = sessionVoiceName
         ? (providerMetadata.defaultVoiceConfigSource || (providerMetadata.defaultVoiceName ? 'default' : 'metadata'))
         : 'provider_default';
     let promptBlocks = defaultPromptBlocks();
@@ -213,12 +213,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         }
     }
 
-    // BASE_RESTRICTIONS is always prepended by composeParentRules() — a
-    // parent's restrictions_addition can only add to it, never replace it.
-    async function fetchParentRules(forDeviceId) {
+    async function fetchDeviceSettings(forDeviceId) {
         try {
-            const settings = await memoryStore.getOrCreateSettings(forDeviceId);
-            return composeParentRules(settings.restrictions_addition);
+            return await memoryStore.getOrCreateSettings(forDeviceId);
         } catch (error) {
             log('settings_fetch_error', { deviceId: forDeviceId, message: error.message });
             return null;
@@ -1261,15 +1258,21 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     // memory" for itself. childContext from DB is a hard override,
                     // not merged with sanitized.blocks.childContext.
                     if (memoryEnabledFlag) {
-                        const [dbChildContext, dbParentRules] = await Promise.all([
+                        const [dbChildContext, dbSettings] = await Promise.all([
                             fetchChildContext(deviceId),
-                            fetchParentRules(deviceId),
+                            fetchDeviceSettings(deviceId),
                         ]);
                         if (dbChildContext) {
                             promptBlocks = { ...promptBlocks, childContext: dbChildContext };
                         }
-                        if (dbParentRules) {
-                            promptBlocks = { ...promptBlocks, parentRules: dbParentRules };
+                        if (dbSettings) {
+                            promptBlocks = { ...promptBlocks, parentRules: composeParentRules(dbSettings.restrictions_addition) };
+                            const dbVoiceName = normalizeProviderVoiceName(dbSettings.voice_name);
+                            if (dbVoiceName && dbVoiceName !== sessionVoiceName) {
+                                sessionVoiceName = dbVoiceName;
+                                sessionVoiceConfigSource = 'device_settings';
+                                log('session_voice_applied', { deviceId, voiceName: sessionVoiceName });
+                            }
                         }
                     }
 
