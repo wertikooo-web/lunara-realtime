@@ -36,9 +36,12 @@ const pointerCancel = sectionBetween('function onPointerCancel(event)', 'functio
 const finishPointerTurn = sectionBetween('function finishPointerTurn(event, endReason)', 'function onPointerDown(event)');
 const endTurn = sectionBetween('function endTurn(reason, pointerInfo = {})', 'function manualInterrupt()');
 const canPressPtt = sectionBetween('function canPressPtt()', 'function updateIds()');
+const setState = sectionBetween('function setState(next, hint = \'\')', 'function stateClass(state)');
+const renderPttButton = sectionBetween('function renderPttButton()', 'function stateClass(state)');
 
 requireSectionIncludes(pointerDown, 'event.preventDefault();', 'pointerdown must prevent default browser selection/dragging');
 requireSectionIncludes(pointerDown, 'capturePointer(event);', 'pointerdown must capture the pointer');
+requireSectionIncludes(pointerDown, 'renderPttButton();', 'pointerdown must immediately render the held visual state');
 requireIncludes('pttButton.setPointerCapture(event.pointerId);', 'Hold-to-Talk must use pointer capture');
 requireIncludes("logLine('ptt_pointer_down'", 'pointerdown diagnostic log is required');
 
@@ -53,11 +56,15 @@ requireSectionIncludes(finishPointerTurn, 'if (!isActivePointer(event)) return;'
 requireSectionIncludes(finishPointerTurn, 'releasePointerCapture(event);', 'pointerup/cancel must release pointer capture');
 
 requireSectionIncludes(endTurn, 'if (pttEndSent) return;', 'input_audio.end must be duplicate-guarded');
+requireSectionIncludes(endTurn, 'renderPttButton();', 'ending the turn must refresh the button after pointer state changes');
 requireSectionIncludes(endTurn, "type: 'input_audio.end'", 'endTurn must send input_audio.end');
 requireSectionIncludes(endTurn, 'end_reason: reason', 'input_audio.end must carry safe end_reason diagnostics');
 requireSectionIncludes(endTurn, "logLine('ptt_end_sent'", 'endTurn must log ptt_end_sent');
 requireSectionIncludes(canPressPtt, 'lifecycleState === STATES.LISTENING', 'PTT must stay enabled during active LISTENING hold');
 requireSectionIncludes(canPressPtt, 'isRecording || pointerHeld', 'LISTENING button enablement must require active recording/held pointer');
+requireSectionIncludes(setState, 'renderPttButton();', 'setState must not render the PTT button directly from lifecycle state');
+requireSectionIncludes(renderPttButton, 'pointerHeld || isRecording', 'PTT visual state must prioritize physical hold over realtime lifecycle state');
+requireSectionIncludes(renderPttButton, 'STATES.LISTENING', 'Held PTT must remain visually in LISTENING state');
 
 requireNotIncludes("addEventListener('pointerleave'", 'pointerleave must not end Hold-to-Talk');
 requireNotIncludes('addEventListener("pointerleave"', 'pointerleave must not end Hold-to-Talk');

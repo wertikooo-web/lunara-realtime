@@ -487,10 +487,15 @@
     function setState(next, hint = '') {
       lifecycleState = next;
       stateBadge.textContent = `Lifecycle State: ${next}`;
-      pttButton.textContent = BUTTON_LABEL[next] || next;
-      pttButton.className = `ptt-button ${stateClass(next)}`;
-      pttButton.disabled = !canPressPtt();
+      renderPttButton();
       stateHint.textContent = hint || defaultHint(next);
+    }
+
+    function renderPttButton() {
+      const visualState = (pointerHeld || isRecording) ? STATES.LISTENING : lifecycleState;
+      pttButton.textContent = BUTTON_LABEL[visualState] || visualState;
+      pttButton.className = `ptt-button ${stateClass(visualState)}`;
+      pttButton.disabled = !canPressPtt();
     }
 
     function stateClass(state) {
@@ -831,6 +836,7 @@
       updateIds();
       recordingStartedAt = performance.now();
       startRecordingTimer();
+      renderPttButton();
       sendJson({
         type: 'input_audio.start',
         turn_id: currentTurnId,
@@ -861,6 +867,7 @@
       pttEndSent = true;
       pointerHeld = false;
       isRecording = false;
+      renderPttButton();
       releaseAt = performance.now();
       stopRecordingTimer();
       metrics.record.textContent = ms(releaseAt - recordingStartedAt);
@@ -955,6 +962,7 @@
       pendingEndPointerInfo = null;
       pttEndSent = false;
       stopRecordingTimer();
+      renderPttButton();
     }
 
     function clearPlayback(reason) {
@@ -1246,6 +1254,7 @@
       }
       capturePointer(event);
       pointerHeld = true;
+      renderPttButton();
       logLine('ptt_pointer_down', {
         pointerId: event.pointerId,
         pointerType: event.pointerType || 'unknown',
