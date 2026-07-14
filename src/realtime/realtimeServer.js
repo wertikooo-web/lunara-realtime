@@ -1,14 +1,15 @@
 'use strict';
 
-// NOTE ON MICROPHONE AUDIO SAMPLE RATE: the binary WS frames this file
-// receives via createFrameParser()'s onBinary callback are NOT necessarily
-// the raw bytes the client sent. If the process was started with
-// `-r ./inputResampleBootstrap.js` (see package.json "start"/"dev" scripts),
-// that module wraps createFrameParser() and transparently resamples
-// PCM16LE mono 24000Hz -> 16000Hz before this file ever sees a chunk,
-// keyed off `sampleRate`/`sample_rate` in the client's session.start
-// payload (ESP32 sends 24000; Browser Lab/mock stays 16000 pass-through).
-// See src/realtime/inputResampleBootstrap.js and pcm16Resampler.js.
+// NOTE ON MICROPHONE AUDIO SAMPLE RATE: ESP32 (and any other client) may
+// send microphone audio at 16000Hz or 24000Hz PCM16LE mono binary WS
+// frames, declared via `sampleRate`/`sample_rate` in session.start. This
+// file resamples 24000Hz input down to Gemini's required 16000Hz input
+// explicitly, in-line, right where audio frames are received (see the
+// `onBinary` handler below and `startInput`/`endInput`/session.interrupt
+// for where the resampler's per-turn state is reset/flushed) — using
+// resolveInputSampleRate()/createInputResampler() from
+// ./inputAudioResampling.js. There is no preload/monkey-patch layer; the
+// conversion point is visible from this file.
 const crypto = require('crypto');
 const {
     acceptWebSocket,
@@ -17,6 +18,11 @@ const {
     sendPong,
     sendClose,
 } = require('./wsProtocol');
+const {
+    resolveInputSampleRate,
+    createInputResampler,
+    GEMINI_INPUT_SAMPLE_RATE,
+} = require('./inputAudioResampling');
 const { MockRealtimeProvider, DEFAULT_CONFIG } = require('./mockRealtimeProvider');
 const {
     LAB_ALLOW_CUSTOM_PROMPT,
@@ -322,6 +328,19 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     // on every session.start from device_settings.timezone/city (see below).
     let cachedLocalDateTime = null;
     let cachedWeatherText = null;
+    // ---- Microphone input resampling state ----
+    // Configured explicitly on every session.start from
+    // resolveInputSampleRate() (sampleRate/sample_rate in the payload).
+    // inputResampler is a fresh Pcm16MonoResampler for the currently
+    // declared inputSampleRate; at 16000 it's a byte-identical pass-through,
+    // at 24000 it actually resamples down to GEMINI_INPUT_SAMPLE_RATE.
+    // Reset points: startInput() (new turn), endInput() (flush the tail
+    // before providerSession.endInput()), session.interrupt, and on a
+    // decode error (see onBinary below) — see requirements in
+    // inputAudioResampling.js/pcm16Resampler.js.
+    let inputSampleRate = GEMINI_INPUT_SAMPLE_RATE;
+    let inputSampleRateSource = 'assumed_default_no_sample_rate';
+    let inputResampler = createInputResampler(inputSampleRate);
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
     let deviceId = memoryStore.normalizeDeviceId();
     const memoryEnabledFlag = memoryEnabledFromEnv();
@@ -679,6 +698,15 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             type: 'session.config.applied',
             reason,
             prompt_source: promptSource,
+            // Non-silent surface for the microphone input sample-rate the
+            // server is using for THIS connection — lets an ESP32 that
+            // forgot to send sampleRate see explicitly what was assumed,
+            // instead of the assumption being invisible.
+            input_audio: {
+                sample_rate: inputSampleRate,
+                sample_rate_source: inputSampleRateSource,
+                gemini_input_sample_rate: GEMINI_INPUT_SAMPLE_RATE,
+            },
             lab_prompt: {
                 allow_custom_prompt: LAB_ALLOW_CUSTOM_PROMPT,
                 max_chars: LAB_PROMPT_MAX_CHARS,
@@ -1337,6 +1365,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     function closeProvider(reason) {
         if (providerClosed) return;
         providerClosed = true;
+        inputResampler.reset();
         cancelCurrent(reason);
         providerSession.close();
         log('provider_session_closed', {
@@ -1361,6 +1390,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         inputBytes = 0;
         currentInputChunks = [];
         currentInputBufferedBytes = 0;
+        // Fresh resampler state for this turn — filter history/interpolation
+        // position from a previous turn must never bleed into this one.
+        inputResampler.reset();
         emit({
             type: 'input_audio.start',
             turn_id: currentTurnId,
@@ -1409,6 +1441,38 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 message: 'input_audio.end received before input_audio.start',
             });
             return;
+        }
+
+        // Drain the resampler's FIR tail (a few samples always remain
+        // buffered internally waiting for enough history to filter) BEFORE
+        // resetting its state — otherwise the last handful of milliseconds
+        // of every turn would be silently dropped. Only meaningful at
+        // 24000Hz input; at 16000 flush() is a no-op returning empty.
+        try {
+            const tail = inputResampler.flush();
+            if (tail.length > 0) {
+                inputBytes += tail.length;
+                sessionInputBytes += tail.length;
+                if (currentInputBufferedBytes + tail.length <= MAX_TURN_REPLAY_BYTES) {
+                    currentInputChunks.push(tail);
+                    currentInputBufferedBytes += tail.length;
+                }
+                providerSession.sendAudio(tail);
+                log('input_audio_tail_flushed', {
+                    turnId: currentTurnId,
+                    tailBytes: tail.length,
+                });
+            }
+        } catch (error) {
+            log('input_resample_flush_error', { turnId: currentTurnId, message: error.message });
+            emit({
+                type: 'error',
+                code: 'input_resample_error',
+                turn_id: currentTurnId,
+                message: error.message,
+            });
+        } finally {
+            inputResampler.reset();
         }
 
         inputEndedAt = Date.now();
@@ -1483,6 +1547,31 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     code: 'session_config_busy',
                     message: 'Prompt config can be changed only while the realtime session is idle.',
                 });
+                return;
+            }
+            // Microphone input sample-rate gate: an explicit, unsupported
+            // rate is rejected outright (never guessed). A MISSING rate
+            // falls back to 16000 pass-through for backward compatibility
+            // with clients that predate this field, but that fallback is
+            // never silent — logged here and echoed back in
+            // session.config.applied's input_audio block below.
+            try {
+                const resolved = resolveInputSampleRate(payload);
+                inputSampleRate = resolved.rate;
+                inputSampleRateSource = resolved.source;
+                inputResampler = createInputResampler(inputSampleRate);
+                log('input_sample_rate_configured', {
+                    deviceId,
+                    rate: inputSampleRate,
+                    source: inputSampleRateSource,
+                });
+            } catch (error) {
+                emit({
+                    type: 'error',
+                    code: error.code || 'unsupported_input_sample_rate',
+                    message: `Unsupported sampleRate ${error.requestedRate} in session.start. Supported values: 16000, 24000.`,
+                });
+                log('input_sample_rate_rejected', { deviceId, requestedRate: error.requestedRate });
                 return;
             }
             if (payload.deviceId) {
@@ -1591,6 +1680,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             endInput(payload);
         } else if (payload.type === 'session.interrupt') {
             const reason = payload.reason || 'client_interrupt';
+            inputResampler.reset();
             const cancelledActiveGeneration = cancelCurrent(reason);
             if (cancelledActiveGeneration && shouldRotateProviderOnInterrupt()) {
                 rotateProviderSession(reason);
@@ -1629,15 +1719,41 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 });
                 return;
             }
-            inputBytes += payload.length;
-            sessionInputBytes += payload.length;
-            if (currentInputBufferedBytes + payload.length <= MAX_TURN_REPLAY_BYTES) {
-                const replayChunk = Buffer.from(payload);
-                currentInputChunks.push(replayChunk);
-                currentInputBufferedBytes += replayChunk.length;
+            // Resample 24000Hz ESP32 input down to Gemini's 16000Hz before
+            // anything downstream sees it (byte counters, the replay buffer
+            // used by retryGenerationOnFreshProvider(), and the provider
+            // itself all operate on the POST-resample stream — replaying
+            // raw 24kHz bytes into Gemini on retry would be just as wrong
+            // as sending them the first time). At 16000 this is a
+            // byte-identical pass-through.
+            let resampled;
+            try {
+                resampled = inputResampler.process(payload);
+            } catch (error) {
+                inputResampler.reset();
+                log('input_resample_error', {
+                    turnId: currentTurnId || 'none',
+                    generationId: currentGeneration?.generationId || 'none',
+                    message: error.message,
+                });
+                emit({
+                    type: 'error',
+                    code: 'input_resample_error',
+                    generation_id: currentGeneration?.generationId,
+                    turn_id: currentTurnId,
+                    message: error.message,
+                });
+                return;
+            }
+            if (resampled.length === 0) return; // buffered internally, nothing to forward yet
+            inputBytes += resampled.length;
+            sessionInputBytes += resampled.length;
+            if (currentInputBufferedBytes + resampled.length <= MAX_TURN_REPLAY_BYTES) {
+                currentInputChunks.push(resampled);
+                currentInputBufferedBytes += resampled.length;
             } else if (currentInputBufferedBytes <= MAX_TURN_REPLAY_BYTES) {
                 log('input_replay_buffer_full', {
-                    bytes: payload.length,
+                    bytes: resampled.length,
                     bufferedBytes: currentInputBufferedBytes,
                     maxReplayBytes: MAX_TURN_REPLAY_BYTES,
                     turnId: currentTurnId || 'none',
@@ -1646,10 +1762,11 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 currentInputBufferedBytes = MAX_TURN_REPLAY_BYTES + 1;
                 currentInputChunks = [];
             }
-            providerSession.sendAudio(payload);
+            providerSession.sendAudio(resampled);
             log('input_audio_frame', {
                 turnId: currentTurnId || 'none',
                 bytes: payload.length,
+                resampledBytes: resampled.length,
                 turnInputBytes: inputBytes,
                 sessionInputBytes,
                 provider: providerSession.name || 'provider',

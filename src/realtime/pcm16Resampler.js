@@ -1,5 +1,19 @@
 'use strict';
 
+// Why a hand-rolled resampler instead of a mature dependency (e.g.
+// libsamplerate-js, a WASM port of libsamplerate that supports Node and
+// exposes a streaming-friendly `full()` API for exactly this kind of
+// chunked websocket audio): this project's only conversion is a single
+// fixed rational ratio, 24000 -> 16000 (3:2), not general-purpose arbitrary
+// rate conversion. A 47-tap FIR low-pass + linear interpolation is the
+// textbook-correct construction for that one ratio, small enough to review
+// and test exhaustively line-by-line (see pcm-resampler-smoke.js: chunk-
+// boundary bit-exactness, anti-alias attenuation, exact output sample
+// count, tail-flush correctness), and it avoids adding a WASM binary
+// dependency + its build/instantiation overhead for a problem this narrow.
+// If a second input rate or a variable/arbitrary ratio is ever needed,
+// revisit this decision — a real library becomes the better trade-off once
+// the problem stops being "one fixed ratio".
 const OUTPUT_SAMPLE_RATE = 16000;
 const SUPPORTED_INPUT_SAMPLE_RATES = new Set([16000, 24000]);
 

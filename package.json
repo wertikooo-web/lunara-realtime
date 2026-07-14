@@ -5,8 +5,8 @@
   "description": "Isolated realtime audio lab for Lunara experiments.",
   "main": "src/server.js",
   "scripts": {
-    "start": "node -r ./src/realtime/inputResampleBootstrap.js src/server.js",
-    "dev": "node -r ./src/realtime/inputResampleBootstrap.js src/server.js",
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
     "smoke:http": "node scripts/http-smoke.js",
     "smoke:gemini-provider": "node scripts/gemini-provider-smoke.js",
     "smoke:latency": "node scripts/latency-smoke.js",
@@ -18,7 +18,7 @@
     "smoke:realtime": "node scripts/realtime-smoke.js",
     "smoke:memory-guard": "node scripts/smoke-memory-guard.js",
     "smoke:pcm-resampler": "node scripts/pcm-resampler-smoke.js",
-    "smoke:input-resample-bootstrap": "node scripts/input-resample-bootstrap-smoke.js"
+    "smoke:input-resample-pipeline": "node scripts/input-resample-pipeline-smoke.js"
   },
   "engines": {
     "node": ">=20"
