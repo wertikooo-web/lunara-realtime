@@ -216,7 +216,6 @@
           <select id="voiceName" onchange="renderPreview()"></select>
           <button id="previewVoiceButton" class="secondary" type="button" onclick="previewVoice()" data-i18n="voicePreviewButton">Прослушать голос</button>
         </div>
-        <p class="small" data-i18n="voiceListHint">Список и характеристика тона — официальные голоса Gemini Live API (30 вариантов), пол Google не публикует.</p>
         <div id="voicePreviewStatus" class="status"></div>
       </div>
       <div class="grid-full">
@@ -346,7 +345,7 @@
       <label><input type="checkbox" id="memGames"> <span data-i18n="memGames">Сохранять любимые игры и темы</span></label>
       <label><input type="checkbox" id="memEvents"> <span data-i18n="memEvents">Сохранять важные события</span></label>
     </div>
-    <p class="memory-note" data-i18n="memoryLiveNote">Автоматический сбор фактов из живых разговоров появится вместе с серверной базой памяти. Пока факты можно вести вручную — здесь же родитель видит и управляет тем, что "знает" Луми.</p>
+    <p class="memory-note" data-i18n="memoryLiveNote">Факты можно вести вручную — здесь же родитель видит и управляет тем, что "знает" Луми.</p>
     <label data-i18n="memoryAddLabel">Добавить факт</label>
     <div class="row-actions">
       <input id="memoryFactLabel" maxlength="40" data-i18n-placeholder="memoryFactLabelPlaceholder" placeholder="Например: Питомец">
@@ -1415,7 +1414,7 @@ const I18N = {
     toyGender: 'Пол Луми', genderFemale: 'Женский', genderMale: 'Мужской', voiceSpeed: 'Скорость речи',
     speedSlow: 'Медленно', speedNormal: 'Нормально', speedFast: 'Быстро', voiceLabel: 'Голос Gemini Live',
     voicePreviewButton: 'Прослушать голос', voicePreviewTitle: 'Предпросмотр голоса будет подключён на следующем этапе',
-    voiceListHint: 'Список и характеристика тона — официальные голоса Gemini Live API (30 вариантов).', volumeLabel: 'Громкость голоса',
+    volumeLabel: 'Громкость голоса',
     childTitle: 'Ребёнок', childName: 'Имя ребёнка', ageGroup: 'Возрастная группа', childGender: 'Пол ребёнка (необязательно)',
     notSpecified: 'Не указывать', boy: 'Мальчик', girl: 'Девочка', interests: 'Интересы и любимые темы',
     interestsPlaceholder: 'Например: космос, динозавры, рисование', importantPeople: 'Важные люди и питомцы',
@@ -1441,10 +1440,10 @@ const I18N = {
     scaryOff: 'Выключены', scaryMild: 'Очень мягкие', scaryAge: 'Допустимы по возрасту',
     memoryTitle: 'Память', memoryEnabled: 'Память между разговорами включена', memInterests: 'Сохранять интересы',
     memPeople: 'Сохранять имена питомцев и близких', memGames: 'Сохранять любимые игры и темы', memEvents: 'Сохранять важные события',
-    memoryLiveNote: 'Автоматический сбор фактов из живых разговоров появится вместе с серверной базой памяти. Пока факты можно вести вручную — здесь же родитель видит и управляет тем, что "знает" Луми.',
+    memoryLiveNote: 'Факты можно вести вручную — здесь же родитель видит и управляет тем, что "знает" Луми.',
     memoryAddLabel: 'Добавить факт', memoryFactLabelPlaceholder: 'Например: Питомец', memoryFactValuePlaceholder: 'Например: кот Барсик',
     memoryAddButton: 'Добавить', memoryView: 'Посмотреть, что помнит Луми', memoryDeleteOne: 'Удалить', memoryClearButton: 'Очистить память',
-    memoryEmpty: 'Луми пока ничего не запомнила. Добавьте факт вручную или дождитесь серверной памяти.',
+    memoryEmpty: 'Луми пока ничего не запомнила. Добавьте факт вручную',
     confirmClearMemory: 'Очистить всю память Луми? Профиль ребёнка при этом не удаляется.',
     customPromptTitle: 'Свой системный промт', customPromptToggle: 'Использовать этот промт вместо стандартного',
     customPromptHint: 'До 16000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.',
@@ -1452,7 +1451,7 @@ const I18N = {
     voicePreviewLoading: 'Генерируем образец голоса…', voicePreviewSampleText: 'Привет! Меня зовут Луми. Давай поиграем?',
     voicePreviewOk: 'Готово', voicePreviewNoKey: 'На сервере не настроен GEMINI_API_KEY — предпросмотр недоступен',
     voicePreviewError: 'Не удалось получить образец голоса, попробуйте ещё раз',
-    runtimeTitle: 'Время работы', locationTitle: 'Часовой пояс и город', cityPlaceholder: 'Например: Кишинёв', locationHint: 'Определяет реальное локальное время устройства для ночного режима, дневного лимита и ответов игрушки о дате/времени/погоде.', dailyLimitToggle: 'Дневной лимит', customTime: 'Своё время', minutesPlaceholder: 'Например: 120',
+    runtimeTitle: 'Время работы', locationTitle: 'Часовой пояс и город', cityPlaceholder: 'Например: Кишинёв', dailyLimitToggle: 'Дневной лимит', customTime: 'Своё время', minutesPlaceholder: 'Например: 120',
     nightModeToggle: 'Ночной режим', nightFrom: 'Не работает с', nightUntil: 'Не работает до', breakReminderTitle: 'Напоминание о перерыве',
     noReminder: 'Не напоминать', eveningModeToggle: 'Спокойный вечерний режим', eveningStart: 'Спокойнее после',
     safetyTitle: 'Безопасность', safetyIntro: 'Базовые правила безопасности всегда включены и не могут быть отключены.',
@@ -1511,7 +1510,7 @@ const I18N = {
     cFacts: 'Fapte despre lume', cImprovised: 'Conținut improvizat', preferredThemes: 'Teme preferate, separate prin virgulă',
     preferredThemesPlaceholder: 'spațiu, animale', blockedThemes: 'Teme interzise, separate prin virgulă', blockedThemesPlaceholder: 'arme, groază, război',
     sensitiveThemes: 'Teme sensibile, separate prin virgulă', sensitiveThemesPlaceholder: 'divorțul părinților', storyLength: 'Lungimea poveștii',
-    storyLen1: 'Până la 1 minut', storyLen2: '2–3 minute', storyLen3: '4–6 minute', scaryElements: 'Elemente înfricoșătoare',
+    storyLen1: 'Până la 1 minut', storyLen2: '2–3 minute', storyLen3: '4–5 minute', scaryElements: 'Elemente înfricoșătoare',
     scaryOff: 'Dezactivate', scaryMild: 'Foarte blânde', scaryAge: 'Permise în funcție de vârstă',
     memoryTitle: 'Memorie', memoryEnabled: 'Memoria între conversații este activată', memInterests: 'Salvează interesele',
     memPeople: 'Salvează numele animalelor și persoanelor apropiate', memGames: 'Salvează jocurile și temele preferate', memEvents: 'Salvează evenimentele importante',
@@ -1563,7 +1562,7 @@ const I18N = {
     toyGender: 'Lumi’s gender', genderFemale: 'Female', genderMale: 'Male', voiceSpeed: 'Speech speed',
     speedSlow: 'Slow', speedNormal: 'Normal', speedFast: 'Fast', voiceLabel: 'Gemini Live voice',
     voicePreviewButton: 'Preview voice', voicePreviewTitle: 'Voice preview will be added in the next stage',
-    voiceListHint: 'The list is the official Gemini Live API voices (30 options).', volumeLabel: 'Voice volume',
+    volumeLabel: 'Voice volume',
     childTitle: 'Child', childName: 'Child name', ageGroup: 'Age group', childGender: 'Child gender (optional)',
     notSpecified: 'Not specified', boy: 'Boy', girl: 'Girl', interests: 'Interests and favorite topics',
     interestsPlaceholder: 'E.g. space, dinosaurs, drawing', importantPeople: 'Important people and pets',
@@ -1585,7 +1584,7 @@ const I18N = {
     cFacts: 'World facts', cImprovised: 'Improvised content', preferredThemes: 'Preferred topics, comma separated',
     preferredThemesPlaceholder: 'space, animals', blockedThemes: 'Blocked topics, comma separated', blockedThemesPlaceholder: 'weapons, horror, war',
     sensitiveThemes: 'Sensitive topics, comma separated', sensitiveThemesPlaceholder: 'parents’ divorce', storyLength: 'Story length',
-    storyLen1: 'Up to 1 minute', storyLen2: '2-3 minutes', storyLen3: '4-6 minutes', scaryElements: 'Scary elements',
+    storyLen1: 'Up to 1 minute', storyLen2: '2-3 minutes', storyLen3: '4-5 minutes', scaryElements: 'Scary elements',
     scaryOff: 'Off', scaryMild: 'Very mild', scaryAge: 'Allowed if age-appropriate',
     memoryTitle: 'Memory', memoryEnabled: 'Memory between conversations is enabled', memInterests: 'Save interests',
     memPeople: 'Save names of pets and close people', memGames: 'Save favorite games and topics', memEvents: 'Save important events',
