@@ -21,6 +21,7 @@
 - **Вход (ESP32 → сервер):** PCM16LE, 16000 Hz, mono, без обёртки, **binary WebSocket frame** (opcode `0x2`).
 - **Выход (сервер → ESP32):** PCM16LE, 24000 Hz, mono, внутри `audio.chunk` как `audio_base64` (Base64), **JSON-фрейм** (opcode `0x1`), НЕ binary frame.
 - Оба формата подтверждены реальным production-логом и кодом провайдера — см. разделы 2 и 6.
+- **16kHz вход / 24kHz выход — это НЕ решение этого сервера, а жёсткое ограничение Gemini Live API.** Официальная документация Google (`ai.google.dev/gemini-api/docs/live-guide`): *"Input audio is natively 16kHz... Audio output always uses a sample rate of 24kHz."* — выход **всегда** 24kHz, независимо от частоты входа, это нельзя настроить со стороны клиента или сервера. ESP32 обязан поддерживать асимметричный аудио-пайплайн: запись/отправка на 16kHz, приём/воспроизведение на 24kHz (либо DAC/I2S играет 24kHz напрямую, либо на устройстве нужен downsample 24kHz → 16kHz перед выводом на динамик).
 
 ---
 
@@ -210,6 +211,7 @@
 - **Направление:** входящее аудио — ESP32 → сервер (raw PCM16LE, 16kHz, mono, без обёртки — см. раздел 2). Исходящее аудио ответа — **НЕ бинарные фреймы**, а base64 **внутри JSON** (`audio_base64` в `audio.chunk`, раздел 5).
 - **Как отличить input от output:** это не один канал — вход идёт бинарными WS-фреймами (opcode `0x2`) от клиента к серверу; выход идёт текстовыми WS-фреймами (opcode `0x1`, JSON) от сервера к клиенту. Разделение по направлению и по транспорту одновременно, путаницы в коде нет.
 - **Формат аудио ответа:** `mime_type: 'audio/pcm'`, **sample_rate: 24000** (не 16000, как вход!) — `geminiLiveProvider.js:952-953`. PCM16, little-endian (декодер `lab.html:1148-1166` читает `getInt16(..., true)`). Моно (создаётся `audioContext.createBuffer(1, samples, sampleRate)`, `lab.html:1159`).
+  - **Почему 24000, а не 16000 симметрично со входом:** это захардкоженная в коде константа (`geminiLiveProvider.js:938, 953`), но не потому, что сервер сам так решил — Gemini Live **всегда** генерирует ответное аудио на 24kHz, вне зависимости от частоты входа; это задокументированное ограничение самого Gemini Live API (`ai.google.dev/gemini-api/docs/live-guide`: *"Audio output always uses a sample rate of 24kHz"*), не настраивается ни клиентом, ни этим сервером. Код даже не читает `part.inlineData.mimeType` из ответа Gemini (где Google тоже прислал бы `rate=24000`) — просто полагается на то, что это значение всегда одно и то же.
 - **Валидация на сервере (только для исходящего аудио от Gemini, НЕ входящего от клиента):** чанк с audio отбрасывается, если `audioBytes < 4` или `audioBytes % 2 !== 0` (`MIN_VALID_PCM_BYTES = 4`, `BYTES_PER_PCM16_SAMPLE = 2`, `geminiLiveProvider.js:913-928`).
 - **mock-провайдер (не прод!) шлёт WAV** (`mime_type: 'audio/wav'`, с полным RIFF/WAVE-заголовком — `mockRealtimeProvider.js:16-44, 148`), это только для локальной разработки без Gemini API key. **На проде всегда `audio/pcm`.**
 
@@ -280,9 +282,9 @@
 | Что при overflow этого буфера | Replay-буфер **сбрасывается** (`currentInputChunks = []`), но живой поток в Gemini продолжает идти нормально — просто retry после сбоя провайдера станет невозможен для этого хода | `realtimeServer.js:1351-1361` |
 | Макс. буфер аудио до готовности provider-сессии | `GEMINI_PENDING_AUDIO_MAX_BYTES`, дефолт **512 КБ** | `geminiLiveProvider.js:14, 423-431` |
 | Что при overflow этого буфера | Новые входящие чанки **отбрасываются** (`input_buffer_dropped`), уже отправленные — нет | `geminiLiveProvider.js:423-430` |
-| Макс. длина промпт-блока (core/child/parent) | `LAB_PROMPT_MAX_CHARS`, дефолт **16000** символов на каждый из блоков (`core_prompt`/`child_context`/`parent_rules`) — поднят с исходных 8000, чтобы вместить текущий `DEFAULT_CORE_PROMPT` (~10235 символов) плюс запас под `custom_prompt_text` (до 10000 символов). Это ограничение промпта, не голосового ввода | `src/realtime/realtimePrompt.js:5-9` |
-| Ограничение длины родительского дополнения к RESTRICTIONS | **5000** символов | `src/memory/store.js` (`RESTRICTIONS_ADDITION_MAX_CHARS`) |
-| Макс. размер тела HTTP-запроса к `/api/*` (панель, не относится к `/realtime`) | **64 КБ** (`MAX_JSON_BODY_BYTES`), поднят с исходных 8 КБ — при 8 КБ длинный кастомный промт молча не сохранялся | `src/server.js` |
+| Макс. длина промпт-блока (core/child/parent) | `LAB_PROMPT_MAX_CHARS`, дефолт **24000** символов на каждый из блоков (`core_prompt`/`child_context`/`parent_rules`) — поднят с исходных 8000 → 16000 → 24000, чтобы вместить `parent_rules` в худшем случае (база + сгенерированный TOY/STYLE/CONTENT/TIME блок + `restrictions_addition` до 16000 символов ≈ 18000). Это ограничение промпта, не голосового ввода | `src/realtime/realtimePrompt.js` |
+| Ограничение длины `custom_prompt_text` и родительского дополнения `restrictions_addition` | **16000** символов у каждого (было 10000/5000) | `src/memory/store.js` (`CUSTOM_PROMPT_MAX_CHARS`, `RESTRICTIONS_ADDITION_MAX_CHARS`) |
+| Макс. размер тела HTTP-запроса к `/api/*` (панель, не относится к `/realtime`) | **256 КБ** (`MAX_JSON_BODY_BYTES`), поднят с исходных 8 КБ → 64 КБ → 256 КБ — два поля по 16000 символов кириллицы в UTF-8 с JSON-экранированием переносов строк сами по себе приближаются к ~70 КБ | `src/server.js` |
 | Таймаут ожидания начала ответа (turn timeout) | `PTT_TURN_TIMEOUT_MS`, дефолт **4500 мс** | `realtimeServer.js:614` |
 | Что при коротком/пустом аудио | Нет отдельной проверки минимальной длительности на сервере для **входящего** аудио. Для исходящего (ответ) — есть `isPlayableBuffer()` на клиенте, отбрасывает буфер короче 5 мс или полностью тихий (`lab.html:1139-1146`) — это клиентская, не серверная проверка |
 | Invalid PCM (исходящее от Gemini) | Отбрасывается, если байт < 4 или нечётное число байт; логируется раз в `GEMINI_INVALID_PCM_LOG_EVERY` (дефолт 20) раз, чтобы не спамить лог | `geminiLiveProvider.js:914-927`, `.env` — но переменная не в `.env.example`, дефолт в коде |
@@ -407,9 +409,9 @@
 - `src/realtime/realtimeServer.js` — вся серверная lifecycle-логика, `handleCommand`, `emitProviderEvent`, `rotateProviderSession`, `warmProviderSession`, memory/settings integration.
 - `src/realtime/geminiLiveProvider.js` — маппинг на Gemini Live API, формат аудио, `handleMessage`, tool calling, activity markers.
 - `src/realtime/mockRealtimeProvider.js` — mock-провайдер (для сравнения, не прод).
-- `src/realtime/realtimePrompt.js` — лимиты промпта (`LAB_PROMPT_MAX_CHARS`, сейчас 16000), `LAB_ALLOW_CUSTOM_PROMPT`.
+- `src/realtime/realtimePrompt.js` — лимиты промпта (`LAB_PROMPT_MAX_CHARS`, сейчас 24000), `LAB_ALLOW_CUSTOM_PROMPT`.
 - `src/memory/store.js` — `RESTRICTIONS_ADDITION_MAX_CHARS`, `CUSTOM_PROMPT_MAX_CHARS`, дефолт `deviceId`.
-- `src/server.js` — `/realtime` upgrade routing, `PORT`, `MAX_JSON_BODY_BYTES` (сейчас 64 КБ).
+- `src/server.js` — `/realtime` upgrade routing, `PORT`, `MAX_JSON_BODY_BYTES` (сейчас 256 КБ).
 - `public/lab.html` — единственный существующий клиент, полный референс UX/lifecycle.
 - `.env.example` — доступные env-переменные (часть из них, `GEMINI_VAD_SILENCE_MS`/`GEMINI_VAD_PREFIX_PADDING_MS`, **не используются нигде в коде** — мёртвые настройки, не вводить в заблуждение).
 - Реальные production-логи сервиса `lunara-realtime` (Railway), сессия `session_8bb1879a2311e86a`, снято 2026-07-13.
@@ -419,3 +421,4 @@
 ## Changelog
 
 - **2026-07-14:** уточнены 5 пунктов по запросу перед передачей инженеру — момент разблокировки PTT (`session.config.applied`, не `session.ready`/`provider.ready`, с объяснением почему `provider.ready` не гарантирован на первом коннекте), минимальный `session.start` для ESP32, Protocol V1 зафиксирован явным врезом, точный порядок barge-in без ожидания `response.cancelled`, heartbeat как два независимых уже реализованных механизма (JSON и WS-протокольный). Заодно актуализированы значения `LAB_PROMPT_MAX_CHARS` (8000 → 16000) и `MAX_JSON_BODY_BYTES` (8 КБ → 64 КБ), изменившиеся в коде после исходного аудита от 2026-07-13.
+- **2026-07-14 (2):** отвечено на вопрос инженера — почему вход 16kHz, а выход 24kHz. Подтверждено официальной документацией Gemini Live API: выход **всегда** 24kHz независимо от частоты входа, это ограничение платформы, не решение сервера. Добавлено во врез Protocol V1 и в раздел 6. Также актуализированы `CUSTOM_PROMPT_MAX_CHARS`/`RESTRICTIONS_ADDITION_MAX_CHARS` (16000 каждый) и `LAB_PROMPT_MAX_CHARS` (24000), `MAX_JSON_BODY_BYTES` (256 КБ) — изменились в коде после предыдущего обновления документа.
