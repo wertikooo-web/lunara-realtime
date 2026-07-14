@@ -16,7 +16,8 @@
     "smoke:ptt-lifecycle": "node scripts/ptt-lifecycle-regression.js",
     "smoke:ptt-tail": "node scripts/ptt-silence-tail-smoke.js",
     "smoke:realtime": "node scripts/realtime-smoke.js",
-    "smoke:memory-guard": "node scripts/smoke-memory-guard.js"
+    "smoke:memory-guard": "node scripts/smoke-memory-guard.js",
+    "smoke:pcm-resampler": "node scripts/pcm-resampler-smoke.js"
   },
   "engines": {
     "node": ">=20"
