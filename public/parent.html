@@ -102,7 +102,7 @@
      in the section except the heading via CSS, and is persisted per-block
      in localStorage so it survives a reload. */
   h2.collapsible { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
-  h2.collapsible::after { content: '▾'; font-size: 15px; color: #a999d6; transition: transform .16s ease; }
+  h2.collapsible::after { content: '▾'; font-size: 45px; font-weight: 900; line-height: 1; color: #fbbf24; transition: transform .16s ease; }
   section.collapsed { padding-bottom: 16px; }
   section.collapsed > h2.collapsible::after { transform: rotate(-90deg); }
   section.collapsed > *:not(h2) { display: none !important; }
