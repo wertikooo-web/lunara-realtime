@@ -483,9 +483,6 @@
         <button class="secondary" type="button" data-i18n="restrictionsResetButton" onclick="resetRestrictionsAddition()">Очистить заметки</button>
       </div>
     </div>
-    <label data-i18n="previewTitle">Предпросмотр PARENT SETTINGS / RESTRICTIONS</label>
-    <p class="small" data-i18n="previewHint">Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.</p>
-    <div id="previewBox" class="preview-box"></div>
     <div class="save-row"><button class="save-btn" id="save-restrictionsPanel" type="button" data-i18n="blockSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить</button></div>
   </section>
 
@@ -1045,7 +1042,8 @@ function renderPreview() {
         addition,
       ].join('\n')
     : baseRestrictionsText;
-  document.getElementById('previewBox').textContent = text;
+  const previewBox = document.getElementById('previewBox');
+  if (previewBox) previewBox.textContent = text;
 }
 
 function renderStatusOverview() {
@@ -1452,7 +1450,6 @@ const I18N = {
     safety4: 'Не заменяет врача или взрослого', safety5: 'Не создаёт эмоциональную зависимость', safety6: 'При опасности направляет ребёнка к безопасному взрослому',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Базовые ограничения (нередактируемо)',
     restrictionsAdditionLabel: 'Дополнительные заметки родителя', restrictionsResetButton: 'Очистить заметки',
-    previewTitle: 'Предпросмотр PARENT SETTINGS / RESTRICTIONS', previewHint: 'Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.',
     saveButton: 'Сохранить настройки', resetButton: 'Сбросить к базовым', blockSave: 'Сохранить',
     deletionTitle: 'Удаление данных',
     deleteProfile: 'Удалить профиль ребёнка', clearMemory: 'Очистить память', deleteChildData: 'Удалить данные ребёнка', deleteAll: 'Удалить всё',
@@ -1527,7 +1524,6 @@ const I18N = {
     safety4: 'Nu înlocuiește un medic sau un adult', safety5: 'Nu creează dependență emoțională', safety6: 'În caz de pericol, îndrumă copilul către un adult sigur',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Restricții de bază (needitabile)',
     restrictionsAdditionLabel: 'Note suplimentare ale părintelui', restrictionsResetButton: 'Șterge notele',
-    previewTitle: 'Previzualizare PARENT SETTINGS / RESTRICTIONS', previewHint: 'Așa vor fi transmise aceste setări în promptul de sistem Gemini Live. Se actualizează automat.',
     saveButton: 'Salvează setările', resetButton: 'Resetează la valorile de bază', blockSave: 'Salvează',
     deletionTitle: 'Ștergere date',
     deleteProfile: 'Șterge profilul copilului', clearMemory: 'Șterge memoria', deleteChildData: 'Șterge datele copilului', deleteAll: 'Șterge tot',
@@ -1602,7 +1598,6 @@ const I18N = {
     safety4: 'Does not replace a doctor or an adult', safety5: 'Does not create emotional dependency', safety6: 'Directs the child to a safe adult in danger',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Base restrictions (not editable)',
     restrictionsAdditionLabel: 'Additional parent notes', restrictionsResetButton: 'Clear notes',
-    previewTitle: 'PARENT SETTINGS / RESTRICTIONS preview', previewHint: 'This is how these settings will be passed into the Gemini Live system prompt. Updates automatically.',
     saveButton: 'Save settings', resetButton: 'Reset to base', blockSave: 'Save',
     deletionTitle: 'Data deletion',
     deleteProfile: 'Delete child profile', clearMemory: 'Clear memory', deleteChildData: 'Delete child data', deleteAll: 'Delete everything',
