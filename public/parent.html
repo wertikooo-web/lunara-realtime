@@ -486,12 +486,6 @@
     <div class="save-row"><button class="save-btn" id="save-restrictionsPanel" type="button" data-i18n="blockSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить</button></div>
   </section>
 
-  <div class="row-actions">
-    <button id="saveTop" class="save-btn" data-i18n="saveButton" onclick="saveSettings()">Сохранить настройки</button>
-    <button class="secondary" data-i18n="resetButton" onclick="resetToBase()">Сбросить к базовым</button>
-  </div>
-  <div id="saveStatus" class="status"></div>
-
   <section id="analyticsPanel">
     <h2 class="collapsible" data-i18n="analyticsTitle">Аналитика</h2>
     <div class="analytics-grid">
@@ -1134,13 +1128,11 @@ async function saveSettings() {
   const result = await pushToServer();
   const statusEl = document.getElementById('saveStatus');
   if (result.ok || !serverReachable) {
-    statusEl.classList.remove('error');
-    statusEl.textContent = translate('savedOk');
+    if (statusEl) { statusEl.classList.remove('error'); statusEl.textContent = translate('savedOk'); }
     showToast(translate('savedOk'), true);
     clearAllDirty();
   } else {
-    statusEl.classList.add('error');
-    statusEl.textContent = translate('savedLocalOnly') + ' (' + result.error + ')';
+    if (statusEl) { statusEl.classList.add('error'); statusEl.textContent = translate('savedLocalOnly') + ' (' + result.error + ')'; }
     showToast(translate('savedLocalOnly'), false);
   }
 }
@@ -1450,7 +1442,7 @@ const I18N = {
     safety4: 'Не заменяет врача или взрослого', safety5: 'Не создаёт эмоциональную зависимость', safety6: 'При опасности направляет ребёнка к безопасному взрослому',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Базовые ограничения (нередактируемо)',
     restrictionsAdditionLabel: 'Дополнительные заметки родителя', restrictionsResetButton: 'Очистить заметки',
-    saveButton: 'Сохранить настройки', resetButton: 'Сбросить к базовым', blockSave: 'Сохранить',
+    blockSave: 'Сохранить',
     deletionTitle: 'Удаление данных',
     deleteProfile: 'Удалить профиль ребёнка', clearMemory: 'Очистить память', deleteChildData: 'Удалить данные ребёнка', deleteAll: 'Удалить всё',
     memoryNotConnectedTitle: 'Память ещё не подключена',
@@ -1524,7 +1516,7 @@ const I18N = {
     safety4: 'Nu înlocuiește un medic sau un adult', safety5: 'Nu creează dependență emoțională', safety6: 'În caz de pericol, îndrumă copilul către un adult sigur',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Restricții de bază (needitabile)',
     restrictionsAdditionLabel: 'Note suplimentare ale părintelui', restrictionsResetButton: 'Șterge notele',
-    saveButton: 'Salvează setările', resetButton: 'Resetează la valorile de bază', blockSave: 'Salvează',
+    blockSave: 'Salvează',
     deletionTitle: 'Ștergere date',
     deleteProfile: 'Șterge profilul copilului', clearMemory: 'Șterge memoria', deleteChildData: 'Șterge datele copilului', deleteAll: 'Șterge tot',
     memoryNotConnectedTitle: 'Memoria nu este încă conectată',
@@ -1598,7 +1590,7 @@ const I18N = {
     safety4: 'Does not replace a doctor or an adult', safety5: 'Does not create emotional dependency', safety6: 'Directs the child to a safe adult in danger',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Base restrictions (not editable)',
     restrictionsAdditionLabel: 'Additional parent notes', restrictionsResetButton: 'Clear notes',
-    saveButton: 'Save settings', resetButton: 'Reset to base', blockSave: 'Save',
+    blockSave: 'Save',
     deletionTitle: 'Data deletion',
     deleteProfile: 'Delete child profile', clearMemory: 'Clear memory', deleteChildData: 'Delete child data', deleteAll: 'Delete everything',
     memoryNotConnectedTitle: 'Memory is not connected yet',
