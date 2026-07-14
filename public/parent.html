@@ -95,6 +95,16 @@
   .analytics-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
   .analytics-bar { width: 100%; background: #8b5cf6; border-radius: 4px 4px 0 0; min-height: 2px; }
   .analytics-bar-label { position: absolute; bottom: -20px; font-size: 10px; color: #a999d6; }
+  /* Collapsible panel blocks: every <section>'s <h2> is clickable and shows
+     an arrow (▾ expanded, rotated to ▸ collapsed), matching the existing
+     .toggle-button arrow convention above. Collapsed state hides everything
+     in the section except the heading via CSS, and is persisted per-block
+     in localStorage so it survives a reload. */
+  h2.collapsible { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  h2.collapsible::after { content: '▾'; font-size: 15px; color: #a999d6; transition: transform .16s ease; }
+  section.collapsed { padding-bottom: 16px; }
+  section.collapsed > h2.collapsible::after { transform: rotate(-90deg); }
+  section.collapsed > *:not(h2) { display: none !important; }
   @media (max-width: 700px) {
     .grid, .checks, .runtime-grid { grid-template-columns: 1fr; }
     .hero { grid-template-columns: 72px 1fr; }
@@ -124,7 +134,7 @@
   <div id="statusOverview" class="status-overview"></div>
 
   <section id="childPanel">
-    <h2 data-i18n="childTitle">Ребёнок</h2>
+    <h2 class="collapsible" data-i18n="childTitle">Ребёнок</h2>
     <div class="grid">
       <div>
         <label data-i18n="childName">Имя ребёнка</label>
@@ -164,7 +174,7 @@
   </section>
 
   <section id="toyPanel">
-    <h2 data-i18n="toyTitle">Игрушка</h2>
+    <h2 class="collapsible" data-i18n="toyTitle">Игрушка</h2>
     <div class="grid">
       <div>
         <label data-i18n="toyName">Имя игрушки</label>
@@ -220,7 +230,7 @@
   </section>
 
   <section id="characterPanel">
-    <h2 data-i18n="characterTitle">Характер и стиль</h2>
+    <h2 class="collapsible" data-i18n="characterTitle">Характер и стиль</h2>
     <div class="grid">
       <div>
         <label data-i18n="characterStyle">Образ</label>
@@ -280,7 +290,7 @@
   </section>
 
   <section id="contentPanel">
-    <h2 data-i18n="contentTitle">Контент</h2>
+    <h2 class="collapsible" data-i18n="contentTitle">Контент</h2>
     <label data-i18n="contentMode">Режим контента</label>
     <div class="checks">
       <label><input type="radio" name="contentMode" value="library_only"> <span data-i18n="contentLibraryOnly">Только проверенная библиотека</span></label>
@@ -327,7 +337,7 @@
   </section>
 
   <section id="memoryPanel">
-    <h2 data-i18n="memoryTitle">Память</h2>
+    <h2 class="collapsible" data-i18n="memoryTitle">Память</h2>
     <label class="inline-check"><input id="memoryEnabled" type="checkbox" checked> <span data-i18n="memoryEnabled">Память между разговорами включена</span></label>
     <div class="checks" style="margin-top:12px">
       <label><input type="checkbox" id="memInterests"> <span data-i18n="memInterests">Сохранять интересы</span></label>
@@ -351,7 +361,7 @@
   </section>
 
   <section id="runtimePanel">
-    <h2 data-i18n="runtimeTitle">Время работы</h2>
+    <h2 class="collapsible" data-i18n="runtimeTitle">Время работы</h2>
     <div class="runtime-grid">
       <div class="runtime-card">
         <label data-i18n="locationTitle">Часовой пояс и город</label>
@@ -418,7 +428,7 @@
   </section>
 
   <section id="profilesPanel">
-    <h2 data-i18n="profilesTitle">Профили</h2>
+    <h2 class="collapsible" data-i18n="profilesTitle">Профили</h2>
     <p class="small" data-i18n="profilesHint">Можно сохранить текущие настройки как отдельный профиль ребёнка и быстро переключаться между ними.</p>
     <label data-i18n="profilesSaved">Сохранённые профили</label>
     <div class="row-actions">
@@ -435,8 +445,8 @@
     <div id="profileStatus" class="status"></div>
   </section>
 
-  <section class="safety-block">
-    <h2 data-i18n="safetyTitle">Безопасность</h2>
+  <section id="safetyPanel" class="safety-block">
+    <h2 class="collapsible" data-i18n="safetyTitle">Безопасность</h2>
     <p data-i18n="safetyIntro"><strong>Базовые правила безопасности всегда включены и не могут быть отключены.</strong></p>
     <ul>
       <li data-i18n="safety1">Луми не просит личные данные</li>
@@ -449,7 +459,7 @@
   </section>
 
   <section id="customPromptPanel">
-    <h2 data-i18n="customPromptTitle">Свой системный промт</h2>
+    <h2 class="collapsible" data-i18n="customPromptTitle">Свой системный промт</h2>
     <label class="inline-check"><input id="customPromptEnabled" type="checkbox" onchange="readFormIntoCurrent(); renderPreview(); saveSettings();"> <span data-i18n="customPromptToggle">Использовать этот промт вместо стандартного</span></label>
     <p class="small" data-i18n="customPromptHint">До 16000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.</p>
     <textarea id="customPromptText" maxlength="16000" oninput="updateCustomPromptCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:220px"></textarea>
@@ -463,7 +473,7 @@
   </section>
 
   <section id="restrictionsPanel">
-    <h2 data-i18n="restrictionsTitle">PARENT SETTINGS / RESTRICTIONS</h2>
+    <h2 class="collapsible" data-i18n="restrictionsTitle">PARENT SETTINGS / RESTRICTIONS</h2>
     <label data-i18n="baseRestrictionsLabel">Базовые ограничения (нередактируемо)</label>
     <div id="baseRestrictionsBox" class="preview-box"></div>
     <p class="small" data-i18n="restrictionsAdditionHint">Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 16000 знаков.</p>
@@ -488,7 +498,7 @@
   <div id="saveStatus" class="status"></div>
 
   <section id="analyticsPanel">
-    <h2 data-i18n="analyticsTitle">Аналитика</h2>
+    <h2 class="collapsible" data-i18n="analyticsTitle">Аналитика</h2>
     <p class="small" data-i18n="analyticsHint">Реальное серверное время использования игрушки — не оценка, а фактические данные из БД.</p>
     <div class="analytics-grid">
       <div class="analytics-tile">
@@ -519,7 +529,7 @@
   </section>
 
   <section id="dataDeletionPanel" class="data-delete-panel">
-    <h2 data-i18n="deletionTitle">Удаление данных</h2>
+    <h2 class="collapsible" data-i18n="deletionTitle">Удаление данных</h2>
     <p class="small" data-i18n="deletionHint">Опасные действия собраны отдельно, чтобы не нажать их случайно.</p>
     <button class="danger" data-i18n="deleteProfile" onclick="deleteActiveProfile()">Удалить профиль ребёнка</button>
     <button class="danger" type="button" data-i18n="clearMemory" onclick="clearMemoryFacts()">Очистить память</button>
@@ -1778,6 +1788,41 @@ async function init() {
   }
   renderPreview();
   loadAnalytics();
+  initCollapsibleSections();
+}
+
+// Every <section> in main becomes collapsible via its <h2 class="collapsible">
+// — click toggles a `collapsed` class on the section (CSS hides everything
+// but the heading, see .collapsible/.collapsed rules in <style>). State is
+// persisted per section id in localStorage so it survives a reload.
+const COLLAPSED_SECTIONS_KEY = 'lunaraParentCollapsedSections';
+
+function loadCollapsedSections() {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_SECTIONS_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch (err) {
+    return new Set();
+  }
+}
+
+function saveCollapsedSections(collapsedIds) {
+  localStorage.setItem(COLLAPSED_SECTIONS_KEY, JSON.stringify([...collapsedIds]));
+}
+
+function initCollapsibleSections() {
+  const collapsedIds = loadCollapsedSections();
+  document.querySelectorAll('main > section').forEach((section) => {
+    const heading = section.querySelector(':scope > h2.collapsible');
+    if (!heading || !section.id) return;
+    if (collapsedIds.has(section.id)) section.classList.add('collapsed');
+    heading.addEventListener('click', () => {
+      section.classList.toggle('collapsed');
+      if (section.classList.contains('collapsed')) collapsedIds.add(section.id);
+      else collapsedIds.delete(section.id);
+      saveCollapsedSections(collapsedIds);
+    });
+  });
 }
 
 init();
