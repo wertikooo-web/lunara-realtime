@@ -72,18 +72,34 @@
   .toast.ok { background: #0b1f16; border-color: #22c55e; }
   .footer { margin-top: 28px; color: #8d7bbf; font-size: 12px; text-align: center; }
   .footer a { color: #c9b8ff; text-decoration: none; }
+  /* Per-block save button: pulses (warm gold glow, matching the h2 accent
+     color already used across the panel) whenever that block has unsaved
+     changes, stops as soon as the shared saveSettings() call resolves ok. */
+  .save-row { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .save-btn { background: #8b5cf6; }
+  .save-btn.pulse {
+    animation: saveGlowPulse 1.3s ease-in-out infinite;
+    background: #a873ff;
+  }
+  @keyframes saveGlowPulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(251,191,36,0); transform: scale(1); }
+    50% { box-shadow: 0 0 20px 5px rgba(251,191,36,.7); transform: scale(1.045); }
+  }
+  .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+  .analytics-tile { background: #100c20; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; }
+  .analytics-tile .value { font-size: 22px; font-weight: 700; color: #fff; }
+  .analytics-tile .label { color: #a999d6; font-size: 12px; margin-top: 4px; }
+  .analytics-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  .analytics-table th, .analytics-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #2f2258; color: #d8ccff; }
+  .analytics-bars { display: flex; align-items: flex-end; gap: 8px; height: 96px; margin: 18px 0 26px; }
+  .analytics-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+  .analytics-bar { width: 100%; background: #8b5cf6; border-radius: 4px 4px 0 0; min-height: 2px; }
+  .analytics-bar-label { position: absolute; bottom: -20px; font-size: 10px; color: #a999d6; }
   @media (max-width: 700px) {
     .grid, .checks, .runtime-grid { grid-template-columns: 1fr; }
     .hero { grid-template-columns: 72px 1fr; }
     .hero .badge { width: 72px; height: 72px; }
   }
-  .block-save-row { display: flex; justify-content: flex-end; margin-top: 14px; }
-  .block-save-btn { margin: 0; background: #374151; }
-  @keyframes pulseSaveGlow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,.55); background: #f59e0b; }
-    50% { box-shadow: 0 0 0 9px rgba(251,191,36,0); background: #fbbf24; }
-  }
-  .block-save-btn.pulse-save { animation: pulseSaveGlow 1.4s ease-in-out infinite; color: #1c1608; }
 </style>
 </head>
 <body>
@@ -144,7 +160,7 @@
     <div class="row-actions">
       <button class="danger" data-i18n="childDelete" onclick="clearChildProfile()">Удалить данные ребёнка</button>
     </div>
-    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="childPanel" onclick="saveSettings()">Сохранить блок</button></div>
+    <div class="save-row"><button class="save-btn" id="save-childPanel" type="button" data-i18n="blockSave" onclick="saveSettings()">Сохранить</button></div>
   </section>
 
   <section id="toyPanel">
@@ -200,7 +216,7 @@
         </div>
       </div>
     </div>
-    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="toyPanel" onclick="saveSettings()">Сохранить блок</button></div>
+    <div class="save-row"><button class="save-btn" id="save-toyPanel" type="button" data-i18n="blockSave" onclick="saveSettings()">Сохранить</button></div>
   </section>
 
   <section id="characterPanel">
@@ -260,7 +276,7 @@
     <label data-i18n="customCharacterNotes">Дополнительные пожелания к характеру</label>
     <textarea id="customCharacterNotes" maxlength="500"></textarea>
     <p class="small" data-i18n="customCharacterHint">До 500 символов. Не может ослаблять правила безопасности или заменять родителей.</p>
-    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="characterPanel" onclick="saveSettings()">Сохранить блок</button></div>
+    <div class="save-row"><button class="save-btn" id="save-characterPanel" type="button" data-i18n="blockSave" onclick="saveSettings()">Сохранить</button></div>
   </section>
 
   <section id="contentPanel">
@@ -307,7 +323,7 @@
         </select>
       </div>
     </div>
-    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="contentPanel" onclick="saveSettings()">Сохранить блок</button></div>
+    <div class="save-row"><button class="save-btn" id="save-contentPanel" type="button" data-i18n="blockSave" onclick="saveSettings()">Сохранить</button></div>
   </section>
 
   <section id="memoryPanel">
@@ -331,7 +347,7 @@
     <div class="row-actions">
       <button class="danger" type="button" data-i18n="memoryClearButton" onclick="clearMemoryFacts()">Очистить память</button>
     </div>
-    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="memoryPanel" onclick="saveSettings()">Сохранить блок</button></div>
+    <div class="save-row"><button class="save-btn" id="save-memoryPanel" type="button" data-i18n="blockSave" onclick="saveSettings()">Сохранить</button></div>
   </section>
 
   <section id="runtimePanel">
@@ -380,8 +396,8 @@
         </div>
       </div>
     </div>
-    <p class="small" data-i18n="runtimeHint">Сервер реально применяет эти ограничения: дневной лимит и ночной режим — обязательны (сессия завершается автоматически), напоминание о перерыве и вечерний режим — работают по-настоящему в реальном времени.</p>
-    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="runtimePanel" onclick="saveSettings()">Сохранить блок</button></div>
+    <p class="small" data-i18n="runtimeHint">Лимиты и ночной режим применяются сервером по-настоящему: сессия завершается автоматически, а не только напоминанием в промте.</p>
+    <div class="save-row"><button class="save-btn" id="save-runtimePanel" type="button" data-i18n="blockSave" onclick="saveSettings()">Сохранить</button></div>
   </section>
 
   <section id="profilesPanel">
@@ -426,7 +442,7 @@
         <button class="secondary" type="button" data-i18n="customPromptReset" onclick="resetCustomPrompt()">Сбросить к дефолтному</button>
       </div>
     </div>
-    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="customPromptPanel" data-i18n="customPromptSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить промт</button></div>
+    <div class="save-row"><button class="save-btn" id="save-customPromptPanel" type="button" data-i18n="customPromptSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить промт</button></div>
   </section>
 
   <section id="restrictionsPanel">
@@ -445,36 +461,45 @@
     <label data-i18n="previewTitle">Предпросмотр PARENT SETTINGS / RESTRICTIONS</label>
     <p class="small" data-i18n="previewHint">Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.</p>
     <div id="previewBox" class="preview-box"></div>
-    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="restrictionsPanel" onclick="saveSettings()">Сохранить блок</button></div>
-  </section>
-
-  <section id="analyticsPanel">
-    <h2 data-i18n="analyticsTitle">Аналитика</h2>
-    <p class="small" data-i18n="analyticsHint">Реальное время использования игрушки, отслеживаемое сервером.</p>
-    <div class="runtime-grid">
-      <div class="runtime-card">
-        <div class="small" data-i18n="analyticsTodayLabel">Сегодня использовано</div>
-        <div id="analyticsTodayValue" style="font-size:22px;font-weight:700;margin-top:4px">—</div>
-      </div>
-      <div class="runtime-card">
-        <div class="small" data-i18n="analyticsLimitLabel">Дневной лимит</div>
-        <div id="analyticsLimitValue" style="font-size:22px;font-weight:700;margin-top:4px">—</div>
-      </div>
-    </div>
-    <label data-i18n="analyticsDailyLabel">Использование за последние 7 дней</label>
-    <div id="analyticsDailyList" class="memory-card"></div>
-    <label data-i18n="analyticsSessionsLabel">Последние сессии</label>
-    <div id="analyticsSessionsList" class="memory-card"></div>
-    <div class="row-actions">
-      <button class="secondary" type="button" data-i18n="analyticsRefresh" onclick="refreshAnalytics()">Обновить</button>
-    </div>
+    <div class="save-row"><button class="save-btn" id="save-restrictionsPanel" type="button" data-i18n="blockSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить</button></div>
   </section>
 
   <div class="row-actions">
-    <button data-i18n="saveButton" onclick="saveSettings()">Сохранить настройки</button>
+    <button id="saveTop" class="save-btn" data-i18n="saveButton" onclick="saveSettings()">Сохранить настройки</button>
     <button class="secondary" data-i18n="resetButton" onclick="resetToBase()">Сбросить к базовым</button>
   </div>
   <div id="saveStatus" class="status"></div>
+
+  <section id="analyticsPanel">
+    <h2 data-i18n="analyticsTitle">Аналитика</h2>
+    <p class="small" data-i18n="analyticsHint">Реальное серверное время использования игрушки — не оценка, а фактические данные из БД.</p>
+    <div class="analytics-grid">
+      <div class="analytics-tile">
+        <div class="value" id="analyticsTodayMinutes">—</div>
+        <div class="label" data-i18n="analyticsTodayLabel">Сегодня использовано, мин</div>
+      </div>
+      <div class="analytics-tile">
+        <div class="value" id="analyticsLimitValue">—</div>
+        <div class="label" data-i18n="analyticsLimitLabel">Дневной лимит, мин</div>
+      </div>
+    </div>
+    <label data-i18n="analyticsWeekLabel">Использование за последние 7 дней</label>
+    <div id="analyticsBars" class="analytics-bars"></div>
+    <label data-i18n="analyticsSessionsLabel">Недавние сессии</label>
+    <div style="overflow-x:auto">
+      <table class="analytics-table">
+        <thead><tr>
+          <th data-i18n="analyticsColStart">Начало</th>
+          <th data-i18n="analyticsColDuration">Длительность</th>
+        </tr></thead>
+        <tbody id="analyticsSessionsBody"></tbody>
+      </table>
+    </div>
+    <div class="row-actions">
+      <button class="secondary" type="button" data-i18n="analyticsRefresh" onclick="loadAnalytics()">Обновить</button>
+    </div>
+    <div id="analyticsStatus" class="status"></div>
+  </section>
 
   <section id="dataDeletionPanel" class="data-delete-panel">
     <h2 data-i18n="deletionTitle">Удаление данных</h2>
@@ -964,9 +989,9 @@ function buildGeneratedRestrictionsAddition(s) {
   if (s.dailyLimitEnabled || s.nightModeEnabled || s.eveningModeEnabled) {
     lines.push('');
     lines.push('TIME');
-    if (s.dailyLimitEnabled && s.dailyLimitMinutes) lines.push(`- Daily usage limit: ${s.dailyLimitMinutes} minutes (soft reminder only, not enforced by this server yet).`);
-    if (s.nightModeEnabled) lines.push(`- Night mode: quietly decline play between ${s.nightModeStart} and ${s.nightModeEnd}, suggest resting.`);
-    if (s.eveningModeEnabled) lines.push(`- Evening calm mode after ${s.eveningModeStart}: quieter tone, shorter replies, no energetic games.`);
+    if (s.dailyLimitEnabled && s.dailyLimitMinutes) lines.push(`- Daily usage limit: ${s.dailyLimitMinutes} minutes. Enforced by the server itself (connection closes when reached).`);
+    if (s.nightModeEnabled) lines.push(`- Night mode window: ${s.nightModeStart}-${s.nightModeEnd}. Enforced by the server itself.`);
+    if (s.eveningModeEnabled) lines.push(`- Evening calm mode after ${s.eveningModeStart}: quieter tone, shorter replies, no energetic games (active only when the real current time is past this hour).`);
   }
 
   return lines.join('\n');
@@ -1014,45 +1039,31 @@ function showToast(text, ok = true) {
   setTimeout(() => toast.classList.add('hidden'), 2600);
 }
 
-// Real usage analytics, backed by GET /api/analytics/:deviceId (usage_sessions
-// table populated server-side by realtimeServer.js's periodic usage ticks).
-// Read-only — no dirty/pulse tracking here, just a manual refresh button.
-async function refreshAnalytics() {
-  const todayEl = document.getElementById('analyticsTodayValue');
-  const limitEl = document.getElementById('analyticsLimitValue');
-  const dailyEl = document.getElementById('analyticsDailyList');
-  const sessionsEl = document.getElementById('analyticsSessionsList');
-  if (!todayEl) return;
-  try {
-    const res = await fetch(`/api/analytics/${DEVICE_ID}`);
-    if (!res.ok) throw new Error('bad_status');
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'request_failed');
-
-    todayEl.textContent = `${data.today_minutes || 0} ${translate('analyticsMin')}`;
-    limitEl.textContent = data.daily_limit_enabled
-      ? `${data.daily_limit_minutes || 0} ${translate('analyticsMin')}`
-      : translate('analyticsNoLimit');
-
-    const daily = Array.isArray(data.daily_minutes_last_7_days) ? data.daily_minutes_last_7_days : [];
-    dailyEl.innerHTML = daily.length
-      ? daily.map((d) => `<div class="memory-row"><div class="memory-label">${escapeHtml(d.date)}</div><div>${d.minutes} ${translate('analyticsMin')}</div></div>`).join('')
-      : `<div>${translate('analyticsEmpty')}</div>`;
-
-    const sessions = Array.isArray(data.recent_sessions) ? data.recent_sessions : [];
-    sessionsEl.innerHTML = sessions.length
-      ? sessions.map((s) => {
-          const started = s.started_at ? new Date(s.started_at).toLocaleString() : '—';
-          const minutes = Math.round((s.duration_seconds || 0) / 60);
-          return `<div class="memory-row"><div class="memory-label">${escapeHtml(started)}</div><div>${minutes} ${translate('analyticsMin')}</div></div>`;
-        }).join('')
-      : `<div>${translate('analyticsEmpty')}</div>`;
-  } catch (err) {
-    todayEl.textContent = '—';
-    limitEl.textContent = '—';
-    dailyEl.innerHTML = `<div>${translate('analyticsEmpty')}</div>`;
-    sessionsEl.innerHTML = `<div>${translate('analyticsEmpty')}</div>`;
+// --- Dirty-state tracking for per-block pulsing save buttons ---------------
+// Every editable block gets a #save-<sectionId> button (bottom-right, own
+// row). Any input/change inside a section marks that section (and the top
+// global button) dirty -> pulse starts. saveSettings() reuses the single
+// existing PUT /api/settings + /api/memory call for the whole form (no
+// partial-field regression risk), so on success we simply clear pulsing
+// everywhere, since a full save always covers every block at once.
+const dirtyBlockButtonIds = new Set();
+function markBlockDirtyFromElement(el) {
+  const section = el.closest('section[id]');
+  if (!section) return;
+  const btn = document.getElementById(`save-${section.id}`);
+  if (btn) {
+    btn.classList.add('pulse');
+    dirtyBlockButtonIds.add(btn.id);
   }
+  const top = document.getElementById('saveTop');
+  if (top) { top.classList.add('pulse'); dirtyBlockButtonIds.add('saveTop'); }
+}
+function clearAllDirty() {
+  dirtyBlockButtonIds.forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.remove('pulse');
+  });
+  dirtyBlockButtonIds.clear();
 }
 
 // Server-side named snapshots (device_profiles table) — for switching
@@ -1081,26 +1092,6 @@ async function refreshProfilesSelect() {
     : `<option value="">${translate('profilesEmpty')}</option>`;
 }
 
-// Dirty-state tracking for the pulsing per-block save buttons. Every block
-// shares the same underlying save action (saveSettings() -> PUT
-// /api/settings/:deviceId with the full current settings object) — there is
-// no partial/per-field save on the server, so "saving one block" really
-// means "save everything, but only pulse the button for the block the
-// parent was actually editing". Pulsing starts on the first input/change in
-// a tracked field inside a <section id="..."> that has a .block-save-btn,
-// and clears for ALL blocks once a save completes (since saveSettings()
-// always saves the whole form).
-function markBlockDirty(el) {
-  const section = el.closest('section[id]');
-  if (!section) return;
-  const btn = section.querySelector('.block-save-btn');
-  if (btn) btn.classList.add('pulse-save');
-}
-
-function clearAllBlockDirty() {
-  document.querySelectorAll('.block-save-btn.pulse-save').forEach((btn) => btn.classList.remove('pulse-save'));
-}
-
 async function saveSettings() {
   readFormIntoCurrent();
   store.current = { ...current };
@@ -1117,7 +1108,7 @@ async function saveSettings() {
     statusEl.classList.remove('error');
     statusEl.textContent = translate('savedOk');
     showToast(translate('savedOk'), true);
-    clearAllBlockDirty();
+    clearAllDirty();
   } else {
     statusEl.classList.add('error');
     statusEl.textContent = translate('savedLocalOnly') + ' (' + result.error + ')';
@@ -1323,6 +1314,55 @@ async function clearMemoryFacts() {
   }
 }
 
+// --- Аналитика (real usage tracking from usage_sessions table) ------------
+function formatSessionStart(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(uiLang === 'ru' ? 'ru-RU' : uiLang === 'ro' ? 'ro-RO' : 'en-US', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
+  } catch (err) {
+    return iso || '';
+  }
+}
+function formatDurationSeconds(sec) {
+  const m = Math.floor((sec || 0) / 60);
+  const s = Math.floor((sec || 0) % 60);
+  return `${m}${translate('min')} ${s}s`;
+}
+
+async function loadAnalytics() {
+  const statusEl = document.getElementById('analyticsStatus');
+  statusEl.classList.remove('error');
+  statusEl.textContent = '';
+  try {
+    const res = await fetch(`/api/analytics/${DEVICE_ID}`);
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'request_failed');
+
+    document.getElementById('analyticsTodayMinutes').textContent = data.today_minutes ?? 0;
+    document.getElementById('analyticsLimitValue').textContent = data.daily_limit_enabled ? data.daily_limit_minutes : translate('unlimited');
+
+    const week = Array.isArray(data.daily_minutes_last_7_days) ? data.daily_minutes_last_7_days : [];
+    const maxMinutes = Math.max(1, ...week.map((d) => d.minutes));
+    const barsBox = document.getElementById('analyticsBars');
+    barsBox.innerHTML = week.map((d) => {
+      const heightPct = Math.max(2, Math.round((d.minutes / maxMinutes) * 100));
+      const dayLabel = (d.date || '').slice(5);
+      return `<div class="analytics-bar-wrap"><div class="analytics-bar" style="height:${heightPct}%" title="${d.minutes} min"></div><span class="analytics-bar-label">${escapeHtml(dayLabel)}</span></div>`;
+    }).join('');
+
+    const sessions = Array.isArray(data.recent_sessions) ? data.recent_sessions : [];
+    const body = document.getElementById('analyticsSessionsBody');
+    body.innerHTML = sessions.length
+      ? sessions.map((s) => `<tr><td>${escapeHtml(formatSessionStart(s.started_at))}</td><td>${escapeHtml(formatDurationSeconds(s.duration_seconds))}</td></tr>`).join('')
+      : `<tr><td colspan="2">${escapeHtml(translate('analyticsEmpty'))}</td></tr>`;
+  } catch (err) {
+    statusEl.classList.add('error');
+    statusEl.textContent = translate('analyticsError') + ' (' + (err.message || err) + ')';
+  }
+}
+
 // --- i18n ---------------------------------------------------------------
 const I18N = {
   ru: {
@@ -1336,7 +1376,7 @@ const I18N = {
     toyGender: 'Пол Луми', genderFemale: 'Женский', genderMale: 'Мужской', voiceSpeed: 'Скорость речи',
     speedSlow: 'Медленно', speedNormal: 'Нормально', speedFast: 'Быстро', voiceLabel: 'Голос Gemini Live',
     voicePreviewButton: 'Прослушать голос', voicePreviewTitle: 'Предпросмотр голоса будет подключён на следующем этапе',
-    voiceListHint: 'Список — официальные голоса Gemini Live API (30 вариантов).', volumeLabel: 'Громкость голоса',
+    voiceListHint: 'Список и характеристика тона — официальные голоса Gemini Live API (30 вариантов).', volumeLabel: 'Громкость голоса',
     childTitle: 'Ребёнок', childName: 'Имя ребёнка', ageGroup: 'Возрастная группа', childGender: 'Пол ребёнка (необязательно)',
     notSpecified: 'Не указывать', boy: 'Мальчик', girl: 'Девочка', interests: 'Интересы и любимые темы',
     interestsPlaceholder: 'Например: космос, динозавры, рисование', importantPeople: 'Важные люди и питомцы',
@@ -1376,11 +1416,7 @@ const I18N = {
     runtimeTitle: 'Время работы', dailyLimitToggle: 'Дневной лимит', customTime: 'Своё время', minutesPlaceholder: 'Например: 120',
     nightModeToggle: 'Ночной режим', nightFrom: 'Не работает с', nightUntil: 'Не работает до', breakReminderTitle: 'Напоминание о перерыве',
     noReminder: 'Не напоминать', eveningModeToggle: 'Спокойный вечерний режим', eveningStart: 'Спокойнее после',
-    runtimeHint: 'Сервер реально применяет эти ограничения: дневной лимит и ночной режим — обязательны (сессия завершается автоматически), напоминание о перерыве и вечерний режим — работают по-настоящему в реальном времени.',
-    analyticsTitle: 'Аналитика', analyticsHint: 'Реальное время использования игрушки, отслеживаемое сервером.',
-    analyticsTodayLabel: 'Сегодня использовано', analyticsLimitLabel: 'Дневной лимит',
-    analyticsDailyLabel: 'Использование за последние 7 дней', analyticsSessionsLabel: 'Последние сессии',
-    analyticsRefresh: 'Обновить', analyticsMin: 'мин', analyticsNoLimit: 'Без лимита', analyticsEmpty: 'Пока нет данных',
+    runtimeHint: 'Лимиты и ночной режим применяются сервером по-настоящему: сессия завершается автоматически, а не только напоминанием в промте.',
     safetyTitle: 'Безопасность', safetyIntro: 'Базовые правила безопасности всегда включены и не могут быть отключены.',
     safety1: 'Луми не просит личные данные', safety2: 'Не даёт опасных инструкций', safety3: 'Не просит хранить секреты от родителей',
     safety4: 'Не заменяет врача или взрослого', safety5: 'Не создаёт эмоциональную зависимость', safety6: 'При опасности направляет ребёнка к безопасному взрослому',
@@ -1388,10 +1424,14 @@ const I18N = {
     restrictionsAdditionHint: 'Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 16000 знаков.',
     restrictionsAdditionLabel: 'Дополнительные заметки родителя', restrictionsResetButton: 'Очистить заметки',
     previewTitle: 'Предпросмотр PARENT SETTINGS / RESTRICTIONS', previewHint: 'Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.',
-    saveButton: 'Сохранить настройки', resetButton: 'Сбросить к базовым',
+    saveButton: 'Сохранить настройки', resetButton: 'Сбросить к базовым', blockSave: 'Сохранить',
     deletionTitle: 'Удаление данных', deletionHint: 'Опасные действия собраны отдельно, чтобы не нажать их случайно.',
     deleteProfile: 'Удалить профиль ребёнка', clearMemory: 'Очистить память', deleteChildData: 'Удалить данные ребёнка', deleteAll: 'Удалить всё',
     memoryNotConnectedTitle: 'Память ещё не подключена',
+    analyticsTitle: 'Аналитика', analyticsHint: 'Реальное серверное время использования игрушки — не оценка, а фактические данные из БД.',
+    analyticsTodayLabel: 'Сегодня использовано, мин', analyticsLimitLabel: 'Дневной лимит, мин', analyticsWeekLabel: 'Использование за последние 7 дней',
+    analyticsSessionsLabel: 'Недавние сессии', analyticsColStart: 'Начало', analyticsColDuration: 'Длительность', analyticsRefresh: 'Обновить',
+    analyticsEmpty: 'Сессий пока нет', analyticsError: 'Не удалось загрузить аналитику',
     chipToyName: 'Игрушка', chipProfile: 'Профиль', chipProfileNone: 'нет активного', chipMemory: 'Память',
     chipDailyLimit: 'Дневной лимит', chipNightMode: 'Ночной режим', chipRealtime: 'Realtime-соединение', chipGemini: 'Gemini Live',
     chipNotConnected: 'не подключено', on: 'вкл', off: 'выкл', unlimited: 'без лимита', min: 'мин',
@@ -1453,11 +1493,7 @@ const I18N = {
     runtimeTitle: 'Program de funcționare', dailyLimitToggle: 'Limită zilnică', customTime: 'Timp personalizat', minutesPlaceholder: 'De exemplu: 120',
     nightModeToggle: 'Mod nocturn', nightFrom: 'Nu funcționează de la', nightUntil: 'Nu funcționează până la', breakReminderTitle: 'Memento de pauză',
     noReminder: 'Nu reaminti', eveningModeToggle: 'Mod liniștit de seară', eveningStart: 'Mai liniștit după',
-    runtimeHint: 'Serverul aplică efectiv aceste restricții: limita zilnică și modul nocturn sunt obligatorii (sesiunea se închide automat), memento de pauză și modul de seară funcționează în timp real.',
-    analyticsTitle: 'Analiză', analyticsHint: 'Timp real de utilizare a jucăriei, urmărit de server.',
-    analyticsTodayLabel: 'Folosit astăzi', analyticsLimitLabel: 'Limită zilnică',
-    analyticsDailyLabel: 'Utilizare în ultimele 7 zile', analyticsSessionsLabel: 'Sesiuni recente',
-    analyticsRefresh: 'Actualizează', analyticsMin: 'min', analyticsNoLimit: 'Fără limită', analyticsEmpty: 'Fără date încă',
+    runtimeHint: 'Limita zilnică și modul nocturn sunt aplicate real de server: sesiunea se încheie automat, nu doar printr-un indiciu în prompt.',
     safetyTitle: 'Siguranță', safetyIntro: 'Regulile de bază de siguranță sunt mereu active și nu pot fi dezactivate.',
     safety1: 'Lumi nu cere date personale', safety2: 'Nu oferă instrucțiuni periculoase', safety3: 'Nu cere să se ascundă secrete de părinți',
     safety4: 'Nu înlocuiește un medic sau un adult', safety5: 'Nu creează dependență emoțională', safety6: 'În caz de pericol, îndrumă copilul către un adult sigur',
@@ -1465,10 +1501,14 @@ const I18N = {
     restrictionsAdditionHint: 'Caracterul, conținutul și programul sunt deja incluse automat mai sus în previzualizare — acest câmp este pentru note suplimentare libere ale părintelui. Până la 16000 de caractere.',
     restrictionsAdditionLabel: 'Note suplimentare ale părintelui', restrictionsResetButton: 'Șterge notele',
     previewTitle: 'Previzualizare PARENT SETTINGS / RESTRICTIONS', previewHint: 'Așa vor fi transmise aceste setări în promptul de sistem Gemini Live. Se actualizează automat.',
-    saveButton: 'Salvează setările', resetButton: 'Resetează la valorile de bază',
+    saveButton: 'Salvează setările', resetButton: 'Resetează la valorile de bază', blockSave: 'Salvează',
     deletionTitle: 'Ștergere date', deletionHint: 'Acțiunile periculoase sunt separate, pentru a nu fi apăsate din greșeală.',
     deleteProfile: 'Șterge profilul copilului', clearMemory: 'Șterge memoria', deleteChildData: 'Șterge datele copilului', deleteAll: 'Șterge tot',
     memoryNotConnectedTitle: 'Memoria nu este încă conectată',
+    analyticsTitle: 'Analitice', analyticsHint: 'Timpul real de utilizare a jucăriei, măsurat de server — nu o estimare, ci date reale din baza de date.',
+    analyticsTodayLabel: 'Folosit azi, min', analyticsLimitLabel: 'Limită zilnică, min', analyticsWeekLabel: 'Utilizare în ultimele 7 zile',
+    analyticsSessionsLabel: 'Sesiuni recente', analyticsColStart: 'Început', analyticsColDuration: 'Durată', analyticsRefresh: 'Actualizează',
+    analyticsEmpty: 'Nicio sesiune încă', analyticsError: 'Nu s-au putut încărca analiticele',
     chipToyName: 'Jucărie', chipProfile: 'Profil', chipProfileNone: 'niciunul activ', chipMemory: 'Memorie',
     chipDailyLimit: 'Limită zilnică', chipNightMode: 'Mod nocturn', chipRealtime: 'Conexiune realtime', chipGemini: 'Gemini Live',
     chipNotConnected: 'neconectat', on: 'activ', off: 'inactiv', unlimited: 'fără limită', min: 'min',
@@ -1530,11 +1570,7 @@ const I18N = {
     runtimeTitle: 'Working hours', dailyLimitToggle: 'Daily limit', customTime: 'Custom time', minutesPlaceholder: 'E.g. 120',
     nightModeToggle: 'Night mode', nightFrom: 'Off from', nightUntil: 'Off until', breakReminderTitle: 'Break reminder',
     noReminder: 'No reminder', eveningModeToggle: 'Calm evening mode', eveningStart: 'Calmer after',
-    runtimeHint: 'The server actually enforces these limits: daily limit and night mode are hard blocks (the session is closed automatically), break reminders and evening mode run for real in real time.',
-    analyticsTitle: 'Analytics', analyticsHint: 'Real toy usage time, tracked server-side.',
-    analyticsTodayLabel: 'Used today', analyticsLimitLabel: 'Daily limit',
-    analyticsDailyLabel: 'Usage over the last 7 days', analyticsSessionsLabel: 'Recent sessions',
-    analyticsRefresh: 'Refresh', analyticsMin: 'min', analyticsNoLimit: 'No limit', analyticsEmpty: 'No data yet',
+    runtimeHint: 'The daily limit and night mode are enforced for real by the server: the session actually ends, not just a prompt hint.',
     safetyTitle: 'Safety', safetyIntro: 'Core safety rules are always on and cannot be turned off.',
     safety1: 'Lumi does not ask for personal data', safety2: 'Does not give dangerous instructions', safety3: 'Does not ask to keep secrets from parents',
     safety4: 'Does not replace a doctor or an adult', safety5: 'Does not create emotional dependency', safety6: 'Directs the child to a safe adult in danger',
@@ -1542,10 +1578,14 @@ const I18N = {
     restrictionsAdditionHint: 'Character, content, and working hours are already automatically included above in the preview — this field is for additional free-form parent notes on top of that. Up to 16000 characters.',
     restrictionsAdditionLabel: 'Additional parent notes', restrictionsResetButton: 'Clear notes',
     previewTitle: 'PARENT SETTINGS / RESTRICTIONS preview', previewHint: 'This is how these settings will be passed into the Gemini Live system prompt. Updates automatically.',
-    saveButton: 'Save settings', resetButton: 'Reset to base',
+    saveButton: 'Save settings', resetButton: 'Reset to base', blockSave: 'Save',
     deletionTitle: 'Data deletion', deletionHint: 'Dangerous actions are grouped separately so they are not pressed by accident.',
     deleteProfile: 'Delete child profile', clearMemory: 'Clear memory', deleteChildData: 'Delete child data', deleteAll: 'Delete everything',
     memoryNotConnectedTitle: 'Memory is not connected yet',
+    analyticsTitle: 'Analytics', analyticsHint: 'Real server-measured toy usage time — actual data from the database, not an estimate.',
+    analyticsTodayLabel: 'Used today, min', analyticsLimitLabel: 'Daily limit, min', analyticsWeekLabel: 'Usage over the last 7 days',
+    analyticsSessionsLabel: 'Recent sessions', analyticsColStart: 'Start', analyticsColDuration: 'Duration', analyticsRefresh: 'Refresh',
+    analyticsEmpty: 'No sessions yet', analyticsError: 'Could not load analytics',
     chipToyName: 'Toy', chipProfile: 'Profile', chipProfileNone: 'none active', chipMemory: 'Memory',
     chipDailyLimit: 'Daily limit', chipNightMode: 'Night mode', chipRealtime: 'Realtime connection', chipGemini: 'Gemini Live',
     chipNotConnected: 'not connected', on: 'on', off: 'off', unlimited: 'unlimited', min: 'min',
@@ -1693,9 +1733,10 @@ async function init() {
 
   document.querySelectorAll('main input, main select, main textarea').forEach((el) => {
     if (el.id === 'customPromptText') return; // считается отдельно, см. updateCustomPromptCounter
-    el.addEventListener('input', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirty(el); });
-    el.addEventListener('change', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirty(el); });
+    el.addEventListener('input', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirtyFromElement(el); });
+    el.addEventListener('change', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirtyFromElement(el); });
   });
+  document.getElementById('customPromptText').addEventListener('input', () => markBlockDirtyFromElement(document.getElementById('customPromptText')));
 
   await Promise.all([loadVoiceList(), loadDefaultCorePrompt(), loadBaseRestrictions()]);
   populateVoiceSelect();
@@ -1710,7 +1751,7 @@ async function init() {
     readFormIntoCurrent();
   }
   renderPreview();
-  refreshAnalytics();
+  loadAnalytics();
 }
 
 init();
