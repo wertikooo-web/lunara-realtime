@@ -7,9 +7,13 @@ on:
     paths:
       - scripts/apply-input-resampler-patch.js
       - .github/workflows/apply-input-resampler-patch.yml
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   apply:
