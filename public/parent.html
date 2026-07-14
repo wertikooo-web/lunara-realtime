@@ -77,6 +77,13 @@
     .hero { grid-template-columns: 72px 1fr; }
     .hero .badge { width: 72px; height: 72px; }
   }
+  .block-save-row { display: flex; justify-content: flex-end; margin-top: 14px; }
+  .block-save-btn { margin: 0; background: #374151; }
+  @keyframes pulseSaveGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,.55); background: #f59e0b; }
+    50% { box-shadow: 0 0 0 9px rgba(251,191,36,0); background: #fbbf24; }
+  }
+  .block-save-btn.pulse-save { animation: pulseSaveGlow 1.4s ease-in-out infinite; color: #1c1608; }
 </style>
 </head>
 <body>
@@ -100,22 +107,44 @@
 
   <div id="statusOverview" class="status-overview"></div>
 
-  <section id="profilesPanel">
-    <h2 data-i18n="profilesTitle">Профили</h2>
-    <p class="small" data-i18n="profilesHint">Можно сохранить текущие настройки как отдельный профиль ребёнка и быстро переключаться между ними.</p>
-    <label data-i18n="profilesSaved">Сохранённые профили</label>
-    <div class="row-actions">
-      <select id="savedProfiles"></select>
-      <button class="secondary" data-i18n="profilesChoose" onclick="loadProfile()">Выбрать профиль</button>
+  <section id="childPanel">
+    <h2 data-i18n="childTitle">Ребёнок</h2>
+    <div class="grid">
+      <div>
+        <label data-i18n="childName">Имя ребёнка</label>
+        <input id="childName" maxlength="40">
+      </div>
+      <div>
+        <label data-i18n="ageGroup">Возрастная группа</label>
+        <select id="ageGroup">
+          <option value="3-4">3–4</option>
+          <option value="5-6">5–6</option>
+          <option value="7-8">7–8</option>
+        </select>
+      </div>
+      <div>
+        <label data-i18n="childGender">Пол ребёнка (необязательно)</label>
+        <select id="childGender">
+          <option value="" data-i18n="notSpecified">Не указывать</option>
+          <option value="M" data-i18n="boy">Мальчик</option>
+          <option value="F" data-i18n="girl">Девочка</option>
+        </select>
+      </div>
     </div>
-    <div id="activeProfileStatus" class="small"></div>
-    <label data-i18n="profilesAddName">Добавить профиль</label>
+    <label data-i18n="interests">Интересы и любимые темы</label>
+    <input id="interests" maxlength="200" data-i18n-placeholder="interestsPlaceholder" placeholder="Например: космос, динозавры, рисование">
+    <label data-i18n="importantPeople">Важные люди и питомцы</label>
+    <input id="importantPeople" maxlength="200" data-i18n-placeholder="importantPeoplePlaceholder" placeholder="Например: бабушка Таня, кот Барсик">
+    <label data-i18n="calmingThings">Что помогает успокоиться</label>
+    <input id="calmingThings" maxlength="200" data-i18n-placeholder="calmingPlaceholder" placeholder="Например: тихая сказка, обнять игрушку">
+    <label data-i18n="avoidedTopics">Темы, которых ребёнок боится или не любит</label>
+    <input id="avoidedTopics" maxlength="200" data-i18n-placeholder="avoidedPlaceholder" placeholder="Например: темнота, громкие звуки">
+    <label data-i18n="communicationNotes">Особенности общения (дополнительный контекст)</label>
+    <textarea id="communicationNotes" maxlength="500"></textarea>
     <div class="row-actions">
-      <input id="profileName" maxlength="40" data-i18n-placeholder="profilesAddPlaceholder" placeholder="Например: Профиль 1 или Маша">
-      <button data-i18n="profilesSave" onclick="saveProfileAs()">Сохранить профиль</button>
+      <button class="danger" data-i18n="childDelete" onclick="clearChildProfile()">Удалить данные ребёнка</button>
     </div>
-    <button class="secondary" data-i18n="profilesReset" onclick="resetToBase()">Базовый профиль по умолчанию</button>
-    <div id="profileStatus" class="status"></div>
+    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="childPanel" onclick="saveSettings()">Сохранить блок</button></div>
   </section>
 
   <section id="toyPanel">
@@ -171,45 +200,7 @@
         </div>
       </div>
     </div>
-  </section>
-
-  <section id="childPanel">
-    <h2 data-i18n="childTitle">Ребёнок</h2>
-    <div class="grid">
-      <div>
-        <label data-i18n="childName">Имя ребёнка</label>
-        <input id="childName" maxlength="40">
-      </div>
-      <div>
-        <label data-i18n="ageGroup">Возрастная группа</label>
-        <select id="ageGroup">
-          <option value="3-4">3–4</option>
-          <option value="5-6">5–6</option>
-          <option value="7-8">7–8</option>
-        </select>
-      </div>
-      <div>
-        <label data-i18n="childGender">Пол ребёнка (необязательно)</label>
-        <select id="childGender">
-          <option value="" data-i18n="notSpecified">Не указывать</option>
-          <option value="M" data-i18n="boy">Мальчик</option>
-          <option value="F" data-i18n="girl">Девочка</option>
-        </select>
-      </div>
-    </div>
-    <label data-i18n="interests">Интересы и любимые темы</label>
-    <input id="interests" maxlength="200" data-i18n-placeholder="interestsPlaceholder" placeholder="Например: космос, динозавры, рисование">
-    <label data-i18n="importantPeople">Важные люди и питомцы</label>
-    <input id="importantPeople" maxlength="200" data-i18n-placeholder="importantPeoplePlaceholder" placeholder="Например: бабушка Таня, кот Барсик">
-    <label data-i18n="calmingThings">Что помогает успокоиться</label>
-    <input id="calmingThings" maxlength="200" data-i18n-placeholder="calmingPlaceholder" placeholder="Например: тихая сказка, обнять игрушку">
-    <label data-i18n="avoidedTopics">Темы, которых ребёнок боится или не любит</label>
-    <input id="avoidedTopics" maxlength="200" data-i18n-placeholder="avoidedPlaceholder" placeholder="Например: темнота, громкие звуки">
-    <label data-i18n="communicationNotes">Особенности общения (дополнительный контекст)</label>
-    <textarea id="communicationNotes" maxlength="500"></textarea>
-    <div class="row-actions">
-      <button class="danger" data-i18n="childDelete" onclick="clearChildProfile()">Удалить данные ребёнка</button>
-    </div>
+    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="toyPanel" onclick="saveSettings()">Сохранить блок</button></div>
   </section>
 
   <section id="characterPanel">
@@ -269,6 +260,7 @@
     <label data-i18n="customCharacterNotes">Дополнительные пожелания к характеру</label>
     <textarea id="customCharacterNotes" maxlength="500"></textarea>
     <p class="small" data-i18n="customCharacterHint">До 500 символов. Не может ослаблять правила безопасности или заменять родителей.</p>
+    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="characterPanel" onclick="saveSettings()">Сохранить блок</button></div>
   </section>
 
   <section id="contentPanel">
@@ -315,6 +307,7 @@
         </select>
       </div>
     </div>
+    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="contentPanel" onclick="saveSettings()">Сохранить блок</button></div>
   </section>
 
   <section id="memoryPanel">
@@ -338,6 +331,7 @@
     <div class="row-actions">
       <button class="danger" type="button" data-i18n="memoryClearButton" onclick="clearMemoryFacts()">Очистить память</button>
     </div>
+    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="memoryPanel" onclick="saveSettings()">Сохранить блок</button></div>
   </section>
 
   <section id="runtimePanel">
@@ -386,7 +380,26 @@
         </div>
       </div>
     </div>
-    <p class="small" data-i18n="runtimeHint">На этом этапе сервер ещё не применяет ограничения автоматически — сохраняются только настройки.</p>
+    <p class="small" data-i18n="runtimeHint">Сервер реально применяет эти ограничения: дневной лимит и ночной режим — обязательны (сессия завершается автоматически), напоминание о перерыве и вечерний режим — работают по-настоящему в реальном времени.</p>
+    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="runtimePanel" onclick="saveSettings()">Сохранить блок</button></div>
+  </section>
+
+  <section id="profilesPanel">
+    <h2 data-i18n="profilesTitle">Профили</h2>
+    <p class="small" data-i18n="profilesHint">Можно сохранить текущие настройки как отдельный профиль ребёнка и быстро переключаться между ними.</p>
+    <label data-i18n="profilesSaved">Сохранённые профили</label>
+    <div class="row-actions">
+      <select id="savedProfiles"></select>
+      <button class="secondary" data-i18n="profilesChoose" onclick="loadProfile()">Выбрать профиль</button>
+    </div>
+    <div id="activeProfileStatus" class="small"></div>
+    <label data-i18n="profilesAddName">Добавить профиль</label>
+    <div class="row-actions">
+      <input id="profileName" maxlength="40" data-i18n-placeholder="profilesAddPlaceholder" placeholder="Например: Профиль 1 или Маша">
+      <button data-i18n="profilesSave" onclick="saveProfileAs()">Сохранить профиль</button>
+    </div>
+    <button class="secondary" data-i18n="profilesReset" onclick="resetToBase()">Базовый профиль по умолчанию</button>
+    <div id="profileStatus" class="status"></div>
   </section>
 
   <section class="safety-block">
@@ -411,9 +424,9 @@
       <span id="customPromptCounter" class="small">0 / 16000</span>
       <div>
         <button class="secondary" type="button" data-i18n="customPromptReset" onclick="resetCustomPrompt()">Сбросить к дефолтному</button>
-        <button type="button" data-i18n="customPromptSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить промт</button>
       </div>
     </div>
+    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="customPromptPanel" data-i18n="customPromptSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить промт</button></div>
   </section>
 
   <section id="restrictionsPanel">
@@ -432,6 +445,29 @@
     <label data-i18n="previewTitle">Предпросмотр PARENT SETTINGS / RESTRICTIONS</label>
     <p class="small" data-i18n="previewHint">Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.</p>
     <div id="previewBox" class="preview-box"></div>
+    <div class="block-save-row"><button type="button" class="block-save-btn" data-block="restrictionsPanel" onclick="saveSettings()">Сохранить блок</button></div>
+  </section>
+
+  <section id="analyticsPanel">
+    <h2 data-i18n="analyticsTitle">Аналитика</h2>
+    <p class="small" data-i18n="analyticsHint">Реальное время использования игрушки, отслеживаемое сервером.</p>
+    <div class="runtime-grid">
+      <div class="runtime-card">
+        <div class="small" data-i18n="analyticsTodayLabel">Сегодня использовано</div>
+        <div id="analyticsTodayValue" style="font-size:22px;font-weight:700;margin-top:4px">—</div>
+      </div>
+      <div class="runtime-card">
+        <div class="small" data-i18n="analyticsLimitLabel">Дневной лимит</div>
+        <div id="analyticsLimitValue" style="font-size:22px;font-weight:700;margin-top:4px">—</div>
+      </div>
+    </div>
+    <label data-i18n="analyticsDailyLabel">Использование за последние 7 дней</label>
+    <div id="analyticsDailyList" class="memory-card"></div>
+    <label data-i18n="analyticsSessionsLabel">Последние сессии</label>
+    <div id="analyticsSessionsList" class="memory-card"></div>
+    <div class="row-actions">
+      <button class="secondary" type="button" data-i18n="analyticsRefresh" onclick="refreshAnalytics()">Обновить</button>
+    </div>
   </section>
 
   <div class="row-actions">
@@ -978,6 +1014,47 @@ function showToast(text, ok = true) {
   setTimeout(() => toast.classList.add('hidden'), 2600);
 }
 
+// Real usage analytics, backed by GET /api/analytics/:deviceId (usage_sessions
+// table populated server-side by realtimeServer.js's periodic usage ticks).
+// Read-only — no dirty/pulse tracking here, just a manual refresh button.
+async function refreshAnalytics() {
+  const todayEl = document.getElementById('analyticsTodayValue');
+  const limitEl = document.getElementById('analyticsLimitValue');
+  const dailyEl = document.getElementById('analyticsDailyList');
+  const sessionsEl = document.getElementById('analyticsSessionsList');
+  if (!todayEl) return;
+  try {
+    const res = await fetch(`/api/analytics/${DEVICE_ID}`);
+    if (!res.ok) throw new Error('bad_status');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'request_failed');
+
+    todayEl.textContent = `${data.today_minutes || 0} ${translate('analyticsMin')}`;
+    limitEl.textContent = data.daily_limit_enabled
+      ? `${data.daily_limit_minutes || 0} ${translate('analyticsMin')}`
+      : translate('analyticsNoLimit');
+
+    const daily = Array.isArray(data.daily_minutes_last_7_days) ? data.daily_minutes_last_7_days : [];
+    dailyEl.innerHTML = daily.length
+      ? daily.map((d) => `<div class="memory-row"><div class="memory-label">${escapeHtml(d.date)}</div><div>${d.minutes} ${translate('analyticsMin')}</div></div>`).join('')
+      : `<div>${translate('analyticsEmpty')}</div>`;
+
+    const sessions = Array.isArray(data.recent_sessions) ? data.recent_sessions : [];
+    sessionsEl.innerHTML = sessions.length
+      ? sessions.map((s) => {
+          const started = s.started_at ? new Date(s.started_at).toLocaleString() : '—';
+          const minutes = Math.round((s.duration_seconds || 0) / 60);
+          return `<div class="memory-row"><div class="memory-label">${escapeHtml(started)}</div><div>${minutes} ${translate('analyticsMin')}</div></div>`;
+        }).join('')
+      : `<div>${translate('analyticsEmpty')}</div>`;
+  } catch (err) {
+    todayEl.textContent = '—';
+    limitEl.textContent = '—';
+    dailyEl.innerHTML = `<div>${translate('analyticsEmpty')}</div>`;
+    sessionsEl.innerHTML = `<div>${translate('analyticsEmpty')}</div>`;
+  }
+}
+
 // Server-side named snapshots (device_profiles table) — for switching
 // between children sharing one toy. Falls back to the old local-only
 // list if the server/memory feature is unavailable.
@@ -1004,6 +1081,26 @@ async function refreshProfilesSelect() {
     : `<option value="">${translate('profilesEmpty')}</option>`;
 }
 
+// Dirty-state tracking for the pulsing per-block save buttons. Every block
+// shares the same underlying save action (saveSettings() -> PUT
+// /api/settings/:deviceId with the full current settings object) — there is
+// no partial/per-field save on the server, so "saving one block" really
+// means "save everything, but only pulse the button for the block the
+// parent was actually editing". Pulsing starts on the first input/change in
+// a tracked field inside a <section id="..."> that has a .block-save-btn,
+// and clears for ALL blocks once a save completes (since saveSettings()
+// always saves the whole form).
+function markBlockDirty(el) {
+  const section = el.closest('section[id]');
+  if (!section) return;
+  const btn = section.querySelector('.block-save-btn');
+  if (btn) btn.classList.add('pulse-save');
+}
+
+function clearAllBlockDirty() {
+  document.querySelectorAll('.block-save-btn.pulse-save').forEach((btn) => btn.classList.remove('pulse-save'));
+}
+
 async function saveSettings() {
   readFormIntoCurrent();
   store.current = { ...current };
@@ -1020,6 +1117,7 @@ async function saveSettings() {
     statusEl.classList.remove('error');
     statusEl.textContent = translate('savedOk');
     showToast(translate('savedOk'), true);
+    clearAllBlockDirty();
   } else {
     statusEl.classList.add('error');
     statusEl.textContent = translate('savedLocalOnly') + ' (' + result.error + ')';
@@ -1278,7 +1376,11 @@ const I18N = {
     runtimeTitle: 'Время работы', dailyLimitToggle: 'Дневной лимит', customTime: 'Своё время', minutesPlaceholder: 'Например: 120',
     nightModeToggle: 'Ночной режим', nightFrom: 'Не работает с', nightUntil: 'Не работает до', breakReminderTitle: 'Напоминание о перерыве',
     noReminder: 'Не напоминать', eveningModeToggle: 'Спокойный вечерний режим', eveningStart: 'Спокойнее после',
-    runtimeHint: 'На этом этапе сервер ещё не применяет ограничения автоматически — сохраняются только настройки.',
+    runtimeHint: 'Сервер реально применяет эти ограничения: дневной лимит и ночной режим — обязательны (сессия завершается автоматически), напоминание о перерыве и вечерний режим — работают по-настоящему в реальном времени.',
+    analyticsTitle: 'Аналитика', analyticsHint: 'Реальное время использования игрушки, отслеживаемое сервером.',
+    analyticsTodayLabel: 'Сегодня использовано', analyticsLimitLabel: 'Дневной лимит',
+    analyticsDailyLabel: 'Использование за последние 7 дней', analyticsSessionsLabel: 'Последние сессии',
+    analyticsRefresh: 'Обновить', analyticsMin: 'мин', analyticsNoLimit: 'Без лимита', analyticsEmpty: 'Пока нет данных',
     safetyTitle: 'Безопасность', safetyIntro: 'Базовые правила безопасности всегда включены и не могут быть отключены.',
     safety1: 'Луми не просит личные данные', safety2: 'Не даёт опасных инструкций', safety3: 'Не просит хранить секреты от родителей',
     safety4: 'Не заменяет врача или взрослого', safety5: 'Не создаёт эмоциональную зависимость', safety6: 'При опасности направляет ребёнка к безопасному взрослому',
@@ -1351,7 +1453,11 @@ const I18N = {
     runtimeTitle: 'Program de funcționare', dailyLimitToggle: 'Limită zilnică', customTime: 'Timp personalizat', minutesPlaceholder: 'De exemplu: 120',
     nightModeToggle: 'Mod nocturn', nightFrom: 'Nu funcționează de la', nightUntil: 'Nu funcționează până la', breakReminderTitle: 'Memento de pauză',
     noReminder: 'Nu reaminti', eveningModeToggle: 'Mod liniștit de seară', eveningStart: 'Mai liniștit după',
-    runtimeHint: 'În această etapă serverul nu aplică încă restricțiile automat — se salvează doar setările.',
+    runtimeHint: 'Serverul aplică efectiv aceste restricții: limita zilnică și modul nocturn sunt obligatorii (sesiunea se închide automat), memento de pauză și modul de seară funcționează în timp real.',
+    analyticsTitle: 'Analiză', analyticsHint: 'Timp real de utilizare a jucăriei, urmărit de server.',
+    analyticsTodayLabel: 'Folosit astăzi', analyticsLimitLabel: 'Limită zilnică',
+    analyticsDailyLabel: 'Utilizare în ultimele 7 zile', analyticsSessionsLabel: 'Sesiuni recente',
+    analyticsRefresh: 'Actualizează', analyticsMin: 'min', analyticsNoLimit: 'Fără limită', analyticsEmpty: 'Fără date încă',
     safetyTitle: 'Siguranță', safetyIntro: 'Regulile de bază de siguranță sunt mereu active și nu pot fi dezactivate.',
     safety1: 'Lumi nu cere date personale', safety2: 'Nu oferă instrucțiuni periculoase', safety3: 'Nu cere să se ascundă secrete de părinți',
     safety4: 'Nu înlocuiește un medic sau un adult', safety5: 'Nu creează dependență emoțională', safety6: 'În caz de pericol, îndrumă copilul către un adult sigur',
@@ -1424,7 +1530,11 @@ const I18N = {
     runtimeTitle: 'Working hours', dailyLimitToggle: 'Daily limit', customTime: 'Custom time', minutesPlaceholder: 'E.g. 120',
     nightModeToggle: 'Night mode', nightFrom: 'Off from', nightUntil: 'Off until', breakReminderTitle: 'Break reminder',
     noReminder: 'No reminder', eveningModeToggle: 'Calm evening mode', eveningStart: 'Calmer after',
-    runtimeHint: 'At this stage the server does not yet enforce the limits automatically - only the settings are saved.',
+    runtimeHint: 'The server actually enforces these limits: daily limit and night mode are hard blocks (the session is closed automatically), break reminders and evening mode run for real in real time.',
+    analyticsTitle: 'Analytics', analyticsHint: 'Real toy usage time, tracked server-side.',
+    analyticsTodayLabel: 'Used today', analyticsLimitLabel: 'Daily limit',
+    analyticsDailyLabel: 'Usage over the last 7 days', analyticsSessionsLabel: 'Recent sessions',
+    analyticsRefresh: 'Refresh', analyticsMin: 'min', analyticsNoLimit: 'No limit', analyticsEmpty: 'No data yet',
     safetyTitle: 'Safety', safetyIntro: 'Core safety rules are always on and cannot be turned off.',
     safety1: 'Lumi does not ask for personal data', safety2: 'Does not give dangerous instructions', safety3: 'Does not ask to keep secrets from parents',
     safety4: 'Does not replace a doctor or an adult', safety5: 'Does not create emotional dependency', safety6: 'Directs the child to a safe adult in danger',
@@ -1583,8 +1693,8 @@ async function init() {
 
   document.querySelectorAll('main input, main select, main textarea').forEach((el) => {
     if (el.id === 'customPromptText') return; // считается отдельно, см. updateCustomPromptCounter
-    el.addEventListener('input', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); });
-    el.addEventListener('change', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); });
+    el.addEventListener('input', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirty(el); });
+    el.addEventListener('change', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirty(el); });
   });
 
   await Promise.all([loadVoiceList(), loadDefaultCorePrompt(), loadBaseRestrictions()]);
@@ -1600,6 +1710,7 @@ async function init() {
     readFormIntoCurrent();
   }
   renderPreview();
+  refreshAnalytics();
 }
 
 init();

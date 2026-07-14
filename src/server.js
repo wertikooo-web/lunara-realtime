@@ -98,7 +98,7 @@ function readJsonBody(req) {
     });
 }
 
-const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/realtime'];
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
@@ -289,6 +289,37 @@ const server = http.createServer(async (req, res) => {
                 : code === 'body_too_large' ? 413
                     : code === 'invalid_json' ? 400
                         : 500;
+            return sendJson(res, statusCode, { ok: false, error: code });
+        }
+    }
+
+    const analyticsMatch = /^\/api\/analytics\/([^/]+)\/?$/.exec(req.url);
+    if (analyticsMatch && req.method === 'GET') {
+        const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(analyticsMatch[1]));
+        try {
+            await ensureMemoryReady();
+            const [settings, todayMinutes, recentSessions, dailyMinutes] = await Promise.all([
+                memoryStore.getOrCreateSettings(deviceId),
+                memoryStore.getUsageMinutesToday(deviceId),
+                memoryStore.getRecentUsageSessions(deviceId, 15),
+                memoryStore.getDailyUsageMinutes(deviceId, 7),
+            ]);
+            return sendJson(res, 200, {
+                ok: true,
+                today_minutes: todayMinutes,
+                daily_limit_enabled: !!settings.daily_limit_enabled,
+                daily_limit_minutes: settings.daily_limit_minutes || 0,
+                recent_sessions: recentSessions.map((s) => ({
+                    id: s.id,
+                    started_at: s.started_at,
+                    ended_at: s.ended_at,
+                    duration_seconds: s.duration_seconds,
+                })),
+                daily_minutes_last_7_days: dailyMinutes,
+            });
+        } catch (error) {
+            const code = error.code || 'analytics_request_failed';
+            const statusCode = code === 'memory_disabled' ? 503 : 500;
             return sendJson(res, statusCode, { ok: false, error: code });
         }
     }

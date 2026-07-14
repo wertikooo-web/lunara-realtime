@@ -107,6 +107,41 @@ function detectLanguageSignal(text) {
     };
 }
 
+// ---- Working-hours enforcement time helpers -----------------------------
+// Compared against the server process's local clock (Date#getHours /
+// getMinutes). Railway runs each service in a single fixed container
+// timezone, so "server time" is a stable, documented stand-in for a
+// per-device timezone we don't otherwise store.
+function timeStringToMinutes(str) {
+    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(str || ''));
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function nowMinutes(now = new Date()) {
+    return now.getHours() * 60 + now.getMinutes();
+}
+
+// Handles overnight windows (e.g. 22:00-07:00) as well as same-day ones.
+function isWithinNightWindow(settings, now = new Date()) {
+    if (!settings || !settings.night_mode_enabled) return false;
+    const start = timeStringToMinutes(settings.night_mode_start);
+    const end = timeStringToMinutes(settings.night_mode_end);
+    if (start == null || end == null) return false;
+    const cur = nowMinutes(now);
+    if (start === end) return false;
+    if (start < end) return cur >= start && cur < end;
+    return cur >= start || cur < end; // wraps past midnight
+}
+
+// Soft toggle: active from evening_mode_start until local midnight.
+function isEveningModeActive(settings, now = new Date()) {
+    if (!settings || !settings.evening_mode_enabled) return false;
+    const start = timeStringToMinutes(settings.evening_mode_start);
+    if (start == null) return false;
+    return nowMinutes(now) >= start;
+}
+
 function createCancellation() {
     return {
         cancelled: false,
@@ -205,6 +240,114 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
     let deviceId = memoryStore.normalizeDeviceId();
     const memoryEnabledFlag = memoryEnabledFromEnv();
+
+    // ---- Usage tracking / working-hours enforcement state ----
+    // usageSessionId is created lazily on the first successful session.start
+    // (once we know the real deviceId) and reused across rotations within
+    // this same socket connection. lastUsageTickAt anchors the periodic
+    // flush so we only ever add the seconds actually elapsed, even if a
+    // tick is delayed under load.
+    let usageSessionId = null;
+    let usageSessionStartedAt = 0;
+    let lastUsageTickAt = 0;
+    let cachedDeviceSettings = null;
+    let lastBreakReminderMinuteMark = 0;
+    let usageTickTimer = null;
+    let sessionBlocked = false;
+
+    async function flushUsageTicks(finalFlush = false) {
+        if (!memoryEnabledFlag || !usageSessionId) return;
+        const now = Date.now();
+        const elapsedSeconds = lastUsageTickAt ? (now - lastUsageTickAt) / 1000 : 0;
+        lastUsageTickAt = now;
+        try {
+            if (elapsedSeconds > 0) {
+                await memoryStore.addUsageSeconds(usageSessionId, elapsedSeconds);
+            }
+            if (finalFlush) {
+                await memoryStore.endUsageSession(usageSessionId);
+            }
+        } catch (error) {
+            log('usage_tick_error', { message: error.message });
+        }
+    }
+
+    // Runs on every session.start and on a periodic timer while a session
+    // is open. Returns { blocked, reason, message } — blocked=true means the
+    // caller must refuse/terminate the connection right now.
+    async function evaluateUsagePolicy() {
+        if (!memoryEnabledFlag) return { blocked: false };
+        const settings = cachedDeviceSettings || await fetchDeviceSettings(deviceId);
+        if (!settings) return { blocked: false };
+        cachedDeviceSettings = settings;
+
+        if (isWithinNightWindow(settings, new Date())) {
+            return {
+                blocked: true,
+                reason: 'night_mode',
+                message: `It's quiet hours (${settings.night_mode_start}-${settings.night_mode_end}). Time to rest — try again after night mode ends.`,
+            };
+        }
+        if (settings.daily_limit_enabled && settings.daily_limit_minutes > 0) {
+            const usedMinutes = await memoryStore.getUsageMinutesToday(deviceId);
+            if (usedMinutes >= settings.daily_limit_minutes) {
+                return {
+                    blocked: true,
+                    reason: 'daily_limit',
+                    message: `Today's play time limit of ${settings.daily_limit_minutes} minutes has been reached. See you tomorrow!`,
+                };
+            }
+        }
+        return { blocked: false };
+    }
+
+    function maybeSendBreakReminder(settings) {
+        if (!settings || !settings.break_reminder_minutes || settings.break_reminder_minutes <= 0) return;
+        if (!usageSessionStartedAt) return;
+        const elapsedMinutes = (Date.now() - usageSessionStartedAt) / 60000;
+        const mark = Math.floor(elapsedMinutes / settings.break_reminder_minutes);
+        if (mark > 0 && mark > lastBreakReminderMinuteMark) {
+            lastBreakReminderMinuteMark = mark;
+            emit({
+                type: 'break_reminder',
+                minutes_elapsed: Math.floor(elapsedMinutes),
+                break_reminder_minutes: settings.break_reminder_minutes,
+                message: 'You have been playing for a while — how about a short break?',
+            });
+            log('break_reminder_sent', { deviceId, elapsedMinutes: Math.floor(elapsedMinutes) });
+        }
+    }
+
+    async function enforcementTick() {
+        if (!memoryEnabledFlag || !usageSessionId || sessionBlocked || socketClosed) return;
+        await flushUsageTicks(false);
+        const policy = await evaluateUsagePolicy();
+        if (policy.blocked) {
+            terminateForPolicy(policy);
+            return;
+        }
+        maybeSendBreakReminder(cachedDeviceSettings);
+    }
+
+    function terminateForPolicy(policy) {
+        if (sessionBlocked) return;
+        sessionBlocked = true;
+        emit({
+            type: 'session.blocked',
+            reason: policy.reason,
+            message: policy.message,
+        });
+        log('session_blocked', { deviceId, reason: policy.reason });
+        flushUsageTicks(true).finally(() => {
+            closeProvider('policy_' + policy.reason);
+            sendClose(socket);
+        });
+    }
+
+    usageTickTimer = setInterval(() => {
+        enforcementTick().catch((error) => log('enforcement_tick_error', { message: error.message }));
+    }, 20000);
+    if (typeof usageTickTimer.unref === 'function') usageTickTimer.unref();
 
     async function fetchChildContext(forDeviceId) {
         try {
@@ -1260,6 +1403,33 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             }
             (async () => {
                 try {
+                    // Working-hours enforcement gate: refuse the session.start
+                    // outright (before touching the provider at all) if night
+                    // mode is currently active or today's daily limit is already
+                    // used up. This is a hard server-side check, not a prompt hint.
+                    if (memoryEnabledFlag) {
+                        cachedDeviceSettings = await fetchDeviceSettings(deviceId);
+                        const policy = await evaluateUsagePolicy();
+                        if (policy.blocked) {
+                            sessionBlocked = true;
+                            emit({
+                                type: 'session.blocked',
+                                reason: policy.reason,
+                                message: policy.message,
+                            });
+                            log('session_start_blocked', { deviceId, reason: policy.reason });
+                            return;
+                        }
+                        sessionBlocked = false;
+                        if (!usageSessionId) {
+                            usageSessionId = await memoryStore.startUsageSession(deviceId);
+                            usageSessionStartedAt = Date.now();
+                            lastUsageTickAt = Date.now();
+                            lastBreakReminderMinuteMark = 0;
+                            log('usage_session_started', { deviceId, usageSessionId });
+                        }
+                    }
+
                     const sanitized = sanitizePromptConfig(payload.config || {}, {
                         allowCustomPrompt: LAB_ALLOW_CUSTOM_PROMPT,
                     });
@@ -1273,7 +1443,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     if (memoryEnabledFlag) {
                         const [dbChildContext, dbSettings] = await Promise.all([
                             fetchChildContext(deviceId),
-                            fetchDeviceSettings(deviceId),
+                            Promise.resolve(cachedDeviceSettings),
                         ]);
                         if (dbChildContext) {
                             promptBlocks = { ...promptBlocks, childContext: dbChildContext };
@@ -1285,7 +1455,11 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                             // effect on save, not just after a manual "regenerate" click.
                             // restrictions_addition is now a free-text addendum on top of
                             // the generated block, not the only carrier of these settings.
-                            const generated = memoryStore.formatParentRulesAddition(dbSettings);
+                            const settingsWithLiveTime = {
+                                ...dbSettings,
+                                _eveningModeActiveNow: isEveningModeActive(dbSettings, new Date()),
+                            };
+                            const generated = memoryStore.formatParentRulesAddition(settingsWithLiveTime);
                             const parentAddition = [generated, dbSettings.restrictions_addition]
                                 .map((part) => String(part || '').trim())
                                 .filter(Boolean)
@@ -1417,6 +1591,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     socket.on('close', () => {
         socketClosed = true;
         closeProvider('disconnect');
+        if (usageTickTimer) clearInterval(usageTickTimer);
+        flushUsageTicks(true).catch((error) => log('usage_final_flush_error', { message: error.message }));
         log('disconnect', { connectedMs: Date.now() - connectedAt });
     });
 

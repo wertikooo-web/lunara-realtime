@@ -174,6 +174,26 @@ async function init() {
     `);
     await pool.query('CREATE INDEX IF NOT EXISTS device_profiles_device_id_idx ON device_profiles (device_id, created_at);');
 
+    // Real server-side usage tracking backing the "working hours" enforcement
+    // (daily limit / night mode / break reminders). One row per realtime
+    // connection that actually reached session.start. duration_seconds is
+    // accumulated by periodic ticks from realtimeServer.js while the
+    // connection is open, plus a final flush on close. usage_date is the
+    // UTC calendar day the session STARTED on (rolling reset at UTC
+    // midnight) — simplest unambiguous day boundary given we don't store a
+    // per-device timezone; documented here and in realtimeServer.js.
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS usage_sessions (
+            id TEXT PRIMARY KEY,
+            device_id TEXT NOT NULL,
+            started_at TIMESTAMPTZ DEFAULT now(),
+            ended_at TIMESTAMPTZ,
+            duration_seconds INTEGER DEFAULT 0,
+            usage_date DATE DEFAULT ((now() AT TIME ZONE 'utc')::date)
+        );
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS usage_sessions_device_date_idx ON usage_sessions (device_id, usage_date);');
+
     ready = true;
 }
 
@@ -551,12 +571,103 @@ function formatParentRulesAddition(settings) {
     if (s.daily_limit_enabled || s.night_mode_enabled || s.evening_mode_enabled) {
         lines.push('');
         lines.push('TIME');
-        if (s.daily_limit_enabled && s.daily_limit_minutes) lines.push(`- Daily usage limit: ${s.daily_limit_minutes} minutes (soft reminder only, not enforced by this server yet).`);
-        if (s.night_mode_enabled) lines.push(`- Night mode: quietly decline play between ${s.night_mode_start} and ${s.night_mode_end}, suggest resting.`);
-        if (s.evening_mode_enabled) lines.push(`- Evening calm mode after ${s.evening_mode_start}: quieter tone, shorter replies, no energetic games.`);
+        if (s.daily_limit_enabled && s.daily_limit_minutes) lines.push(`- Daily usage limit: ${s.daily_limit_minutes} minutes. This is enforced by the server itself (the connection will be closed once the limit is reached) — if you are told the session is ending for this reason, say a warm, brief goodbye and do not try to keep playing.`);
+        if (s.night_mode_enabled) lines.push(`- Night mode window: ${s.night_mode_start}-${s.night_mode_end} server time. This is enforced by the server itself — new sessions are refused and active ones are ended during that window, you will not normally be asked to talk during it.`);
+        if (s.evening_mode_enabled) {
+            // _eveningModeActiveNow is computed live by realtimeServer.js against
+            // the real current clock time on every session.start, not just
+            // whether the toggle is enabled — see composeParentRules() caller.
+            lines.push(s._eveningModeActiveNow
+                ? `- Evening calm mode is ACTIVE right now (after ${s.evening_mode_start}): use a quieter tone, shorter replies, no energetic games.`
+                : `- Evening calm mode is enabled but NOT active right now (it starts at ${s.evening_mode_start} server time) — use your normal tone.`);
+        }
     }
 
     return lines.join('\n');
+}
+
+// ---- Usage tracking (real server-side time enforcement) ----------------
+//
+// Day boundary: usage_date is set once at row creation to the UTC calendar
+// date ((now() AT TIME ZONE 'utc')::date). Daily limits therefore reset at
+// UTC midnight (a simple rolling day), not device-local midnight — there is
+// no per-device timezone stored anywhere else in this schema, so this is
+// the least-surprising unambiguous choice. Night mode / evening mode
+// windows are compared against the server process's local clock time (see
+// realtimeServer.js) since Railway containers run a single fixed timezone.
+
+async function startUsageSession(deviceId) {
+    requireReady();
+    const usageId = 'u_' + crypto.randomBytes(8).toString('hex');
+    const id = normalizeDeviceId(deviceId);
+    await pool.query(
+        `INSERT INTO usage_sessions (id, device_id) VALUES ($1, $2);`,
+        [usageId, id],
+    );
+    return usageId;
+}
+
+async function addUsageSeconds(usageSessionId, seconds) {
+    requireReady();
+    if (!usageSessionId || !Number.isFinite(seconds) || seconds <= 0) return;
+    await pool.query(
+        `UPDATE usage_sessions SET duration_seconds = duration_seconds + $2, ended_at = now() WHERE id = $1;`,
+        [usageSessionId, Math.round(seconds)],
+    );
+}
+
+async function endUsageSession(usageSessionId) {
+    requireReady();
+    if (!usageSessionId) return;
+    await pool.query(`UPDATE usage_sessions SET ended_at = now() WHERE id = $1;`, [usageSessionId]);
+}
+
+// Sum of duration_seconds for the current UTC calendar day, in minutes
+// (rounded down). Includes the still-open session row's ticks so far.
+async function getUsageMinutesToday(deviceId) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    const { rows } = await pool.query(
+        `SELECT COALESCE(SUM(duration_seconds), 0) AS total_seconds
+         FROM usage_sessions
+         WHERE device_id = $1 AND usage_date = (now() AT TIME ZONE 'utc')::date;`,
+        [id],
+    );
+    return Math.floor(Number(rows[0]?.total_seconds || 0) / 60);
+}
+
+async function getRecentUsageSessions(deviceId, limit = 15) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    const { rows } = await pool.query(
+        `SELECT id, started_at, ended_at, duration_seconds, usage_date
+         FROM usage_sessions WHERE device_id = $1
+         ORDER BY started_at DESC LIMIT $2;`,
+        [id, limit],
+    );
+    return rows;
+}
+
+// Per-day totals (minutes) for the last N days including today, oldest first.
+async function getDailyUsageMinutes(deviceId, days = 7) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    const { rows } = await pool.query(
+        `SELECT usage_date, COALESCE(SUM(duration_seconds), 0) AS total_seconds
+         FROM usage_sessions
+         WHERE device_id = $1 AND usage_date >= ((now() AT TIME ZONE 'utc')::date - ($2::int - 1))
+         GROUP BY usage_date
+         ORDER BY usage_date ASC;`,
+        [id, days],
+    );
+    const byDate = new Map(rows.map((r) => [String(r.usage_date), Math.floor(Number(r.total_seconds) / 60)]));
+    const out = [];
+    for (let i = days - 1; i >= 0; i -= 1) {
+        const d = new Date(Date.now() - i * 86400000);
+        const key = d.toISOString().slice(0, 10);
+        out.push({ date: key, minutes: byDate.get(key) || 0 });
+    }
+    return out;
 }
 
 module.exports = {
@@ -583,4 +694,10 @@ module.exports = {
     formatChildContext,
     PROFILE_FIELDS,
     MAX_FACTS_PER_PROFILE,
+    startUsageSession,
+    addUsageSeconds,
+    endUsageSession,
+    getUsageMinutesToday,
+    getRecentUsageSessions,
+    getDailyUsageMinutes,
 };
