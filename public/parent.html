@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#7c3aed">
+<link rel="icon" type="image/png" href="icons/lumi-parent-icon-512.png">
 <title>Родительский контроль: ЛУМИ</title>
 <style>
   body { margin: 0; font-family: Arial, sans-serif; background: #0f1020; color: #f7f3ff; }
@@ -43,7 +44,7 @@
   .status.error { color: #fecaca; }
   .hidden { display: none !important; }
   .hero { display: grid; grid-template-columns: 96px 1fr; gap: 18px; align-items: center; }
-  .hero .badge { width: 96px; height: 96px; border-radius: 18px; border: 1px solid #6d4fc0; box-shadow: 0 0 28px rgba(139,92,246,.32); background: #100c20 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><circle cx="48" cy="48" r="46" fill="%238b5cf6"/><text x="48" y="60" font-size="42" text-anchor="middle" fill="white" font-family="Arial">L</text></svg>') center/cover; }
+  .hero .badge { width: 96px; height: 96px; border-radius: 18px; border: 1px solid #6d4fc0; box-shadow: 0 0 28px rgba(139,92,246,.32); background: #100c20 url('icons/lumi-parent-icon-512.png') center/cover; }
   .hero-copy { position: relative; }
   .hero-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
   .hero-text { color: #c9b8ff; line-height: 1.45; }
@@ -378,7 +379,6 @@
           </select>
           <input id="city" maxlength="80" data-i18n-placeholder="cityPlaceholder" placeholder="Например: Кишинёв">
         </div>
-        <p class="small" data-i18n="locationHint">Определяет реальное локальное время устройства для ночного режима, дневного лимита и ответов игрушки о дате/времени/погоде.</p>
       </div>
       <div class="runtime-card">
         <label class="inline-check"><input id="dailyLimitEnabled" type="checkbox" onchange="toggleDailyLimit()"> <span data-i18n="dailyLimitToggle">Дневной лимит</span></label>
@@ -423,7 +423,6 @@
         </div>
       </div>
     </div>
-    <p class="small" data-i18n="runtimeHint">Лимиты и ночной режим применяются сервером по-настоящему: сессия завершается автоматически, а не только напоминанием в промте.</p>
     <div class="save-row"><button class="save-btn" id="save-runtimePanel" type="button" data-i18n="blockSave" onclick="saveSettings()">Сохранить</button></div>
   </section>
 
@@ -476,7 +475,6 @@
     <h2 class="collapsible" data-i18n="restrictionsTitle">PARENT SETTINGS / RESTRICTIONS</h2>
     <label data-i18n="baseRestrictionsLabel">Базовые ограничения (нередактируемо)</label>
     <div id="baseRestrictionsBox" class="preview-box"></div>
-    <p class="small" data-i18n="restrictionsAdditionHint">Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 16000 знаков.</p>
     <label data-i18n="restrictionsAdditionLabel">Дополнительные заметки родителя</label>
     <textarea id="restrictionsAddition" maxlength="16000" oninput="updateRestrictionsCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:160px"></textarea>
     <div class="row-actions" style="justify-content: space-between;">
@@ -499,7 +497,6 @@
 
   <section id="analyticsPanel">
     <h2 class="collapsible" data-i18n="analyticsTitle">Аналитика</h2>
-    <p class="small" data-i18n="analyticsHint">Реальное серверное время использования игрушки — не оценка, а фактические данные из БД.</p>
     <div class="analytics-grid">
       <div class="analytics-tile">
         <div class="value" id="analyticsTodayMinutes">—</div>
@@ -530,7 +527,6 @@
 
   <section id="dataDeletionPanel" class="data-delete-panel">
     <h2 class="collapsible" data-i18n="deletionTitle">Удаление данных</h2>
-    <p class="small" data-i18n="deletionHint">Опасные действия собраны отдельно, чтобы не нажать их случайно.</p>
     <button class="danger" data-i18n="deleteProfile" onclick="deleteActiveProfile()">Удалить профиль ребёнка</button>
     <button class="danger" type="button" data-i18n="clearMemory" onclick="clearMemoryFacts()">Очистить память</button>
     <button class="danger" data-i18n="deleteChildData" onclick="clearChildProfile()">Удалить данные ребёнка</button>
@@ -539,7 +535,7 @@
   </section>
 
   <div id="toast" class="toast hidden"></div>
-  <footer class="footer">© 2026 <a href="https://lunaratoy.com" target="_blank" rel="noopener">lunaratoy.com</a></footer>
+  <footer class="footer">© 2026 <a href="https://lunaratoy.com" target="_blank" rel="noopener">lunaratoy.com</a>. All rights reserved.</footer>
 </main>
 
 <script>
@@ -1451,19 +1447,17 @@ const I18N = {
     runtimeTitle: 'Время работы', locationTitle: 'Часовой пояс и город', cityPlaceholder: 'Например: Кишинёв', locationHint: 'Определяет реальное локальное время устройства для ночного режима, дневного лимита и ответов игрушки о дате/времени/погоде.', dailyLimitToggle: 'Дневной лимит', customTime: 'Своё время', minutesPlaceholder: 'Например: 120',
     nightModeToggle: 'Ночной режим', nightFrom: 'Не работает с', nightUntil: 'Не работает до', breakReminderTitle: 'Напоминание о перерыве',
     noReminder: 'Не напоминать', eveningModeToggle: 'Спокойный вечерний режим', eveningStart: 'Спокойнее после',
-    runtimeHint: 'Лимиты и ночной режим применяются сервером по-настоящему: сессия завершается автоматически, а не только напоминанием в промте.',
     safetyTitle: 'Безопасность', safetyIntro: 'Базовые правила безопасности всегда включены и не могут быть отключены.',
     safety1: 'Луми не просит личные данные', safety2: 'Не даёт опасных инструкций', safety3: 'Не просит хранить секреты от родителей',
     safety4: 'Не заменяет врача или взрослого', safety5: 'Не создаёт эмоциональную зависимость', safety6: 'При опасности направляет ребёнка к безопасному взрослому',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Базовые ограничения (нередактируемо)',
-    restrictionsAdditionHint: 'Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 16000 знаков.',
     restrictionsAdditionLabel: 'Дополнительные заметки родителя', restrictionsResetButton: 'Очистить заметки',
     previewTitle: 'Предпросмотр PARENT SETTINGS / RESTRICTIONS', previewHint: 'Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.',
     saveButton: 'Сохранить настройки', resetButton: 'Сбросить к базовым', blockSave: 'Сохранить',
-    deletionTitle: 'Удаление данных', deletionHint: 'Опасные действия собраны отдельно, чтобы не нажать их случайно.',
+    deletionTitle: 'Удаление данных',
     deleteProfile: 'Удалить профиль ребёнка', clearMemory: 'Очистить память', deleteChildData: 'Удалить данные ребёнка', deleteAll: 'Удалить всё',
     memoryNotConnectedTitle: 'Память ещё не подключена',
-    analyticsTitle: 'Аналитика', analyticsHint: 'Реальное серверное время использования игрушки — не оценка, а фактические данные из БД.',
+    analyticsTitle: 'Аналитика',
     analyticsTodayLabel: 'Сегодня использовано, мин', analyticsLimitLabel: 'Дневной лимит, мин', analyticsWeekLabel: 'Использование за последние 7 дней',
     analyticsSessionsLabel: 'Недавние сессии', analyticsColStart: 'Начало', analyticsColDuration: 'Длительность', analyticsRefresh: 'Обновить',
     analyticsEmpty: 'Сессий пока нет', analyticsError: 'Не удалось загрузить аналитику',
@@ -1528,19 +1522,17 @@ const I18N = {
     runtimeTitle: 'Program de funcționare', locationTitle: 'Fus orar și oraș', cityPlaceholder: 'De exemplu: Chișinău', locationHint: 'Determină ora locală reală a dispozitivului pentru modul de noapte, limita zilnică și răspunsurile jucăriei despre dată/oră/vreme.', dailyLimitToggle: 'Limită zilnică', customTime: 'Timp personalizat', minutesPlaceholder: 'De exemplu: 120',
     nightModeToggle: 'Mod nocturn', nightFrom: 'Nu funcționează de la', nightUntil: 'Nu funcționează până la', breakReminderTitle: 'Memento de pauză',
     noReminder: 'Nu reaminti', eveningModeToggle: 'Mod liniștit de seară', eveningStart: 'Mai liniștit după',
-    runtimeHint: 'Limita zilnică și modul nocturn sunt aplicate real de server: sesiunea se încheie automat, nu doar printr-un indiciu în prompt.',
     safetyTitle: 'Siguranță', safetyIntro: 'Regulile de bază de siguranță sunt mereu active și nu pot fi dezactivate.',
     safety1: 'Lumi nu cere date personale', safety2: 'Nu oferă instrucțiuni periculoase', safety3: 'Nu cere să se ascundă secrete de părinți',
     safety4: 'Nu înlocuiește un medic sau un adult', safety5: 'Nu creează dependență emoțională', safety6: 'În caz de pericol, îndrumă copilul către un adult sigur',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Restricții de bază (needitabile)',
-    restrictionsAdditionHint: 'Caracterul, conținutul și programul sunt deja incluse automat mai sus în previzualizare — acest câmp este pentru note suplimentare libere ale părintelui. Până la 16000 de caractere.',
     restrictionsAdditionLabel: 'Note suplimentare ale părintelui', restrictionsResetButton: 'Șterge notele',
     previewTitle: 'Previzualizare PARENT SETTINGS / RESTRICTIONS', previewHint: 'Așa vor fi transmise aceste setări în promptul de sistem Gemini Live. Se actualizează automat.',
     saveButton: 'Salvează setările', resetButton: 'Resetează la valorile de bază', blockSave: 'Salvează',
-    deletionTitle: 'Ștergere date', deletionHint: 'Acțiunile periculoase sunt separate, pentru a nu fi apăsate din greșeală.',
+    deletionTitle: 'Ștergere date',
     deleteProfile: 'Șterge profilul copilului', clearMemory: 'Șterge memoria', deleteChildData: 'Șterge datele copilului', deleteAll: 'Șterge tot',
     memoryNotConnectedTitle: 'Memoria nu este încă conectată',
-    analyticsTitle: 'Analitice', analyticsHint: 'Timpul real de utilizare a jucăriei, măsurat de server — nu o estimare, ci date reale din baza de date.',
+    analyticsTitle: 'Analitice',
     analyticsTodayLabel: 'Folosit azi, min', analyticsLimitLabel: 'Limită zilnică, min', analyticsWeekLabel: 'Utilizare în ultimele 7 zile',
     analyticsSessionsLabel: 'Sesiuni recente', analyticsColStart: 'Început', analyticsColDuration: 'Durată', analyticsRefresh: 'Actualizează',
     analyticsEmpty: 'Nicio sesiune încă', analyticsError: 'Nu s-au putut încărca analiticele',
@@ -1605,19 +1597,17 @@ const I18N = {
     runtimeTitle: 'Working hours', locationTitle: 'Timezone and city', cityPlaceholder: 'E.g. Chisinau', locationHint: 'Determines the device\'s real local time for night mode, daily limit, and the toy\'s answers about date/time/weather.', dailyLimitToggle: 'Daily limit', customTime: 'Custom time', minutesPlaceholder: 'E.g. 120',
     nightModeToggle: 'Night mode', nightFrom: 'Off from', nightUntil: 'Off until', breakReminderTitle: 'Break reminder',
     noReminder: 'No reminder', eveningModeToggle: 'Calm evening mode', eveningStart: 'Calmer after',
-    runtimeHint: 'The daily limit and night mode are enforced for real by the server: the session actually ends, not just a prompt hint.',
     safetyTitle: 'Safety', safetyIntro: 'Core safety rules are always on and cannot be turned off.',
     safety1: 'Lumi does not ask for personal data', safety2: 'Does not give dangerous instructions', safety3: 'Does not ask to keep secrets from parents',
     safety4: 'Does not replace a doctor or an adult', safety5: 'Does not create emotional dependency', safety6: 'Directs the child to a safe adult in danger',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Base restrictions (not editable)',
-    restrictionsAdditionHint: 'Character, content, and working hours are already automatically included above in the preview — this field is for additional free-form parent notes on top of that. Up to 16000 characters.',
     restrictionsAdditionLabel: 'Additional parent notes', restrictionsResetButton: 'Clear notes',
     previewTitle: 'PARENT SETTINGS / RESTRICTIONS preview', previewHint: 'This is how these settings will be passed into the Gemini Live system prompt. Updates automatically.',
     saveButton: 'Save settings', resetButton: 'Reset to base', blockSave: 'Save',
-    deletionTitle: 'Data deletion', deletionHint: 'Dangerous actions are grouped separately so they are not pressed by accident.',
+    deletionTitle: 'Data deletion',
     deleteProfile: 'Delete child profile', clearMemory: 'Clear memory', deleteChildData: 'Delete child data', deleteAll: 'Delete everything',
     memoryNotConnectedTitle: 'Memory is not connected yet',
-    analyticsTitle: 'Analytics', analyticsHint: 'Real server-measured toy usage time — actual data from the database, not an estimate.',
+    analyticsTitle: 'Analytics',
     analyticsTodayLabel: 'Used today, min', analyticsLimitLabel: 'Daily limit, min', analyticsWeekLabel: 'Usage over the last 7 days',
     analyticsSessionsLabel: 'Recent sessions', analyticsColStart: 'Start', analyticsColDuration: 'Duration', analyticsRefresh: 'Refresh',
     analyticsEmpty: 'No sessions yet', analyticsError: 'Could not load analytics',

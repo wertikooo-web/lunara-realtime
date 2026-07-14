@@ -98,7 +98,7 @@ function readJsonBody(req) {
     });
 }
 
-const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/realtime'];
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/icons/:filename', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
@@ -163,6 +163,26 @@ const server = http.createServer(async (req, res) => {
                 res.writeHead(200, {
                     'content-type': 'text/html; charset=utf-8',
                     'cache-control': 'no-store',
+                });
+            })
+            .pipe(res);
+        return undefined;
+    }
+
+    // Static icon files referenced by parent.html (hero badge, favicon) —
+    // this server has no generic static-file middleware, so each served
+    // subdirectory needs an explicit route. Restricted to a basename match
+    // (no path separators) so req.url can't escape public/icons/.
+    const iconMatch = /^\/icons\/([a-zA-Z0-9_-]+\.(?:png|svg|jpg|jpeg|webp))$/.exec(req.url);
+    if (req.method === 'GET' && iconMatch) {
+        const filePath = path.join(publicDir, 'icons', iconMatch[1]);
+        const contentType = filePath.endsWith('.svg') ? 'image/svg+xml' : `image/${path.extname(filePath).slice(1)}`;
+        fs.createReadStream(filePath)
+            .on('error', () => sendJson(res, 404, { ok: false, error: 'icon_not_found' }))
+            .once('open', () => {
+                res.writeHead(200, {
+                    'content-type': contentType,
+                    'cache-control': 'public, max-age=86400',
                 });
             })
             .pipe(res);
