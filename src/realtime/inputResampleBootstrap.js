@@ -44,6 +44,12 @@ function createInputAudioTransform({ onAudio, onError = () => {} }) {
             const output = resampler.process(chunk);
             if (output.length > 0) onAudio(output);
         } catch (error) {
+            // A malformed/odd-length PCM chunk leaves the resampler's internal
+            // byte-carry/filter-history state inconsistent for the rest of this
+            // turn — reset immediately so the NEXT input_audio.start begins
+            // clean rather than potentially propagating corrupted state.
+            inputActive = false;
+            resampler.reset();
             onError(error);
         }
     }
@@ -55,6 +61,7 @@ function createInputAudioTransform({ onAudio, onError = () => {} }) {
             const tail = resampler.flush();
             if (tail.length > 0) onAudio(tail);
         } catch (error) {
+            resampler.reset();
             onError(error);
         }
     }

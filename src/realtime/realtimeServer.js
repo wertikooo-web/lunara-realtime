@@ -1,5 +1,14 @@
 'use strict';
 
+// NOTE ON MICROPHONE AUDIO SAMPLE RATE: the binary WS frames this file
+// receives via createFrameParser()'s onBinary callback are NOT necessarily
+// the raw bytes the client sent. If the process was started with
+// `-r ./inputResampleBootstrap.js` (see package.json "start"/"dev" scripts),
+// that module wraps createFrameParser() and transparently resamples
+// PCM16LE mono 24000Hz -> 16000Hz before this file ever sees a chunk,
+// keyed off `sampleRate`/`sample_rate` in the client's session.start
+// payload (ESP32 sends 24000; Browser Lab/mock stays 16000 pass-through).
+// See src/realtime/inputResampleBootstrap.js and pcm16Resampler.js.
 const crypto = require('crypto');
 const {
     acceptWebSocket,
