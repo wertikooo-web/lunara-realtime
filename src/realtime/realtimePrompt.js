@@ -2,11 +2,15 @@
 
 const crypto = require('crypto');
 
-// Raised from the original 8000 to fit DEFAULT_CORE_PROMPT below (~10400
-// chars) plus headroom for a custom_prompt_text override up to
-// CUSTOM_PROMPT_MAX_CHARS (10000, src/memory/store.js) — both are validated
-// against this same limit inside buildRealtimeSystemInstruction().
-const LAB_PROMPT_MAX_CHARS = Math.max(1000, Number(process.env.LAB_PROMPT_MAX_CHARS || 16000));
+// Raised from the original 8000, then 16000, to comfortably fit the worst
+// case: parentRules = BASE_RESTRICTIONS (~400 chars) + the generated
+// TOY/STYLE/CONTENT/TIME block (~1500 chars) + restrictions_addition up to
+// its own 16000-char field limit (src/memory/store.js) — all three prompt
+// blocks (core/child/parent) are validated against this same constant
+// inside buildRealtimeSystemInstruction(), so it must cover the largest of
+// them, not just DEFAULT_CORE_PROMPT (~10235 chars) or a lone
+// custom_prompt_text override (up to 16000 chars).
+const LAB_PROMPT_MAX_CHARS = Math.max(1000, Number(process.env.LAB_PROMPT_MAX_CHARS || 24000));
 const LAB_ALLOW_CUSTOM_PROMPT = /^(1|true|yes)$/i.test(String(process.env.LAB_ALLOW_CUSTOM_PROMPT || ''));
 
 // Fixed core safety/personality prompt (Russian), provided by the product

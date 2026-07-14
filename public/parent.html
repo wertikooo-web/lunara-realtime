@@ -405,10 +405,10 @@
   <section id="customPromptPanel">
     <h2 data-i18n="customPromptTitle">Свой системный промт</h2>
     <label class="inline-check"><input id="customPromptEnabled" type="checkbox" onchange="readFormIntoCurrent(); renderPreview(); saveSettings();"> <span data-i18n="customPromptToggle">Использовать этот промт вместо стандартного</span></label>
-    <p class="small" data-i18n="customPromptHint">До 10000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.</p>
-    <textarea id="customPromptText" maxlength="10000" oninput="updateCustomPromptCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:220px"></textarea>
+    <p class="small" data-i18n="customPromptHint">До 16000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.</p>
+    <textarea id="customPromptText" maxlength="16000" oninput="updateCustomPromptCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:220px"></textarea>
     <div class="row-actions" style="justify-content: space-between;">
-      <span id="customPromptCounter" class="small">0 / 10000</span>
+      <span id="customPromptCounter" class="small">0 / 16000</span>
       <div>
         <button class="secondary" type="button" data-i18n="customPromptReset" onclick="resetCustomPrompt()">Сбросить к дефолтному</button>
         <button type="button" data-i18n="customPromptSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить промт</button>
@@ -420,11 +420,11 @@
     <h2 data-i18n="restrictionsTitle">PARENT SETTINGS / RESTRICTIONS</h2>
     <label data-i18n="baseRestrictionsLabel">Базовые ограничения (нередактируемо)</label>
     <div id="baseRestrictionsBox" class="preview-box"></div>
-    <p class="small" data-i18n="restrictionsAdditionHint">Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 5000 знаков.</p>
+    <p class="small" data-i18n="restrictionsAdditionHint">Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 16000 знаков.</p>
     <label data-i18n="restrictionsAdditionLabel">Дополнительные заметки родителя</label>
-    <textarea id="restrictionsAddition" maxlength="5000" oninput="updateRestrictionsCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:160px"></textarea>
+    <textarea id="restrictionsAddition" maxlength="16000" oninput="updateRestrictionsCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:160px"></textarea>
     <div class="row-actions" style="justify-content: space-between;">
-      <span id="restrictionsCounter" class="small">0 / 5000</span>
+      <span id="restrictionsCounter" class="small">0 / 16000</span>
       <div>
         <button class="secondary" type="button" data-i18n="restrictionsResetButton" onclick="resetRestrictionsAddition()">Очистить заметки</button>
       </div>
@@ -588,7 +588,7 @@ async function loadDefaultCorePrompt() {
 
 function updateCustomPromptCounter() {
   const textarea = document.getElementById('customPromptText');
-  document.getElementById('customPromptCounter').textContent = `${textarea.value.length} / 10000`;
+  document.getElementById('customPromptCounter').textContent = `${textarea.value.length} / 16000`;
 }
 
 function resetCustomPrompt() {
@@ -618,7 +618,7 @@ async function loadBaseRestrictions() {
 
 function updateRestrictionsCounter() {
   const textarea = document.getElementById('restrictionsAddition');
-  document.getElementById('restrictionsCounter').textContent = `${textarea.value.length} / 5000`;
+  document.getElementById('restrictionsCounter').textContent = `${textarea.value.length} / 16000`;
 }
 
 // TOY/STYLE/CONTENT/TIME are generated fresh automatically (see renderPreview)
@@ -782,8 +782,8 @@ function readFormIntoCurrent() {
   current.eveningModeStart = document.getElementById('eveningModeStart').value;
 
   current.customPromptEnabled = document.getElementById('customPromptEnabled').checked;
-  current.customPromptText = document.getElementById('customPromptText').value.slice(0, 10000);
-  current.restrictionsAddition = document.getElementById('restrictionsAddition').value.slice(0, 5000);
+  current.customPromptText = document.getElementById('customPromptText').value.slice(0, 16000);
+  current.restrictionsAddition = document.getElementById('restrictionsAddition').value.slice(0, 16000);
 
   return current;
 }
@@ -1270,7 +1270,7 @@ const I18N = {
     memoryEmpty: 'Луми пока ничего не запомнила. Добавьте факт вручную или дождитесь серверной памяти.',
     confirmClearMemory: 'Очистить всю память Луми? Профиль ребёнка при этом не удаляется.',
     customPromptTitle: 'Свой системный промт', customPromptToggle: 'Использовать этот промт вместо стандартного',
-    customPromptHint: 'До 10000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.',
+    customPromptHint: 'До 16000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.',
     customPromptReset: 'Сбросить к дефолтному', customPromptSave: 'Сохранить промт', customPromptResetOk: 'Промт сброшен к стандартному',
     voicePreviewLoading: 'Генерируем образец голоса…', voicePreviewSampleText: 'Привет! Меня зовут Луми. Давай поиграем?',
     voicePreviewOk: 'Готово', voicePreviewNoKey: 'На сервере не настроен GEMINI_API_KEY — предпросмотр недоступен',
@@ -1283,7 +1283,7 @@ const I18N = {
     safety1: 'Луми не просит личные данные', safety2: 'Не даёт опасных инструкций', safety3: 'Не просит хранить секреты от родителей',
     safety4: 'Не заменяет врача или взрослого', safety5: 'Не создаёт эмоциональную зависимость', safety6: 'При опасности направляет ребёнка к безопасному взрослому',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Базовые ограничения (нередактируемо)',
-    restrictionsAdditionHint: 'Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 5000 знаков.',
+    restrictionsAdditionHint: 'Характер, контент и время работы уже автоматически учтены выше в предпросмотре — это поле для дополнительных свободных заметок родителя сверх них. До 16000 знаков.',
     restrictionsAdditionLabel: 'Дополнительные заметки родителя', restrictionsResetButton: 'Очистить заметки',
     previewTitle: 'Предпросмотр PARENT SETTINGS / RESTRICTIONS', previewHint: 'Так эти настройки будут переданы в системный prompt Gemini Live. Обновляется автоматически.',
     saveButton: 'Сохранить настройки', resetButton: 'Сбросить к базовым',
@@ -1343,7 +1343,7 @@ const I18N = {
     memoryEmpty: 'Lumi nu ține minte încă nimic. Adaugă un fapt manual sau așteaptă memoria de pe server.',
     confirmClearMemory: 'Ștergi toată memoria lui Lumi? Profilul copilului nu este șters.',
     customPromptTitle: 'Prompt de sistem personalizat', customPromptToggle: 'Folosește acest prompt în loc de cel standard',
-    customPromptHint: 'Până la 10000 de caractere. Poți porni de la textul standard, îl poți modifica, salva sau reveni oricând la varianta implicită.',
+    customPromptHint: 'Până la 16000 de caractere. Poți porni de la textul standard, îl poți modifica, salva sau reveni oricând la varianta implicită.',
     customPromptReset: 'Revino la standard', customPromptSave: 'Salvează promptul', customPromptResetOk: 'Prompt resetat la standard',
     voicePreviewLoading: 'Se generează o mostră de voce…', voicePreviewSampleText: 'Salut! Mă numesc Lumi. Hai să ne jucăm?',
     voicePreviewOk: 'Gata', voicePreviewNoKey: 'GEMINI_API_KEY nu este configurat pe server — previzualizarea nu este disponibilă',
@@ -1356,7 +1356,7 @@ const I18N = {
     safety1: 'Lumi nu cere date personale', safety2: 'Nu oferă instrucțiuni periculoase', safety3: 'Nu cere să se ascundă secrete de părinți',
     safety4: 'Nu înlocuiește un medic sau un adult', safety5: 'Nu creează dependență emoțională', safety6: 'În caz de pericol, îndrumă copilul către un adult sigur',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Restricții de bază (needitabile)',
-    restrictionsAdditionHint: 'Caracterul, conținutul și programul sunt deja incluse automat mai sus în previzualizare — acest câmp este pentru note suplimentare libere ale părintelui. Până la 5000 de caractere.',
+    restrictionsAdditionHint: 'Caracterul, conținutul și programul sunt deja incluse automat mai sus în previzualizare — acest câmp este pentru note suplimentare libere ale părintelui. Până la 16000 de caractere.',
     restrictionsAdditionLabel: 'Note suplimentare ale părintelui', restrictionsResetButton: 'Șterge notele',
     previewTitle: 'Previzualizare PARENT SETTINGS / RESTRICTIONS', previewHint: 'Așa vor fi transmise aceste setări în promptul de sistem Gemini Live. Se actualizează automat.',
     saveButton: 'Salvează setările', resetButton: 'Resetează la valorile de bază',
@@ -1416,7 +1416,7 @@ const I18N = {
     memoryEmpty: 'Lumi does not remember anything yet. Add a fact manually or wait for server memory.',
     confirmClearMemory: "Clear all of Lumi's memory? The child profile itself is not deleted.",
     customPromptTitle: 'Custom system prompt', customPromptToggle: 'Use this prompt instead of the default one',
-    customPromptHint: 'Up to 10000 characters. You can start from the default text, tweak it, save it, or revert to default at any time.',
+    customPromptHint: 'Up to 16000 characters. You can start from the default text, tweak it, save it, or revert to default at any time.',
     customPromptReset: 'Reset to default', customPromptSave: 'Save prompt', customPromptResetOk: 'Prompt reset to default',
     voicePreviewLoading: 'Generating a voice sample…', voicePreviewSampleText: 'Hi! My name is Lumi. Shall we play?',
     voicePreviewOk: 'Done', voicePreviewNoKey: 'GEMINI_API_KEY is not configured on the server — preview unavailable',
@@ -1429,7 +1429,7 @@ const I18N = {
     safety1: 'Lumi does not ask for personal data', safety2: 'Does not give dangerous instructions', safety3: 'Does not ask to keep secrets from parents',
     safety4: 'Does not replace a doctor or an adult', safety5: 'Does not create emotional dependency', safety6: 'Directs the child to a safe adult in danger',
     restrictionsTitle: 'PARENT SETTINGS / RESTRICTIONS', baseRestrictionsLabel: 'Base restrictions (not editable)',
-    restrictionsAdditionHint: 'Character, content, and working hours are already automatically included above in the preview — this field is for additional free-form parent notes on top of that. Up to 5000 characters.',
+    restrictionsAdditionHint: 'Character, content, and working hours are already automatically included above in the preview — this field is for additional free-form parent notes on top of that. Up to 16000 characters.',
     restrictionsAdditionLabel: 'Additional parent notes', restrictionsResetButton: 'Clear notes',
     previewTitle: 'PARENT SETTINGS / RESTRICTIONS preview', previewHint: 'This is how these settings will be passed into the Gemini Live system prompt. Updates automatically.',
     saveButton: 'Save settings', resetButton: 'Reset to base',

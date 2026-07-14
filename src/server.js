@@ -65,12 +65,13 @@ function sendJson(res, statusCode, payload) {
     res.end(body);
 }
 
-// Must comfortably fit custom_prompt_text (10000 chars) + restrictions_addition
-// (5000 chars) + the rest of a settings payload, with room for JSON escaping
-// overhead (e.g. every newline becomes 2 bytes as \n). A too-small limit here
-// fails silently on the client (fetch() doesn't throw on HTTP error statuses),
-// so err generously rather than tightly.
-const MAX_JSON_BODY_BYTES = 64 * 1024;
+// Must comfortably fit custom_prompt_text (16000 chars) + restrictions_addition
+// (16000 chars) + the rest of a settings payload. Cyrillic text is ~2 bytes/char
+// in UTF-8, and JSON escaping doubles every newline (\n -> 2 bytes), so two
+// 16000-char Cyrillic fields alone can approach ~70KB before the rest of the
+// payload. A too-small limit here fails silently on the client (fetch()
+// doesn't throw on HTTP error statuses), so err generously rather than tightly.
+const MAX_JSON_BODY_BYTES = 256 * 1024;
 
 function readJsonBody(req) {
     return new Promise((resolve, reject) => {

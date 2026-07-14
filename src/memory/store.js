@@ -5,8 +5,8 @@ const { Pool } = require('pg');
 
 const DEFAULT_DEVICE_ID = 'browser-lab';
 const MAX_FACTS_PER_PROFILE = 40;
-const RESTRICTIONS_ADDITION_MAX_CHARS = 5000;
-const CUSTOM_PROMPT_MAX_CHARS = 10000;
+const RESTRICTIONS_ADDITION_MAX_CHARS = 16000;
+const CUSTOM_PROMPT_MAX_CHARS = 16000;
 
 const PROFILE_FIELDS = [
     'child_name', 'age_group', 'child_gender', 'interests',
@@ -49,6 +49,21 @@ let ready = false;
 
 function safeText(value, max) {
     return String(value == null ? '' : value).trim().replace(/\s+/g, ' ').slice(0, max);
+}
+
+// Same idea as safeText() but for long-form free text meant to keep its
+// paragraph structure (custom_prompt_text, restrictions_addition) — collapses
+// horizontal whitespace only and caps runs of blank lines, but does NOT
+// flatten newlines into spaces the way safeText() does. Using safeText() on
+// these fields was the cause of saved prompts turning into one solid
+// unformatted block.
+function safeMultilineText(value, max) {
+    return String(value == null ? '' : value)
+        .replace(/\r\n/g, '\n')
+        .replace(/[^\S\n]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, max);
 }
 
 function normalizeDeviceId(value) {
@@ -366,7 +381,7 @@ async function updateSettings(deviceId, patch = {}) {
         }
     }
     if ('restrictions_addition' in patch) {
-        values.push(safeText(patch.restrictions_addition, RESTRICTIONS_ADDITION_MAX_CHARS));
+        values.push(safeMultilineText(patch.restrictions_addition, RESTRICTIONS_ADDITION_MAX_CHARS));
         setClauses.push(`restrictions_addition = $${values.length}`);
     }
     if ('custom_prompt_enabled' in patch) {
@@ -374,7 +389,7 @@ async function updateSettings(deviceId, patch = {}) {
         setClauses.push(`custom_prompt_enabled = $${values.length}`);
     }
     if ('custom_prompt_text' in patch) {
-        values.push(safeText(patch.custom_prompt_text, CUSTOM_PROMPT_MAX_CHARS));
+        values.push(safeMultilineText(patch.custom_prompt_text, CUSTOM_PROMPT_MAX_CHARS));
         setClauses.push(`custom_prompt_text = $${values.length}`);
     }
 
