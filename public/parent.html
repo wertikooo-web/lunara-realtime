@@ -1040,6 +1040,24 @@ function renderPreview() {
   if (previewBox) previewBox.textContent = text;
 }
 
+// Real live status of THIS device's realtime session(s), polled from the
+// server's in-process connection registry (see GET /api/session-status).
+// Not derived from any local guess — reflects whatever Browser Lab/ESP32
+// currently has open under the same DEVICE_ID.
+let sessionStatus = { connected: false, gemini_ready: false };
+
+async function pollSessionStatus() {
+  try {
+    const res = await fetch(`/api/session-status/${DEVICE_ID}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    sessionStatus = { connected: !!data.connected, gemini_ready: !!data.gemini_ready };
+  } catch (err) {
+    sessionStatus = { connected: false, gemini_ready: false };
+  }
+  renderStatusOverview();
+}
+
 function renderStatusOverview() {
   const box = document.getElementById('statusOverview');
   const t = translate;
@@ -1049,8 +1067,8 @@ function renderStatusOverview() {
   chips.push(`<span class="status-chip ${current.memoryEnabled ? 'good' : 'off'}">${t('chipMemory')}: ${current.memoryEnabled ? t('on') : t('off')}</span>`);
   chips.push(`<span class="status-chip ${current.dailyLimitEnabled ? 'warn' : 'off'}">${t('chipDailyLimit')}: ${current.dailyLimitEnabled ? current.dailyLimitMinutes + ' ' + t('min') : t('unlimited')}</span>`);
   chips.push(`<span class="status-chip ${current.nightModeEnabled ? 'warn' : 'off'}">${t('chipNightMode')}: ${current.nightModeEnabled ? t('on') : t('off')}</span>`);
-  chips.push(`<span class="status-chip off">${t('chipRealtime')}: ${t('chipNotConnected')}</span>`);
-  chips.push(`<span class="status-chip off">${t('chipGemini')}: ${t('chipNotConnected')}</span>`);
+  chips.push(`<span class="status-chip ${sessionStatus.connected ? 'good' : 'off'}">${t('chipRealtime')}: ${sessionStatus.connected ? t('chipConnected') : t('chipNotConnected')}</span>`);
+  chips.push(`<span class="status-chip ${sessionStatus.gemini_ready ? 'good' : 'off'}">${t('chipGemini')}: ${sessionStatus.gemini_ready ? t('chipConnected') : t('chipNotConnected')}</span>`);
   box.innerHTML = chips.join('');
 }
 
@@ -1452,7 +1470,7 @@ const I18N = {
     analyticsEmpty: 'Сессий пока нет', analyticsError: 'Не удалось загрузить аналитику',
     chipToyName: 'Игрушка', chipProfile: 'Профиль', chipProfileNone: 'нет активного', chipMemory: 'Память',
     chipDailyLimit: 'Дневной лимит', chipNightMode: 'Ночной режим', chipRealtime: 'Realtime-соединение', chipGemini: 'Gemini Live',
-    chipNotConnected: 'не подключено', on: 'вкл', off: 'выкл', unlimited: 'без лимита', min: 'мин',
+    chipNotConnected: 'не подключено', chipConnected: 'подключено', on: 'вкл', off: 'выкл', unlimited: 'без лимита', min: 'мин',
     savedOk: 'Сохранено', savedLocalOnly: 'Сохранено только локально — сервер не принял (см. ошибку)', profileNameRequired: 'Введите название профиля', profileSavedOk: 'Профиль сохранён',
     activeProfileIs: 'Активный профиль:', profileLoadedOk: 'Профиль загружен', noActiveProfile: 'Нет активного профиля',
     confirmDeleteProfile: 'Удалить текущий профиль ребёнка? Это действие нельзя отменить.', deletedOk: 'Удалено',
@@ -1526,7 +1544,7 @@ const I18N = {
     analyticsEmpty: 'Nicio sesiune încă', analyticsError: 'Nu s-au putut încărca analiticele',
     chipToyName: 'Jucărie', chipProfile: 'Profil', chipProfileNone: 'niciunul activ', chipMemory: 'Memorie',
     chipDailyLimit: 'Limită zilnică', chipNightMode: 'Mod nocturn', chipRealtime: 'Conexiune realtime', chipGemini: 'Gemini Live',
-    chipNotConnected: 'neconectat', on: 'activ', off: 'inactiv', unlimited: 'fără limită', min: 'min',
+    chipNotConnected: 'neconectat', chipConnected: 'conectat', on: 'activ', off: 'inactiv', unlimited: 'fără limită', min: 'min',
     savedOk: 'Salvat', savedLocalOnly: 'Salvat doar local — serverul nu a acceptat (vezi eroarea)', profileNameRequired: 'Introdu numele profilului', profileSavedOk: 'Profil salvat',
     activeProfileIs: 'Profil activ:', profileLoadedOk: 'Profil încărcat', noActiveProfile: 'Niciun profil activ',
     confirmDeleteProfile: 'Ștergi profilul curent al copilului? Această acțiune nu poate fi anulată.', deletedOk: 'Șters',
@@ -1600,7 +1618,7 @@ const I18N = {
     analyticsEmpty: 'No sessions yet', analyticsError: 'Could not load analytics',
     chipToyName: 'Toy', chipProfile: 'Profile', chipProfileNone: 'none active', chipMemory: 'Memory',
     chipDailyLimit: 'Daily limit', chipNightMode: 'Night mode', chipRealtime: 'Realtime connection', chipGemini: 'Gemini Live',
-    chipNotConnected: 'not connected', on: 'on', off: 'off', unlimited: 'unlimited', min: 'min',
+    chipNotConnected: 'not connected', chipConnected: 'connected', on: 'on', off: 'off', unlimited: 'unlimited', min: 'min',
     savedOk: 'Saved', savedLocalOnly: 'Saved locally only — server rejected it (see error)', profileNameRequired: 'Enter a profile name', profileSavedOk: 'Profile saved',
     activeProfileIs: 'Active profile:', profileLoadedOk: 'Profile loaded', noActiveProfile: 'No active profile',
     confirmDeleteProfile: 'Delete the current child profile? This cannot be undone.', deletedOk: 'Deleted',
@@ -1766,6 +1784,8 @@ async function init() {
   renderPreview();
   loadAnalytics();
   initCollapsibleSections();
+  pollSessionStatus();
+  setInterval(pollSessionStatus, 5000);
 }
 
 // Every <section> in main becomes collapsible via its <h2 class="collapsible">

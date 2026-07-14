@@ -262,6 +262,39 @@ function createGeneration({ turnId }) {
     };
 }
 
+// ---- Live connection registry (per deviceId) ------------------------------
+// Lets HTTP endpoints (server.js GET /api/session-status/:deviceId) answer
+// "is this device's realtime session currently connected right now" — the
+// parent panel previously had no way to know this at all (its "Realtime-
+// соединение"/"Gemini Live" status chips were hardcoded static text, always
+// showing "not connected" regardless of whether Browser Lab or a real ESP32
+// was actually connected). deviceId -> Map<sessionId, connectionInfo>;
+// connectionInfo is a live, mutated-in-place object so provider/ready
+// updates don't require re-registering.
+const activeConnectionsByDevice = new Map();
+
+function registerConnection(deviceId, sessionId, connectionInfo) {
+    if (!activeConnectionsByDevice.has(deviceId)) activeConnectionsByDevice.set(deviceId, new Map());
+    activeConnectionsByDevice.get(deviceId).set(sessionId, connectionInfo);
+}
+
+function unregisterConnection(deviceId, sessionId) {
+    const bucket = activeConnectionsByDevice.get(deviceId);
+    if (!bucket) return;
+    bucket.delete(sessionId);
+    if (bucket.size === 0) activeConnectionsByDevice.delete(deviceId);
+}
+
+function getDeviceConnectionStatus(deviceId) {
+    const bucket = activeConnectionsByDevice.get(memoryStore.normalizeDeviceId(deviceId));
+    if (!bucket || bucket.size === 0) return { connected: false, sessions: 0, gemini_ready: false };
+    let geminiReady = false;
+    for (const info of bucket.values()) {
+        if (info.provider === 'gemini' && info.ready) geminiReady = true;
+    }
+    return { connected: true, sessions: bucket.size, gemini_ready: geminiReady };
+}
+
 function attachRealtimeServer(server, options = {}) {
     const defaultProvider = new MockRealtimeProvider(options.mockConfig || DEFAULT_CONFIG);
     const providerFactory = options.providerFactory || ((sessionOptions = {}) => defaultProvider.createSession(sessionOptions));
@@ -344,6 +377,12 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
     let deviceId = memoryStore.normalizeDeviceId();
     const memoryEnabledFlag = memoryEnabledFromEnv();
+
+    // Live connection status for this device (see registry above) — mutated
+    // in place as the provider rotates / becomes ready, moved between
+    // device buckets if session.start declares a different deviceId.
+    const connectionInfo = { provider: providerSession.name || 'mock', ready: false };
+    registerConnection(deviceId, sessionId, connectionInfo);
 
     // ---- Usage tracking / working-hours enforcement state ----
     // usageSessionId is created lazily on the first successful session.start
@@ -514,6 +553,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         if (socketClosed || socket.destroyed) return false;
         if (payload.type === 'session.ready') {
             readySent = true;
+            connectionInfo.ready = true;
+            connectionInfo.provider = providerSession.name || connectionInfo.provider;
         }
         return sendJson(socket, {
             session_id: sessionId,
@@ -1310,6 +1351,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             });
         }
         providerSession = providerFactory(buildProviderSessionOptions(reason));
+        connectionInfo.provider = providerSession.name || connectionInfo.provider;
         const oldPromptMeta = oldProviderSession?.systemInstructionMeta || {};
         const newPromptMeta = providerSession.systemInstructionMeta || {};
         log('provider_session_rotated', {
@@ -1575,7 +1617,12 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 return;
             }
             if (payload.deviceId) {
-                deviceId = memoryStore.normalizeDeviceId(payload.deviceId);
+                const nextDeviceId = memoryStore.normalizeDeviceId(payload.deviceId);
+                if (nextDeviceId !== deviceId) {
+                    unregisterConnection(deviceId, sessionId);
+                    deviceId = nextDeviceId;
+                    registerConnection(deviceId, sessionId, connectionInfo);
+                }
             }
             (async () => {
                 try {
@@ -1797,6 +1844,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     socket.on('close', () => {
         socketClosed = true;
         closeProvider('disconnect');
+        unregisterConnection(deviceId, sessionId);
         if (usageTickTimer) clearInterval(usageTickTimer);
         flushUsageTicks(true).catch((error) => log('usage_final_flush_error', { message: error.message }));
         log('disconnect', { connectedMs: Date.now() - connectedAt });
@@ -1822,4 +1870,5 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
 module.exports = {
     attachRealtimeServer,
     detectLikelyLanguage,
+    getDeviceConnectionStatus,
 };

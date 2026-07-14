@@ -3,7 +3,7 @@
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-const { attachRealtimeServer } = require('./realtime/realtimeServer');
+const { attachRealtimeServer, getDeviceConnectionStatus } = require('./realtime/realtimeServer');
 const { MockRealtimeProvider, DEFAULT_CONFIG } = require('./realtime/mockRealtimeProvider');
 const { GeminiLiveProvider, MODEL_ID: GEMINI_MODEL_ID, DEFAULT_GEMINI_LIVE_VOICE } = require('./realtime/geminiLiveProvider');
 const {
@@ -98,7 +98,7 @@ function readJsonBody(req) {
     });
 }
 
-const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/icons/:filename', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/realtime'];
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/icons/:filename', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/api/session-status/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
@@ -311,6 +311,17 @@ const server = http.createServer(async (req, res) => {
                         : 500;
             return sendJson(res, statusCode, { ok: false, error: code });
         }
+    }
+
+    // Real live connection status for a device's realtime session(s) — the
+    // parent panel polls this to show whether Browser Lab/ESP32 is actually
+    // connected right now, instead of the hardcoded "not connected" text it
+    // had before. No memory/DB dependency — reads realtimeServer.js's
+    // in-process connection registry directly.
+    const sessionStatusMatch = /^\/api\/session-status\/([^/]+)\/?$/.exec(req.url);
+    if (sessionStatusMatch && req.method === 'GET') {
+        const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(sessionStatusMatch[1]));
+        return sendJson(res, 200, { ok: true, ...getDeviceConnectionStatus(deviceId) });
     }
 
     const analyticsMatch = /^\/api\/analytics\/([^/]+)\/?$/.exec(req.url);
