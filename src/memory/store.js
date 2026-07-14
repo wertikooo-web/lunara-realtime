@@ -26,15 +26,27 @@ const SETTINGS_TEXT_FIELDS = [
     'character_style', 'address_style', 'reply_length', 'energy_level',
     'humor_level', 'initiative_level', 'custom_character_notes',
     'content_mode', 'preferred_themes', 'blocked_themes', 'sensitive_themes',
-    'story_length', 'scary_elements',
+    'story_length', 'scary_elements', 'timezone', 'city',
 ];
 const SETTINGS_TEXT_LIMITS = {
     toy_name: 40, toy_type: 40, custom_toy_type: 40, toy_gender: 12, voice_name: 40, voice_speed: 12,
     character_style: 40, address_style: 20, reply_length: 20, energy_level: 20,
     humor_level: 20, initiative_level: 20, custom_character_notes: 500,
     content_mode: 30, preferred_themes: 200, blocked_themes: 200, sensitive_themes: 200,
-    story_length: 20, scary_elements: 20,
+    story_length: 20, scary_elements: 20, timezone: 60, city: 80,
 };
+const DEFAULT_TIMEZONE = 'Europe/Chisinau';
+
+// Formats a Date as a YYYY-MM-DD string in the given IANA timezone. Falls
+// back to UTC if the timezone string is missing/invalid (Intl throws on bad
+// zone names) so callers never crash on a bad saved value.
+function localDateStringInTz(timezone, date = new Date()) {
+    try {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: timezone || DEFAULT_TIMEZONE }).format(date);
+    } catch {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(date);
+    }
+}
 const SETTINGS_INT_FIELDS = ['volume_level', 'daily_limit_minutes', 'break_reminder_minutes'];
 const SETTINGS_BOOL_FIELDS = ['daily_limit_enabled', 'night_mode_enabled', 'evening_mode_enabled'];
 const SETTINGS_TIME_FIELDS = ['night_mode_start', 'night_mode_end', 'evening_mode_start'];
@@ -142,6 +154,8 @@ async function init() {
             restrictions_addition TEXT DEFAULT '',
             custom_prompt_enabled BOOLEAN DEFAULT false,
             custom_prompt_text TEXT DEFAULT '',
+            timezone TEXT DEFAULT 'Europe/Chisinau',
+            city TEXT DEFAULT '',
             created_at TIMESTAMPTZ DEFAULT now(),
             updated_at TIMESTAMPTZ DEFAULT now()
         );
@@ -152,7 +166,9 @@ async function init() {
         ALTER TABLE device_settings
             ADD COLUMN IF NOT EXISTS custom_prompt_enabled BOOLEAN DEFAULT false,
             ADD COLUMN IF NOT EXISTS custom_prompt_text TEXT DEFAULT '',
-            ADD COLUMN IF NOT EXISTS custom_toy_type TEXT DEFAULT '';
+            ADD COLUMN IF NOT EXISTS custom_toy_type TEXT DEFAULT '',
+            ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'Europe/Chisinau',
+            ADD COLUMN IF NOT EXISTS city TEXT DEFAULT '';
     `);
 
     // Named snapshots a parent can save/load, e.g. one per child sharing the
@@ -178,10 +194,11 @@ async function init() {
     // (daily limit / night mode / break reminders). One row per realtime
     // connection that actually reached session.start. duration_seconds is
     // accumulated by periodic ticks from realtimeServer.js while the
-    // connection is open, plus a final flush on close. usage_date is the
-    // UTC calendar day the session STARTED on (rolling reset at UTC
-    // midnight) — simplest unambiguous day boundary given we don't store a
-    // per-device timezone; documented here and in realtimeServer.js.
+    // connection is open, plus a final flush on close. usage_date is set
+    // explicitly by the caller at insert time using the DEVICE's own
+    // timezone (device_settings.timezone, see localDateStringInTz above),
+    // not the database/server timezone — so "today" for a daily limit
+    // matches the child's actual local day, not UTC.
     await pool.query(`
         CREATE TABLE IF NOT EXISTS usage_sessions (
             id TEXT PRIMARY KEY,
@@ -189,7 +206,7 @@ async function init() {
             started_at TIMESTAMPTZ DEFAULT now(),
             ended_at TIMESTAMPTZ,
             duration_seconds INTEGER DEFAULT 0,
-            usage_date DATE DEFAULT ((now() AT TIME ZONE 'utc')::date)
+            usage_date DATE NOT NULL
         );
     `);
     await pool.query('CREATE INDEX IF NOT EXISTS usage_sessions_device_date_idx ON usage_sessions (device_id, usage_date);');
@@ -571,15 +588,16 @@ function formatParentRulesAddition(settings) {
     if (s.daily_limit_enabled || s.night_mode_enabled || s.evening_mode_enabled) {
         lines.push('');
         lines.push('TIME');
+        const tzLabel = s.timezone || DEFAULT_TIMEZONE;
         if (s.daily_limit_enabled && s.daily_limit_minutes) lines.push(`- Daily usage limit: ${s.daily_limit_minutes} minutes. This is enforced by the server itself (the connection will be closed once the limit is reached) — if you are told the session is ending for this reason, say a warm, brief goodbye and do not try to keep playing.`);
-        if (s.night_mode_enabled) lines.push(`- Night mode window: ${s.night_mode_start}-${s.night_mode_end} server time. This is enforced by the server itself — new sessions are refused and active ones are ended during that window, you will not normally be asked to talk during it.`);
+        if (s.night_mode_enabled) lines.push(`- Night mode window: ${s.night_mode_start}-${s.night_mode_end} local device time (${tzLabel}). This is enforced by the server itself — new sessions are refused and active ones are ended during that window, you will not normally be asked to talk during it.`);
         if (s.evening_mode_enabled) {
             // _eveningModeActiveNow is computed live by realtimeServer.js against
             // the real current clock time on every session.start, not just
             // whether the toggle is enabled — see composeParentRules() caller.
             lines.push(s._eveningModeActiveNow
-                ? `- Evening calm mode is ACTIVE right now (after ${s.evening_mode_start}): use a quieter tone, shorter replies, no energetic games.`
-                : `- Evening calm mode is enabled but NOT active right now (it starts at ${s.evening_mode_start} server time) — use your normal tone.`);
+                ? `- Evening calm mode is ACTIVE right now (after ${s.evening_mode_start} local device time): use a quieter tone, shorter replies, no energetic games.`
+                : `- Evening calm mode is enabled but NOT active right now (it starts at ${s.evening_mode_start} local device time, ${tzLabel}) — use your normal tone.`);
         }
     }
 
@@ -588,21 +606,22 @@ function formatParentRulesAddition(settings) {
 
 // ---- Usage tracking (real server-side time enforcement) ----------------
 //
-// Day boundary: usage_date is set once at row creation to the UTC calendar
-// date ((now() AT TIME ZONE 'utc')::date). Daily limits therefore reset at
-// UTC midnight (a simple rolling day), not device-local midnight — there is
-// no per-device timezone stored anywhere else in this schema, so this is
-// the least-surprising unambiguous choice. Night mode / evening mode
-// windows are compared against the server process's local clock time (see
-// realtimeServer.js) since Railway containers run a single fixed timezone.
+// Day boundary: usage_date is set explicitly at row creation using the
+// DEVICE's own timezone (device_settings.timezone, defaults to
+// 'Europe/Chisinau' — see localDateStringInTz above), not UTC and not the
+// server container's timezone. Night mode / evening mode windows are also
+// compared against this same device timezone (see isWithinNightWindow /
+// isEveningModeActive in realtimeServer.js), so "today" and "22:00" both
+// mean the child's actual local day/time, not the server's.
 
-async function startUsageSession(deviceId) {
+async function startUsageSession(deviceId, timezone) {
     requireReady();
     const usageId = 'u_' + crypto.randomBytes(8).toString('hex');
     const id = normalizeDeviceId(deviceId);
+    const usageDate = localDateStringInTz(timezone);
     await pool.query(
-        `INSERT INTO usage_sessions (id, device_id) VALUES ($1, $2);`,
-        [usageId, id],
+        `INSERT INTO usage_sessions (id, device_id, usage_date) VALUES ($1, $2, $3);`,
+        [usageId, id, usageDate],
     );
     return usageId;
 }
@@ -622,16 +641,18 @@ async function endUsageSession(usageSessionId) {
     await pool.query(`UPDATE usage_sessions SET ended_at = now() WHERE id = $1;`, [usageSessionId]);
 }
 
-// Sum of duration_seconds for the current UTC calendar day, in minutes
-// (rounded down). Includes the still-open session row's ticks so far.
-async function getUsageMinutesToday(deviceId) {
+// Sum of duration_seconds for the current calendar day in the device's own
+// timezone, in minutes (rounded down). Includes the still-open session
+// row's ticks so far.
+async function getUsageMinutesToday(deviceId, timezone) {
     requireReady();
     const id = normalizeDeviceId(deviceId);
+    const usageDate = localDateStringInTz(timezone);
     const { rows } = await pool.query(
         `SELECT COALESCE(SUM(duration_seconds), 0) AS total_seconds
          FROM usage_sessions
-         WHERE device_id = $1 AND usage_date = (now() AT TIME ZONE 'utc')::date;`,
-        [id],
+         WHERE device_id = $1 AND usage_date = $2::date;`,
+        [id, usageDate],
     );
     return Math.floor(Number(rows[0]?.total_seconds || 0) / 60);
 }
@@ -648,23 +669,25 @@ async function getRecentUsageSessions(deviceId, limit = 15) {
     return rows;
 }
 
-// Per-day totals (minutes) for the last N days including today, oldest first.
-async function getDailyUsageMinutes(deviceId, days = 7) {
+// Per-day totals (minutes) for the last N days including today (in the
+// device's own timezone), oldest first.
+async function getDailyUsageMinutes(deviceId, timezone, days = 7) {
     requireReady();
     const id = normalizeDeviceId(deviceId);
+    const todayKey = localDateStringInTz(timezone);
+    const oldestKey = localDateStringInTz(timezone, new Date(Date.now() - (days - 1) * 86400000));
     const { rows } = await pool.query(
         `SELECT usage_date, COALESCE(SUM(duration_seconds), 0) AS total_seconds
          FROM usage_sessions
-         WHERE device_id = $1 AND usage_date >= ((now() AT TIME ZONE 'utc')::date - ($2::int - 1))
+         WHERE device_id = $1 AND usage_date >= $2::date AND usage_date <= $3::date
          GROUP BY usage_date
          ORDER BY usage_date ASC;`,
-        [id, days],
+        [id, oldestKey, todayKey],
     );
     const byDate = new Map(rows.map((r) => [String(r.usage_date), Math.floor(Number(r.total_seconds) / 60)]));
     const out = [];
     for (let i = days - 1; i >= 0; i -= 1) {
-        const d = new Date(Date.now() - i * 86400000);
-        const key = d.toISOString().slice(0, 10);
+        const key = localDateStringInTz(timezone, new Date(Date.now() - i * 86400000));
         out.push({ date: key, minutes: byDate.get(key) || 0 });
     }
     return out;
@@ -700,4 +723,6 @@ module.exports = {
     getUsageMinutesToday,
     getRecentUsageSessions,
     getDailyUsageMinutes,
+    localDateStringInTz,
+    DEFAULT_TIMEZONE,
 };

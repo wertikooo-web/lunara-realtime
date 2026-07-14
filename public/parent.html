@@ -354,6 +354,23 @@
     <h2 data-i18n="runtimeTitle">Время работы</h2>
     <div class="runtime-grid">
       <div class="runtime-card">
+        <label data-i18n="locationTitle">Часовой пояс и город</label>
+        <div class="runtime-fields">
+          <select id="timezone">
+            <option value="Europe/Chisinau">Europe/Chisinau (Кишинёв)</option>
+            <option value="Europe/Bucharest">Europe/Bucharest (Бухарест)</option>
+            <option value="Europe/Kyiv">Europe/Kyiv (Киев)</option>
+            <option value="Europe/Moscow">Europe/Moscow (Москва)</option>
+            <option value="Europe/London">Europe/London (Лондон)</option>
+            <option value="Europe/Berlin">Europe/Berlin (Берлин)</option>
+            <option value="Europe/Warsaw">Europe/Warsaw (Варшава)</option>
+            <option value="UTC">UTC</option>
+          </select>
+          <input id="city" maxlength="80" data-i18n-placeholder="cityPlaceholder" placeholder="Например: Кишинёв">
+        </div>
+        <p class="small" data-i18n="locationHint">Определяет реальное локальное время устройства для ночного режима, дневного лимита и ответов игрушки о дате/времени/погоде.</p>
+      </div>
+      <div class="runtime-card">
         <label class="inline-check"><input id="dailyLimitEnabled" type="checkbox" onchange="toggleDailyLimit()"> <span data-i18n="dailyLimitToggle">Дневной лимит</span></label>
         <div class="runtime-fields" id="dailyLimitFields">
           <select id="dailyLimitPreset" onchange="setDailyLimitPreset()">
@@ -589,6 +606,8 @@ const BASE_SETTINGS = {
   memPeople: true,
   memGames: true,
   memEvents: true,
+  timezone: 'Europe/Chisinau',
+  city: '',
   dailyLimitEnabled: false,
   dailyLimitMinutes: 0,
   nightModeEnabled: false,
@@ -833,6 +852,9 @@ function readFormIntoCurrent() {
   current.memGames = document.getElementById('memGames').checked;
   current.memEvents = document.getElementById('memEvents').checked;
 
+  current.timezone = document.getElementById('timezone').value || 'Europe/Chisinau';
+  current.city = document.getElementById('city').value.trim().slice(0, 80);
+
   current.dailyLimitEnabled = document.getElementById('dailyLimitEnabled').checked;
   current.dailyLimitMinutes = Number(document.getElementById('dailyLimitMinutes').value) || 0;
   current.nightModeEnabled = document.getElementById('nightModeEnabled').checked;
@@ -894,6 +916,9 @@ function applyCurrentToForm() {
   document.getElementById('memPeople').checked = current.memPeople;
   document.getElementById('memGames').checked = current.memGames;
   document.getElementById('memEvents').checked = current.memEvents;
+
+  document.getElementById('timezone').value = current.timezone || 'Europe/Chisinau';
+  document.getElementById('city').value = current.city || '';
 
   document.getElementById('dailyLimitEnabled').checked = current.dailyLimitEnabled;
   document.getElementById('dailyLimitMinutes').value = current.dailyLimitMinutes || '';
@@ -1413,7 +1438,7 @@ const I18N = {
     voicePreviewLoading: 'Генерируем образец голоса…', voicePreviewSampleText: 'Привет! Меня зовут Луми. Давай поиграем?',
     voicePreviewOk: 'Готово', voicePreviewNoKey: 'На сервере не настроен GEMINI_API_KEY — предпросмотр недоступен',
     voicePreviewError: 'Не удалось получить образец голоса, попробуйте ещё раз',
-    runtimeTitle: 'Время работы', dailyLimitToggle: 'Дневной лимит', customTime: 'Своё время', minutesPlaceholder: 'Например: 120',
+    runtimeTitle: 'Время работы', locationTitle: 'Часовой пояс и город', cityPlaceholder: 'Например: Кишинёв', locationHint: 'Определяет реальное локальное время устройства для ночного режима, дневного лимита и ответов игрушки о дате/времени/погоде.', dailyLimitToggle: 'Дневной лимит', customTime: 'Своё время', minutesPlaceholder: 'Например: 120',
     nightModeToggle: 'Ночной режим', nightFrom: 'Не работает с', nightUntil: 'Не работает до', breakReminderTitle: 'Напоминание о перерыве',
     noReminder: 'Не напоминать', eveningModeToggle: 'Спокойный вечерний режим', eveningStart: 'Спокойнее после',
     runtimeHint: 'Лимиты и ночной режим применяются сервером по-настоящему: сессия завершается автоматически, а не только напоминанием в промте.',
@@ -1490,7 +1515,7 @@ const I18N = {
     voicePreviewLoading: 'Se generează o mostră de voce…', voicePreviewSampleText: 'Salut! Mă numesc Lumi. Hai să ne jucăm?',
     voicePreviewOk: 'Gata', voicePreviewNoKey: 'GEMINI_API_KEY nu este configurat pe server — previzualizarea nu este disponibilă',
     voicePreviewError: 'Nu s-a putut obține mostra de voce, încearcă din nou',
-    runtimeTitle: 'Program de funcționare', dailyLimitToggle: 'Limită zilnică', customTime: 'Timp personalizat', minutesPlaceholder: 'De exemplu: 120',
+    runtimeTitle: 'Program de funcționare', locationTitle: 'Fus orar și oraș', cityPlaceholder: 'De exemplu: Chișinău', locationHint: 'Determină ora locală reală a dispozitivului pentru modul de noapte, limita zilnică și răspunsurile jucăriei despre dată/oră/vreme.', dailyLimitToggle: 'Limită zilnică', customTime: 'Timp personalizat', minutesPlaceholder: 'De exemplu: 120',
     nightModeToggle: 'Mod nocturn', nightFrom: 'Nu funcționează de la', nightUntil: 'Nu funcționează până la', breakReminderTitle: 'Memento de pauză',
     noReminder: 'Nu reaminti', eveningModeToggle: 'Mod liniștit de seară', eveningStart: 'Mai liniștit după',
     runtimeHint: 'Limita zilnică și modul nocturn sunt aplicate real de server: sesiunea se încheie automat, nu doar printr-un indiciu în prompt.',
@@ -1567,7 +1592,7 @@ const I18N = {
     voicePreviewLoading: 'Generating a voice sample…', voicePreviewSampleText: 'Hi! My name is Lumi. Shall we play?',
     voicePreviewOk: 'Done', voicePreviewNoKey: 'GEMINI_API_KEY is not configured on the server — preview unavailable',
     voicePreviewError: 'Could not get a voice sample, please try again',
-    runtimeTitle: 'Working hours', dailyLimitToggle: 'Daily limit', customTime: 'Custom time', minutesPlaceholder: 'E.g. 120',
+    runtimeTitle: 'Working hours', locationTitle: 'Timezone and city', cityPlaceholder: 'E.g. Chisinau', locationHint: 'Determines the device\'s real local time for night mode, daily limit, and the toy\'s answers about date/time/weather.', dailyLimitToggle: 'Daily limit', customTime: 'Custom time', minutesPlaceholder: 'E.g. 120',
     nightModeToggle: 'Night mode', nightFrom: 'Off from', nightUntil: 'Off until', breakReminderTitle: 'Break reminder',
     noReminder: 'No reminder', eveningModeToggle: 'Calm evening mode', eveningStart: 'Calmer after',
     runtimeHint: 'The daily limit and night mode are enforced for real by the server: the session actually ends, not just a prompt hint.',
@@ -1641,6 +1666,7 @@ const SETTINGS_FIELD_MAP = {
   break_reminder_minutes: 'breakReminderMinutes', evening_mode_enabled: 'eveningModeEnabled',
   evening_mode_start: 'eveningModeStart', restrictions_addition: 'restrictionsAddition',
   custom_prompt_enabled: 'customPromptEnabled', custom_prompt_text: 'customPromptText',
+  timezone: 'timezone', city: 'city',
 };
 // child_profiles (server, snake_case) -> current (client, camelCase).
 const PROFILE_FIELD_MAP = {

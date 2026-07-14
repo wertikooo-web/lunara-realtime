@@ -282,11 +282,19 @@ function requireWithinLimit(text, label, maxChars = LAB_PROMPT_MAX_CHARS) {
 function buildCurrentContext(currentContext = {}) {
     const now = currentContext.now ? new Date(currentContext.now) : new Date();
     const turns = Array.isArray(currentContext.recentTurns) ? currentContext.recentTurns.slice(-6) : [];
+    // localDateTime/weather are computed server-side (realtimeServer.js) from
+    // the device's own timezone/city (device_settings.timezone/city) — falls
+    // back to raw UTC ISO if not supplied (e.g. Browser Lab default session).
     const lines = [
-        `Current date/time: ${Number.isNaN(now.getTime()) ? new Date().toISOString() : now.toISOString()}`,
+        `Current date/time: ${normalizeBlock(currentContext.localDateTime) || (Number.isNaN(now.getTime()) ? new Date().toISOString() : now.toISOString())}`,
+    ];
+    if (currentContext.weather) {
+        lines.push(`Current weather: ${normalizeBlock(currentContext.weather)}`);
+    }
+    lines.push(
         `Mode: ${normalizeBlock(currentContext.mode || 'push_to_talk')}`,
         'Recent relevant turns:',
-    ];
+    );
 
     if (turns.length === 0) {
         lines.push('- none in this lab session yet');

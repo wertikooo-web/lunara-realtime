@@ -108,17 +108,33 @@ function detectLanguageSignal(text) {
 }
 
 // ---- Working-hours enforcement time helpers -----------------------------
-// Compared against the server process's local clock (Date#getHours /
-// getMinutes). Railway runs each service in a single fixed container
-// timezone, so "server time" is a stable, documented stand-in for a
-// per-device timezone we don't otherwise store.
+// Compared against the DEVICE's own timezone (device_settings.timezone,
+// defaults to memoryStore.DEFAULT_TIMEZONE), not the server container's
+// clock — a parent sets night mode to "22:00" meaning 22:00 where the toy
+// actually is, regardless of which region Railway happens to run the
+// service in.
 function timeStringToMinutes(str) {
     const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(str || ''));
     if (!match) return null;
     return Number(match[1]) * 60 + Number(match[2]);
 }
 
-function nowMinutes(now = new Date()) {
+// Returns minutes-since-midnight for `now` as seen in `timezone`. Falls back
+// to the server's own local clock if the timezone string is missing/invalid.
+function nowMinutes(timezone, now = new Date()) {
+    try {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: timezone || memoryStore.DEFAULT_TIMEZONE,
+            hour: '2-digit',
+            minute: '2-digit',
+            hourCycle: 'h23',
+        }).formatToParts(now);
+        const hour = Number(parts.find((p) => p.type === 'hour')?.value);
+        const minute = Number(parts.find((p) => p.type === 'minute')?.value);
+        if (Number.isFinite(hour) && Number.isFinite(minute)) return hour * 60 + minute;
+    } catch {
+        // fall through to server-local clock below
+    }
     return now.getHours() * 60 + now.getMinutes();
 }
 
@@ -128,7 +144,7 @@ function isWithinNightWindow(settings, now = new Date()) {
     const start = timeStringToMinutes(settings.night_mode_start);
     const end = timeStringToMinutes(settings.night_mode_end);
     if (start == null || end == null) return false;
-    const cur = nowMinutes(now);
+    const cur = nowMinutes(settings.timezone, now);
     if (start === end) return false;
     if (start < end) return cur >= start && cur < end;
     return cur >= start || cur < end; // wraps past midnight
@@ -139,7 +155,63 @@ function isEveningModeActive(settings, now = new Date()) {
     if (!settings || !settings.evening_mode_enabled) return false;
     const start = timeStringToMinutes(settings.evening_mode_start);
     if (start == null) return false;
-    return nowMinutes(now) >= start;
+    return nowMinutes(settings.timezone, now) >= start;
+}
+
+// Formats `now` as a friendly "YYYY-MM-DD, HH:MM (Weekday), TIMEZONE" string
+// in the device's own timezone, for the [CURRENT CONTEXT] prompt block —
+// lets the model correctly answer "what day/time is it".
+function formatLocalDateTime(timezone, now = new Date()) {
+    const tz = timezone || memoryStore.DEFAULT_TIMEZONE;
+    try {
+        const formatted = new Intl.DateTimeFormat('en-CA', {
+            timeZone: tz,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+            weekday: 'long',
+        }).format(now);
+        return `${formatted} (${tz})`;
+    } catch {
+        return `${now.toISOString()} (UTC)`;
+    }
+}
+
+// ---- Weather (best-effort, no API key: Open-Meteo) -----------------------
+// Geocodes the parent-entered city once, then fetches current conditions.
+// Cached in-process for WEATHER_TTL_MS per city so we don't hit Open-Meteo
+// on every session.start. Never blocks/fails the session — any error just
+// means no weather line is added to the prompt.
+const WEATHER_TTL_MS = 30 * 60 * 1000;
+const weatherCache = new Map(); // city (lowercased) -> { text, expiresAt }
+const WEATHER_CODE_TEXT = {
+    0: 'clear sky', 1: 'mostly clear', 2: 'partly cloudy', 3: 'overcast',
+    45: 'fog', 48: 'fog', 51: 'light drizzle', 53: 'drizzle', 55: 'heavy drizzle',
+    61: 'light rain', 63: 'rain', 65: 'heavy rain', 71: 'light snow', 73: 'snow',
+    75: 'heavy snow', 80: 'rain showers', 81: 'rain showers', 82: 'violent rain showers',
+    95: 'thunderstorm', 96: 'thunderstorm with hail', 99: 'thunderstorm with heavy hail',
+};
+
+async function fetchWeather(city) {
+    const key = String(city || '').trim().toLowerCase();
+    if (!key) return null;
+    const cached = weatherCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.text;
+    try {
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+        const geo = await geoRes.json();
+        const place = geo?.results?.[0];
+        if (!place) return null;
+        const forecastRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,weather_code`);
+        const forecast = await forecastRes.json();
+        const current = forecast?.current;
+        if (!current || typeof current.temperature_2m !== 'number') return null;
+        const description = WEATHER_CODE_TEXT[current.weather_code] || 'unknown conditions';
+        const text = `${place.name}: ${Math.round(current.temperature_2m)}°C, ${description}.`;
+        weatherCache.set(key, { text, expiresAt: Date.now() + WEATHER_TTL_MS });
+        return text;
+    } catch {
+        return null;
+    }
 }
 
 function createCancellation() {
@@ -237,6 +309,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     // null means "no device settings fetched yet / memory disabled" — content
     // tools are not gated in that case, matching pre-memory behavior.
     let allowedContentSettings = null;
+    // Live date/time/weather for the [CURRENT CONTEXT] prompt block, refreshed
+    // on every session.start from device_settings.timezone/city (see below).
+    let cachedLocalDateTime = null;
+    let cachedWeatherText = null;
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
     let deviceId = memoryStore.normalizeDeviceId();
     const memoryEnabledFlag = memoryEnabledFromEnv();
@@ -289,7 +365,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             };
         }
         if (settings.daily_limit_enabled && settings.daily_limit_minutes > 0) {
-            const usedMinutes = await memoryStore.getUsageMinutesToday(deviceId);
+            const usedMinutes = await memoryStore.getUsageMinutesToday(deviceId, settings.timezone);
             if (usedMinutes >= settings.daily_limit_minutes) {
                 return {
                     blocked: true,
@@ -435,6 +511,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     ? `Continue in the last clearly understood child language: ${sessionLanguage}. Keep the same voice identity.`
                     : 'No stable child language has been established yet. Follow the last clearly understood child utterance.',
                 recentTurns,
+                localDateTime: cachedLocalDateTime,
+                weather: cachedWeatherText,
             },
         });
     }
@@ -1475,6 +1553,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                                 sessionVoiceConfigSource = 'device_settings';
                                 log('session_voice_applied', { deviceId, voiceName: sessionVoiceName });
                             }
+                            cachedLocalDateTime = formatLocalDateTime(dbSettings.timezone, new Date());
+                            cachedWeatherText = dbSettings.city ? await fetchWeather(dbSettings.city) : null;
                         }
                     }
 

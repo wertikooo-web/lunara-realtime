@@ -298,14 +298,16 @@ const server = http.createServer(async (req, res) => {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(analyticsMatch[1]));
         try {
             await ensureMemoryReady();
-            const [settings, todayMinutes, recentSessions, dailyMinutes] = await Promise.all([
-                memoryStore.getOrCreateSettings(deviceId),
-                memoryStore.getUsageMinutesToday(deviceId),
+            const settings = await memoryStore.getOrCreateSettings(deviceId);
+            const timezone = settings.timezone || memoryStore.DEFAULT_TIMEZONE;
+            const [todayMinutes, recentSessions, dailyMinutes] = await Promise.all([
+                memoryStore.getUsageMinutesToday(deviceId, timezone),
                 memoryStore.getRecentUsageSessions(deviceId, 15),
-                memoryStore.getDailyUsageMinutes(deviceId, 7),
+                memoryStore.getDailyUsageMinutes(deviceId, timezone, 7),
             ]);
             return sendJson(res, 200, {
                 ok: true,
+                timezone,
                 today_minutes: todayMinutes,
                 daily_limit_enabled: !!settings.daily_limit_enabled,
                 daily_limit_minutes: settings.daily_limit_minutes || 0,
