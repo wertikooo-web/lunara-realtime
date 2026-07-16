@@ -361,6 +361,13 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     // on every session.start from device_settings.timezone/city (see below).
     let cachedLocalDateTime = null;
     let cachedWeatherText = null;
+    // device_settings.volume_level (2-10, see parent.html's range input) has
+    // no Gemini Live API equivalent — there is no synthesis-side volume
+    // knob, so this can only be applied by the DEVICE's own amplifier/DAC
+    // gain. Surfaced in session.config.applied (see emitPromptApplied) so
+    // ESP32 firmware can read it and apply real hardware volume; the server
+    // itself does not and cannot change loudness of the Gemini audio.
+    let cachedVolumeLevel = null;
     // ---- Microphone input resampling state ----
     // Configured explicitly on every session.start from
     // resolveInputSampleRate() (sampleRate/sample_rate in the payload).
@@ -747,6 +754,13 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 sample_rate: inputSampleRate,
                 sample_rate_source: inputSampleRateSource,
                 gemini_input_sample_rate: GEMINI_INPUT_SAMPLE_RATE,
+            },
+            // Gemini Live has no output-volume/gain API — the server cannot
+            // change how loud the generated audio is. This is only the
+            // parent's saved preference (2-10); applying it to real hardware
+            // loudness (amplifier/DAC gain) is the ESP32 firmware's job.
+            device: {
+                volume_level: cachedVolumeLevel,
             },
             lab_prompt: {
                 allow_custom_prompt: LAB_ALLOW_CUSTOM_PROMPT,
@@ -1700,6 +1714,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                             }
                             cachedLocalDateTime = formatLocalDateTime(dbSettings.timezone, new Date());
                             cachedWeatherText = dbSettings.city ? await fetchWeather(dbSettings.city) : null;
+                            cachedVolumeLevel = Number.isFinite(Number(dbSettings.volume_level)) ? Number(dbSettings.volume_level) : null;
                         }
                     }
 

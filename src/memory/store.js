@@ -580,7 +580,12 @@ function formatParentRulesAddition(settings) {
     if (disabled.length) lines.push(`- Do not offer: ${disabled.join(', ')}.`);
     lines.push(`- Content source mode: ${s.content_mode === 'library_only' ? 'only the verified content library, do not improvise new stories/riddles' : 'verified library plus model-generated content is allowed'}.`);
     if (s.preferred_themes) lines.push(`- Preferred themes: ${s.preferred_themes}.`);
-    if (s.blocked_themes) lines.push(`- Do not proactively introduce: ${s.blocked_themes}.`);
+    // Bug fix: this used to say "Do not proactively introduce", which only
+    // stopped the model from bringing the topic up unprompted — it still
+    // freely discussed it when the child asked directly. The parent panel
+    // labels this field "Запрещённые темы" (forbidden topics), so a direct
+    // question must also be refused, not just unprompted mentions.
+    if (s.blocked_themes) lines.push(`- These topics are forbidden: ${s.blocked_themes}. Do not discuss or engage with them even if the child asks directly. If asked, gently redirect to a different topic without explaining why.`);
     if (s.sensitive_themes) lines.push(`- Sensitive themes: ${s.sensitive_themes}. Do not mention unless the child raises them directly.`);
     lines.push(`- Story length: ${STYLE_TEXT.story_length[s.story_length] || 'up to about 1 minute'}.`);
     lines.push(`- Scary elements: ${STYLE_TEXT.scary_elements[s.scary_elements] || 'no scary elements at all'}.`);
