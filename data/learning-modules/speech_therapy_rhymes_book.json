@@ -1,0 +1,248 @@
+{
+  "pack_id": "speech_therapy_rhymes_book",
+  "module": "speech_development",
+  "skill": "book_rhymes",
+  "lang": "ru",
+  "items": [
+    {
+      "id": "book_rhyme_001",
+      "level": 1,
+      "instruction": "Давай поиграем в стишки из книжки! Договори словечко в рифму. Ба-ба-ба — новая... Что?",
+      "expected_answers": ["труба"],
+      "accepted_variants": ["трубочка"],
+      "hints": [
+        "Слово рифмуется с 'ба-ба-ба'. Новая тру...",
+        "Правильный ответ: труба."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_002",
+      "level": 1,
+      "instruction": "Правильно! Слушай следующий стишок. Да-да-да — у меня... Что?",
+      "expected_answers": ["вода"],
+      "accepted_variants": ["водичка", "горяча вода"],
+      "hints": [
+        "Рифма к слову 'да-да-да'. У меня во...",
+        "Правильный ответ: вода."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_003",
+      "level": 1,
+      "instruction": "Супер. Та-та-та — я везу... Кого?",
+      "expected_answers": ["кота"],
+      "accepted_variants": ["котика", "черного кота"],
+      "hints": [
+        "Рифма к 'та-та-та'. Я везу ко...",
+        "Правильное слово: кота."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_004",
+      "level": 1,
+      "instruction": "Молодец. Ить-ить-ить — я хочу... Что делать?",
+      "expected_answers": ["пить"],
+      "accepted_variants": ["попить", "воды пить"],
+      "hints": [
+        "Рифма к 'ить-ить-ить'. Я хочу пи...",
+        "Правильное слово: пить."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_005",
+      "level": 1,
+      "instruction": "Отлично. Ща-ща-ща — ходит зайка без... Без чего?",
+      "expected_answers": ["плаща"],
+      "accepted_variants": ["плащика"],
+      "hints": [
+        "Рифма к 'ща-ща-ща'. Ходит зайка без пла...",
+        "Правильный ответ: плаща."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_006",
+      "level": 1,
+      "instruction": "Правильно. Щу-щу-щу — я сома... Что делаю?",
+      "expected_answers": ["тащу"],
+      "accepted_variants": ["ловлю", "ищу"],
+      "hints": [
+        "Рифма к 'щу-щу-щу'. Я сома та...",
+        "Правильное слово из книжки: тащу."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_007",
+      "level": 1,
+      "instruction": "Молодец. Ла-ла-ла — лопата и... Что?",
+      "expected_answers": ["пила"],
+      "accepted_variants": ["юла", "игла"],
+      "hints": [
+        "Рифма к 'ла-ла-ла'. Лопата и пи...",
+        "Правильное слово: пила."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_008",
+      "level": 1,
+      "instruction": "Супер. Ло-ло-ло — у меня... Что?",
+      "expected_answers": ["весло"],
+      "accepted_variants": ["тепло"],
+      "hints": [
+        "Рифма к 'ло-ло-ло'. У меня ве...",
+        "Правильное слово: весло."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_009",
+      "level": 1,
+      "instruction": "Здорово. Ли-ли-ли — малину мы... Что делали?",
+      "expected_answers": ["несли"],
+      "accepted_variants": ["нашли", "принесли"],
+      "hints": [
+        "Рифма к 'ли-ли-ли'. Малину мы не...",
+        "Правильное слово: несли."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_010",
+      "level": 1,
+      "instruction": "Правильно! Га-га-га — зеленые... Что?",
+      "expected_answers": ["луга"],
+      "accepted_variants": ["берега", "рога"],
+      "hints": [
+        "Рифма к 'га-га-га'. Зеленые лу...",
+        "Правильное слово: луга."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_011",
+      "level": 1,
+      "instruction": "Молодец. Ха-ха-ха — пышный хвост у... У кого?",
+      "expected_answers": ["петуха"],
+      "accepted_variants": ["петушка"],
+      "hints": [
+        "Рифма к 'ха-ха-ха'. Пышный хвост у пету...",
+        "Правильный ответ: петуха."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_012",
+      "level": 1,
+      "instruction": "Супер. За-за-за — вот идет... Кто?",
+      "expected_answers": ["коза"],
+      "accepted_variants": ["стрекоза", "гроза"],
+      "hints": [
+        "Рифма к 'за-за-за'. Вот идет ко...",
+        "Правильное слово: коза."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_013",
+      "level": 1,
+      "instruction": "Здорово. Зу-зу-зу — накормлю... Кого?",
+      "expected_answers": ["козу"],
+      "accepted_variants": ["стрекозу"],
+      "hints": [
+        "Рифма к 'зу-зу-зу'. Накормлю ко...",
+        "Правильный ответ: козу."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_014",
+      "level": 1,
+      "instruction": "Правильно! Ай-ай-ай — скоро месяц... Какой?",
+      "expected_answers": ["май"],
+      "accepted_variants": ["чай", "урожай"],
+      "hints": [
+        "Рифма к 'ай-ай-ай'. Скоро месяц ма...",
+        "Правильное слово: май."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_015",
+      "level": 1,
+      "instruction": "Супер. Ра-ра-ра — высокая... Что?",
+      "expected_answers": ["гора"],
+      "accepted_variants": ["игра", "нора"],
+      "hints": [
+        "Рифма к 'ра-ра-ра'. Высокая го...",
+        "Правильное слово: гора."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_016",
+      "level": 1,
+      "instruction": "Молодец. Ры-ры-ры — летят... Кто?",
+      "expected_answers": ["комары"],
+      "accepted_variants": ["бобры", "шары"],
+      "hints": [
+        "Рифма к 'ры-ры-ры'. Летят кома...",
+        "Правильное слово: комары."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_017",
+      "level": 1,
+      "instruction": "Здорово. Ри-ри-ри — горят... Что?",
+      "expected_answers": ["фонари"],
+      "accepted_variants": ["снегири"],
+      "hints": [
+        "Рифма к 'ри-ри-ри'. Горят фона...",
+        "Правильный ответ: фонари."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_018",
+      "level": 1,
+      "instruction": "Правильно! Па-па-па — на столе... Что?",
+      "expected_answers": ["крупа"],
+      "accepted_variants": ["тропа"],
+      "hints": [
+        "Рифма к 'па-па-па'. На столе кру...",
+        "Правильное слово: крупа."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_019",
+      "level": 1,
+      "instruction": "Молодец. Ва-ва-ва — выросла... Что?",
+      "expected_answers": ["трава"],
+      "accepted_variants": ["травинка", "сова"],
+      "hints": [
+        "Рифма к 'ва-ва-ва'. Выросла тра...",
+        "Правильный ответ: трава."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "book_rhyme_020",
+      "level": 1,
+      "instruction": "И последняя рифма! Ку-ку-ку — кукушка на... На чём?",
+      "expected_answers": ["суку"],
+      "accepted_variants": ["ветке", "дереве", "сучке"],
+      "hints": [
+        "Рифма к 'ку-ку-ку'. Кукушка на су...",
+        "Правильное слово: суку."
+      ],
+      "max_attempts": 3
+    }
+  ]
+}
