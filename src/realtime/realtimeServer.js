@@ -621,6 +621,14 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function handleGetRiddleTool({ args = {}, generationId, turnId, providerInstanceId }) {
+        if (allowedContentSettings && allowedContentSettings.riddles === false) {
+            log('riddle_tool_rejected', {
+                reason: 'parental_restriction',
+                generationId,
+                turnId,
+            });
+            return { error: 'content_type_disabled', message: 'Riddles are disabled by parental control.' };
+        }
         if (!currentGeneration || currentGeneration.generationId !== generationId) {
             log('riddle_tool_rejected', {
                 reason: 'stale_generation',
@@ -713,6 +721,30 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         }
 
         const moduleId = args.moduleId || 'speech_development_zh';
+
+        if (allowedContentSettings) {
+            const isSpeech = moduleId.startsWith('speech_') || moduleId.startsWith('articulation_') || moduleId.startsWith('breathing_') || moduleId.startsWith('differentiation_') || moduleId.startsWith('voiced_') || moduleId.startsWith('syllabic_') || moduleId.startsWith('phonemic_') || moduleId.startsWith('grammar_');
+            const isEnglish = moduleId.startsWith('english_');
+            const isMath = moduleId.startsWith('math_');
+            
+            if (isSpeech && allowedContentSettings.speechDevelopment === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'Speech development is disabled by parental control.' };
+            }
+            if ((isEnglish || isMath) && allowedContentSettings.educationalActivities === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'Educational activities are disabled by parental control.' };
+            }
+        }
+
         const session = learningLibrary.startSession(moduleId);
         if (!session) {
             log('learning_tool_rejected', {
@@ -2055,6 +2087,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                             cachedLocalDateTime = formatLocalDateTime(dbSettings.timezone, new Date());
                             cachedWeatherText = dbSettings.city ? await fetchWeather(dbSettings.city) : null;
                             cachedVolumeLevel = Number.isFinite(Number(dbSettings.volume_level)) ? Number(dbSettings.volume_level) : null;
+                            allowedContentSettings = dbSettings.allowed_content || null;
                         }
                     }
 
