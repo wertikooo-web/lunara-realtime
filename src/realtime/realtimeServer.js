@@ -726,6 +726,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             const isSpeech = moduleId.startsWith('speech_') || moduleId.startsWith('articulation_') || moduleId.startsWith('breathing_') || moduleId.startsWith('differentiation_') || moduleId.startsWith('voiced_') || moduleId.startsWith('syllabic_') || moduleId.startsWith('phonemic_') || moduleId.startsWith('grammar_');
             const isEnglish = moduleId.startsWith('english_');
             const isMath = moduleId.startsWith('math_');
+            const isEq = moduleId.startsWith('emotional_');
+            const isAdventure = moduleId.startsWith('interactive_');
             
             if (isSpeech && allowedContentSettings.speechDevelopment === false) {
                 log('learning_tool_rejected', {
@@ -742,6 +744,22 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     generationId,
                 });
                 return { error: 'content_type_disabled', message: 'Educational activities are disabled by parental control.' };
+            }
+            if (isEq && allowedContentSettings.emotionalIntelligence === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'Emotional intelligence is disabled by parental control.' };
+            }
+            if (isAdventure && allowedContentSettings.interactiveTales === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'Interactive tales are disabled by parental control.' };
             }
         }
 

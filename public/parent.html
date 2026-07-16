@@ -306,6 +306,8 @@
       <label><input type="checkbox" value="educationalActivities" checked> <span data-i18n="cEducational">Обучающие активности</span></label>
       <label><input type="checkbox" value="rolePlay" checked> <span data-i18n="cRolePlay">Ролевые игры</span></label>
       <label><input type="checkbox" value="speechDevelopment" checked> <span data-i18n="cSpeech">Развитие речи</span></label>
+      <label><input type="checkbox" value="emotionalIntelligence" checked> <span data-i18n="cEmotionalIntelligence">Эмоциональный интеллект</span></label>
+      <label><input type="checkbox" value="interactiveTales" checked> <span data-i18n="cInteractiveTales">Сказки-квесты</span></label>
       <label><input type="checkbox" value="worldFacts" checked> <span data-i18n="cFacts">Факты о мире</span></label>
       <label><input type="checkbox" value="improvisedContent" checked> <span data-i18n="cImprovised">Импровизированный контент</span></label>
     </div>
@@ -590,7 +592,7 @@ const BASE_SETTINGS = {
   allowedContent: {
     riddles: true, stories: true, tongueTwisters: true, jokes: true, miniGames: true,
     educationalActivities: true, rolePlay: true, speechDevelopment: true, worldFacts: true,
-    improvisedContent: true,
+    improvisedContent: true, emotionalIntelligence: true, interactiveTales: true,
   },
   preferredThemes: '',
   blockedThemes: '',
@@ -993,6 +995,8 @@ function buildGeneratedRestrictionsAddition(s) {
     riddles: 'riddles', stories: 'stories', tongueTwisters: 'tongue twisters', jokes: 'jokes',
     miniGames: 'mini-games', educationalActivities: 'educational activities', rolePlay: 'role-play',
     speechDevelopment: 'speech development activities', worldFacts: 'world facts', improvisedContent: 'improvised content',
+    emotionalIntelligence: 'emotional intelligence activities',
+    interactiveTales: 'interactive stories and choose-your-own-adventure tales',
   };
   const enabled = Object.keys(contentLabels).filter((k) => s.allowedContent[k]).map((k) => contentLabels[k]);
   const disabled = Object.keys(contentLabels).filter((k) => !s.allowedContent[k]).map((k) => contentLabels[k]);
@@ -1433,6 +1437,7 @@ const I18N = {
     contentTitle: 'Контент', contentMode: 'Режим контента', contentLibraryOnly: 'Только проверенная библиотека', contentLibraryPlus: 'Библиотека + генерация',
     contentAllowed: 'Разрешённые типы', cRiddles: 'Загадки', cStories: 'Сказки', cTongueTwisters: 'Скороговорки', cJokes: 'Шутки',
     cMiniGames: 'Мини-игры', cEducational: 'Обучающие активности', cRolePlay: 'Ролевые игры', cSpeech: 'Развитие речи',
+    cEmotionalIntelligence: 'Эмоциональный интеллект', cInteractiveTales: 'Сказки-квесты',
     cFacts: 'Факты о мире', cImprovised: 'Импровизированный контент', preferredThemes: 'Любимые темы через запятую',
     preferredThemesPlaceholder: 'космос, животные', blockedThemes: 'Запрещённые темы через запятую', blockedThemesPlaceholder: 'оружие, ужасы, война',
     sensitiveThemes: 'Чувствительные темы через запятую', sensitiveThemesPlaceholder: 'развод родителей', storyLength: 'Длина сказки',
@@ -1507,6 +1512,7 @@ const I18N = {
     contentTitle: 'Conținut', contentMode: 'Mod conținut', contentLibraryOnly: 'Doar biblioteca verificată', contentLibraryPlus: 'Bibliotecă + generare',
     contentAllowed: 'Tipuri permise', cRiddles: 'Ghicitori', cStories: 'Povești', cTongueTwisters: 'Frământări de limbă', cJokes: 'Glume',
     cMiniGames: 'Mini-jocuri', cEducational: 'Activități educative', cRolePlay: 'Jocuri de rol', cSpeech: 'Dezvoltarea vorbirii',
+    cEmotionalIntelligence: 'Inteligență emoțională', cInteractiveTales: 'Povești interactive',
     cFacts: 'Fapte despre lume', cImprovised: 'Conținut improvizat', preferredThemes: 'Teme preferate, separate prin virgulă',
     preferredThemesPlaceholder: 'spațiu, animale', blockedThemes: 'Teme interzise, separate prin virgulă', blockedThemesPlaceholder: 'arme, groază, război',
     sensitiveThemes: 'Teme sensibile, separate prin virgulă', sensitiveThemesPlaceholder: 'divorțul părinților', storyLength: 'Lungimea poveștii',
@@ -1581,6 +1587,7 @@ const I18N = {
     contentTitle: 'Content', contentMode: 'Content mode', contentLibraryOnly: 'Verified library only', contentLibraryPlus: 'Library + generation',
     contentAllowed: 'Allowed types', cRiddles: 'Riddles', cStories: 'Stories', cTongueTwisters: 'Tongue twisters', cJokes: 'Jokes',
     cMiniGames: 'Mini-games', cEducational: 'Educational activities', cRolePlay: 'Role-play', cSpeech: 'Speech development',
+    cEmotionalIntelligence: 'Emotional intelligence', cInteractiveTales: 'Interactive tales',
     cFacts: 'World facts', cImprovised: 'Improvised content', preferredThemes: 'Preferred topics, comma separated',
     preferredThemesPlaceholder: 'space, animals', blockedThemes: 'Blocked topics, comma separated', blockedThemesPlaceholder: 'weapons, horror, war',
     sensitiveThemes: 'Sensitive topics, comma separated', sensitiveThemesPlaceholder: 'parents’ divorce', storyLength: 'Story length',

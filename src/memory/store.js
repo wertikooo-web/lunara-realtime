@@ -54,6 +54,8 @@ const CONTENT_LABELS = {
     riddles: 'riddles', stories: 'stories', tongueTwisters: 'tongue twisters', jokes: 'jokes',
     miniGames: 'mini-games', educationalActivities: 'educational activities', rolePlay: 'role-play',
     speechDevelopment: 'speech development activities', worldFacts: 'world facts', improvisedContent: 'improvised content',
+    emotionalIntelligence: 'emotional intelligence activities',
+    interactiveTales: 'interactive stories and choose-your-own-adventure tales',
 };
 
 let pool = null;
@@ -137,7 +139,7 @@ async function init() {
             initiative_level TEXT DEFAULT 'sometimes',
             custom_character_notes TEXT DEFAULT '',
             content_mode TEXT DEFAULT 'library_only',
-            allowed_content JSONB DEFAULT '{"riddles":true,"stories":true,"tongueTwisters":true,"jokes":true,"miniGames":true,"educationalActivities":true,"rolePlay":true,"speechDevelopment":true,"worldFacts":true,"improvisedContent":true}',
+            allowed_content JSONB DEFAULT '{"riddles":true,"stories":true,"tongueTwisters":true,"jokes":true,"miniGames":true,"educationalActivities":true,"rolePlay":true,"speechDevelopment":true,"worldFacts":true,"improvisedContent":true,"emotionalIntelligence":true,"interactiveTales":true}',
             preferred_themes TEXT DEFAULT '',
             blocked_themes TEXT DEFAULT '',
             sensitive_themes TEXT DEFAULT '',
