@@ -1,0 +1,44 @@
+{
+  "pack_id": "english_vocabulary_numbers",
+  "module": "english_vocabulary",
+  "skill": "numbers",
+  "lang": "en",
+  "items": [
+    {
+      "id": "en_num_001",
+      "level": 1,
+      "instruction": "Давай научимся считать до пяти по-английски! Повтори за мной: one, two, three.",
+      "expected_answers": ["one two three"],
+      "accepted_variants": ["1 2 3", "one, two, three"],
+      "hints": [
+        "Сначала один, два, три: one, two, three.",
+        "Повтори: one, two, three."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_num_002",
+      "level": 1,
+      "instruction": "Отлично! А теперь четыре и пять: four, five. Повтори за мной: four, five.",
+      "expected_answers": ["four five"],
+      "accepted_variants": ["4 5", "four, five"],
+      "hints": [
+        "Повтори коротко: four, five.",
+        "Четыре и пять — это four, five."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_num_003",
+      "level": 1,
+      "instruction": "Давай сосчитаем от одного до пяти целиком! Скажи: one, two, three, four, five.",
+      "expected_answers": ["one two three four five"],
+      "accepted_variants": ["one, two, three, four, five", "1 2 3 4 5"],
+      "hints": [
+        "Попробуй сосчитать медленно: one... two... three... four... five.",
+        "Давай вместе: one, two, three, four, five."
+      ],
+      "max_attempts": 3
+    }
+  ]
+}

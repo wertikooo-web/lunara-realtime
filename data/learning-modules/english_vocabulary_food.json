@@ -1,0 +1,56 @@
+{
+  "pack_id": "english_vocabulary_food",
+  "module": "english_vocabulary",
+  "skill": "food",
+  "lang": "en",
+  "items": [
+    {
+      "id": "en_food_001",
+      "level": 1,
+      "instruction": "Давай выучим названия еды на английском! Яблоко — это apple. Повтори: apple.",
+      "expected_answers": ["apple"],
+      "accepted_variants": ["an apple", "its apple"],
+      "hints": [
+        "Повтори коротко: apple.",
+        "Яблоко — это apple."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_food_002",
+      "level": 1,
+      "instruction": "Банан по-английски — это banana. Повтори за мной: banana.",
+      "expected_answers": ["banana"],
+      "accepted_variants": ["a banana", "its banana"],
+      "hints": [
+        "Повтори коротко: banana.",
+        "Банан — это banana."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_food_003",
+      "level": 1,
+      "instruction": "Молоко по-английски будет milk. Повтори: milk.",
+      "expected_answers": ["milk"],
+      "accepted_variants": ["some milk", "its milk"],
+      "hints": [
+        "Повтори коротко: milk.",
+        "Молоко — это milk."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_food_004",
+      "level": 1,
+      "instruction": "Хлеб на английском — это bread. Повтори за мной: bread.",
+      "expected_answers": ["bread"],
+      "accepted_variants": ["some bread", "its bread"],
+      "hints": [
+        "Повтори коротко: bread.",
+        "Хлеб — это bread."
+      ],
+      "max_attempts": 3
+    }
+  ]
+}

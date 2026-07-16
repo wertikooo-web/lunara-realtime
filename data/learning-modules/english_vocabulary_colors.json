@@ -1,0 +1,68 @@
+{
+  "pack_id": "english_vocabulary_colors",
+  "module": "english_vocabulary",
+  "skill": "colors",
+  "lang": "en",
+  "items": [
+    {
+      "id": "en_col_001",
+      "level": 1,
+      "instruction": "Давай выучим цвета на английском! Красный цвет по-английски будет red. Повтори: red.",
+      "expected_answers": ["red"],
+      "accepted_variants": ["its red", "red color"],
+      "hints": [
+        "Повтори коротко: red.",
+        "Красный — это red."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_col_002",
+      "level": 1,
+      "instruction": "Синий цвет по-английски — это blue. Повтори за мной: blue.",
+      "expected_answers": ["blue"],
+      "accepted_variants": ["its blue", "blue color"],
+      "hints": [
+        "Повтори коротко: blue.",
+        "Синий — это blue."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_col_003",
+      "level": 1,
+      "instruction": "Зелёный цвет на английском — это green. Повтори: green.",
+      "expected_answers": ["green"],
+      "accepted_variants": ["its green", "green color"],
+      "hints": [
+        "Повтори коротко: green.",
+        "Зелёный — это green."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_col_004",
+      "level": 1,
+      "instruction": "Жёлтый цвет по-английски — это yellow. Повтори: yellow.",
+      "expected_answers": ["yellow"],
+      "accepted_variants": ["its yellow", "yellow color"],
+      "hints": [
+        "Повтори коротко: yellow.",
+        "Жёлтый — это yellow."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "en_col_005",
+      "level": 1,
+      "instruction": "Как будет белый цвет по-английски? Это white. А чёрный — black. Повтори оба цвета: white, black.",
+      "expected_answers": ["white black"],
+      "accepted_variants": ["white and black", "black and white"],
+      "hints": [
+        "Сначала скажи white, а потом black.",
+        "Повтори: white, black."
+      ],
+      "max_attempts": 3
+    }
+  ]
+}
