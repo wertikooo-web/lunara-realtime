@@ -1,0 +1,68 @@
+{
+  "pack_id": "grammar_diminutives",
+  "module": "speech_development",
+  "skill": "grammar_diminutive",
+  "lang": "ru",
+  "items": [
+    {
+      "id": "dim_001",
+      "level": 1,
+      "instruction": "Давай сыграем в ласковые слова! Я говорю слово, а ты называешь его ласково. Например: дом — домик. Кот — ...?",
+      "expected_answers": ["котик"],
+      "accepted_variants": ["котенок", "котяра"],
+      "hints": [
+        "Назови кота ласково: ко...",
+        "Правильное слово: котик."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "dim_002",
+      "level": 1,
+      "instruction": "Правильно! А теперь: солнце — ...?",
+      "expected_answers": ["солнышко"],
+      "accepted_variants": ["солнышко лучистое"],
+      "hints": [
+        "Назови солнце ласково: солны...",
+        "Правильный ответ: солнышко."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "dim_003",
+      "level": 1,
+      "instruction": "Супер. Мяч — ...?",
+      "expected_answers": ["мячик"],
+      "accepted_variants": ["круглый мячик"],
+      "hints": [
+        "Назови мяч ласково: мя...",
+        "Правильное слово: мячик."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "dim_004",
+      "level": 1,
+      "instruction": "Отлично! Звезда — ...?",
+      "expected_answers": ["звездочка"],
+      "accepted_variants": ["звёздочка"],
+      "hints": [
+        "Назови звезду ласково: звездо...",
+        "Правильный ответ: звездочка."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "dim_005",
+      "level": 1,
+      "instruction": "Молодец. И последнее: кукла — ...?",
+      "expected_answers": ["куколка"],
+      "accepted_variants": ["красивая куколка"],
+      "hints": [
+        "Назови куклу ласково: куко...",
+        "Правильное слово: куколка."
+      ],
+      "max_attempts": 3
+    }
+  ]
+}
