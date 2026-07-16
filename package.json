@@ -18,7 +18,8 @@
     "smoke:realtime": "node scripts/realtime-smoke.js",
     "smoke:memory-guard": "node scripts/smoke-memory-guard.js",
     "smoke:pcm-resampler": "node scripts/pcm-resampler-smoke.js",
-    "smoke:input-resample-pipeline": "node scripts/input-resample-pipeline-smoke.js"
+    "smoke:input-resample-pipeline": "node scripts/input-resample-pipeline-smoke.js",
+    "smoke:learning": "node scripts/learning-smoke.js"
   },
   "engines": {
     "node": ">=20"

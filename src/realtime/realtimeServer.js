@@ -33,6 +33,7 @@ const {
     composeParentRules,
 } = require('./realtimePrompt');
 const { createContentLibrary } = require('../content/contentLibrary');
+const { createLearningLibrary } = require('../content/learningLibrary');
 const memoryStore = require('../memory/store');
 const memoryGuard = require('../memory/guard');
 const { extractMemoryActions } = require('../memory/extractor');
@@ -352,7 +353,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let pendingLanguageCandidate = null;
     const contentToolsEnabled = areContentToolsEnabled(providerMetadata.contentToolsEnabled);
     const contentLibrary = providerMetadata.contentLibrary || createContentLibrary(providerMetadata.contentLibraryOptions || {});
+    const learningLibrary = providerMetadata.learningLibrary || createLearningLibrary(providerMetadata.learningLibraryOptions || {});
     let activeActivity = null;
+    let activeLearningSession = null;
     // Set from device_settings.allowed_content at session.start (see below).
     // null means "no device settings fetched yet / memory disabled" — content
     // tools are not gated in that case, matching pre-memory behavior.
@@ -606,6 +609,13 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             contentToolsEnabled,
             toolHandlers: contentToolsEnabled ? {
                 get_riddle: handleGetRiddleTool,
+                learning_start: handleLearningStartTool,
+                learning_get_next_exercise: handleLearningGetNextExerciseTool,
+                learning_get_hint: handleLearningGetHintTool,
+                learning_repeat_instruction: handleLearningRepeatInstructionTool,
+                learning_skip_exercise: handleLearningSkipExerciseTool,
+                learning_finish_session: handleLearningFinishSessionTool,
+                learning_get_progress: handleLearningGetProgressTool,
             } : {},
         };
     }
@@ -691,42 +701,372 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         };
     }
 
-    function maybeHandleActiveActivityAnswer(generation, text) {
-        if (!activeActivity || activeActivity.type !== 'riddle') return false;
-        if (!generation || generation !== currentGeneration) return false;
-        const result = contentLibrary.checkRiddleAnswer(activeActivity, text);
-        if (!result.handled) return false;
-
-        const contentId = activeActivity.contentId;
-        activeActivity.attempts = result.attempts;
-        if (result.completed) {
-            activeActivity = null;
+    function handleLearningStartTool({ args = {}, generationId, turnId, providerInstanceId }) {
+        if (!currentGeneration || currentGeneration.generationId !== generationId) {
+            log('learning_tool_rejected', {
+                reason: 'stale_generation',
+                generationId: generationId || 'none',
+                activeGenerationId: currentGeneration?.generationId || 'none',
+                providerInstanceId: providerInstanceId || 'unknown',
+            });
+            return { error: 'stale_generation' };
         }
 
-        log('riddle_answer_checked', {
-            generationId: generation.generationId,
-            turnId: generation.turnId,
-            contentId,
-            correct: result.correct,
-            attempts: result.attempts,
-            completed: result.completed,
+        const moduleId = args.moduleId || 'speech_development_zh';
+        const session = learningLibrary.startSession(moduleId);
+        if (!session) {
+            log('learning_tool_rejected', {
+                reason: 'module_not_found',
+                moduleId,
+                generationId,
+                turnId,
+                providerInstanceId: providerInstanceId || 'unknown',
+            });
+            return { error: 'learning_module_not_found' };
+        }
+
+        activeLearningSession = {
+            moduleId,
+            exercises: session.exercises,
+            currentIndex: 0,
+            completedItems: [],
+            errors: 0,
+            attempts: 0,
+            sessionStartedAt: Date.now()
+        };
+
+        const currentEx = activeLearningSession.exercises[0];
+        activeActivity = {
+            type: 'learning',
+            contentId: currentEx.id,
+            expectedAnswers: [...currentEx.expected_answers],
+            acceptedVariants: currentEx.accepted_variants ? [...currentEx.accepted_variants] : [],
+            hints: currentEx.hints ? [...currentEx.hints] : [],
+            maxAttempts: currentEx.max_attempts || 3,
+            attempts: 0,
+            generationId,
+            turnId
+        };
+
+        log('learning_tool_selected', {
+            moduleId,
+            exerciseId: currentEx.id,
+            generationId,
+            turnId,
+            providerInstanceId: providerInstanceId || 'unknown',
         });
+
         emit({
-            type: 'activity.answer_checked',
-            activity_type: 'riddle',
-            content_id: contentId,
-            generation_id: generation.generationId,
-            response_id: generation.responseId,
-            turn_id: generation.turnId,
-            correct: result.correct,
-            attempts: result.attempts,
-            completed: result.completed,
-            hint: result.hint || null,
+            type: 'activity.started',
+            activity_type: 'learning',
+            content_id: currentEx.id,
+            generation_id: generationId,
+            turn_id: turnId,
         });
-        if (typeof providerSession?.sendActivityResult === 'function') {
-            providerSession.sendActivityResult(result);
+
+        return {
+            status: 'started',
+            moduleId,
+            exercise: {
+                id: currentEx.id,
+                instruction: currentEx.instruction,
+                hints: currentEx.hints || [],
+                level: currentEx.level || 1,
+                maxAttempts: currentEx.max_attempts || 3
+            }
+        };
+    }
+
+    function handleLearningGetNextExerciseTool({ args = {}, generationId, turnId, providerInstanceId }) {
+        if (!currentGeneration || currentGeneration.generationId !== generationId) {
+            return { error: 'stale_generation' };
         }
-        return true;
+        if (!activeLearningSession) {
+            return { error: 'no_active_learning_session' };
+        }
+        if (activeActivity && activeActivity.type === 'learning') {
+            log('learning_tool_rejected', {
+                reason: 'current_exercise_incomplete',
+                moduleId: activeLearningSession.moduleId,
+                exerciseId: activeActivity.contentId,
+                generationId,
+                turnId,
+                providerInstanceId: providerInstanceId || 'unknown',
+            });
+            return {
+                error: 'current_exercise_incomplete',
+                message: 'The child must complete or skip the current exercise first.'
+            };
+        }
+
+        const nextIndex = activeLearningSession.currentIndex + 1;
+        if (nextIndex >= activeLearningSession.exercises.length) {
+            const finalStats = {
+                moduleId: activeLearningSession.moduleId,
+                totalExercises: activeLearningSession.exercises.length,
+                completedCount: activeLearningSession.completedItems.length,
+                errors: activeLearningSession.errors,
+                durationSeconds: Math.round((Date.now() - activeLearningSession.sessionStartedAt) / 1000)
+            };
+            activeLearningSession = null;
+            activeActivity = null;
+
+            log('learning_session_completed', {
+                finalStats,
+                generationId,
+                turnId,
+                providerInstanceId: providerInstanceId || 'unknown',
+            });
+
+            return {
+                status: 'completed',
+                message: 'All exercises in this module are completed!',
+                stats: finalStats
+            };
+        }
+
+        activeLearningSession.currentIndex = nextIndex;
+        const currentEx = activeLearningSession.exercises[nextIndex];
+        activeActivity = {
+            type: 'learning',
+            contentId: currentEx.id,
+            expectedAnswers: [...currentEx.expected_answers],
+            acceptedVariants: currentEx.accepted_variants ? [...currentEx.accepted_variants] : [],
+            hints: currentEx.hints ? [...currentEx.hints] : [],
+            maxAttempts: currentEx.max_attempts || 3,
+            attempts: 0,
+            generationId,
+            turnId
+        };
+
+        log('learning_tool_selected', {
+            moduleId: activeLearningSession.moduleId,
+            exerciseId: currentEx.id,
+            generationId,
+            turnId,
+            providerInstanceId: providerInstanceId || 'unknown',
+        });
+
+        emit({
+            type: 'activity.started',
+            activity_type: 'learning',
+            content_id: currentEx.id,
+            generation_id: generationId,
+            turn_id: turnId,
+        });
+
+        return {
+            status: 'in_progress',
+            exercise: {
+                id: currentEx.id,
+                instruction: currentEx.instruction,
+                hints: currentEx.hints || [],
+                level: currentEx.level || 1,
+                maxAttempts: currentEx.max_attempts || 3
+            }
+        };
+    }
+
+    function handleLearningGetHintTool({ args = {}, generationId, turnId }) {
+        if (!currentGeneration || currentGeneration.generationId !== generationId) {
+            return { error: 'stale_generation' };
+        }
+        if (!activeActivity || activeActivity.type !== 'learning') {
+            return { error: 'no_active_exercise' };
+        }
+        const hints = activeActivity.hints || [];
+        const hintText = hints[activeActivity.attempts] || hints[0] || 'Попробуй еще раз.';
+        
+        log('learning_hint_requested', {
+            exerciseId: activeActivity.contentId,
+            attempts: activeActivity.attempts,
+            generationId,
+            turnId
+        });
+
+        return {
+            hint: hintText,
+            attempts: activeActivity.attempts,
+            maxAttempts: activeActivity.maxAttempts
+        };
+    }
+
+    function handleLearningRepeatInstructionTool({ args = {}, generationId, turnId }) {
+        if (!currentGeneration || currentGeneration.generationId !== generationId) {
+            return { error: 'stale_generation' };
+        }
+        if (!activeLearningSession) return { error: 'no_active_learning_session' };
+        const currentEx = activeLearningSession.exercises[activeLearningSession.currentIndex];
+        if (!currentEx) return { error: 'no_active_exercise' };
+
+        log('learning_repeat_instruction', {
+            exerciseId: currentEx.id,
+            generationId,
+            turnId
+        });
+
+        return {
+            instruction: currentEx.instruction
+        };
+    }
+
+    function handleLearningSkipExerciseTool({ args = {}, generationId, turnId, providerInstanceId }) {
+        if (!currentGeneration || currentGeneration.generationId !== generationId) {
+            return { error: 'stale_generation' };
+        }
+        if (!activeLearningSession) return { error: 'no_active_learning_session' };
+
+        const skippedExId = activeActivity ? activeActivity.contentId : null;
+        activeActivity = null;
+
+        log('learning_exercise_skipped', {
+            skippedExerciseId: skippedExId,
+            moduleId: activeLearningSession.moduleId,
+            generationId,
+            turnId,
+            providerInstanceId: providerInstanceId || 'unknown'
+        });
+
+        return {
+            status: 'skipped',
+            skippedExerciseId: skippedExId,
+            message: 'Exercise skipped. Use learning_get_next_exercise to get the next task.'
+        };
+    }
+
+    function handleLearningFinishSessionTool({ args = {}, generationId, turnId, providerInstanceId }) {
+        if (!currentGeneration || currentGeneration.generationId !== generationId) {
+            return { error: 'stale_generation' };
+        }
+        if (!activeLearningSession) return { error: 'no_active_learning_session' };
+
+        const finalStats = {
+            moduleId: activeLearningSession.moduleId,
+            totalExercises: activeLearningSession.exercises.length,
+            completedCount: activeLearningSession.completedItems.length,
+            errors: activeLearningSession.errors,
+            durationSeconds: Math.round((Date.now() - activeLearningSession.sessionStartedAt) / 1000)
+        };
+        activeLearningSession = null;
+        activeActivity = null;
+
+        log('learning_session_finished', {
+            finalStats,
+            generationId,
+            turnId,
+            providerInstanceId: providerInstanceId || 'unknown'
+        });
+
+        return {
+            status: 'finished',
+            message: 'Session finished.',
+            stats: finalStats
+        };
+    }
+
+    function handleLearningGetProgressTool({ args = {}, generationId, turnId }) {
+        if (!currentGeneration || currentGeneration.generationId !== generationId) {
+            return { error: 'stale_generation' };
+        }
+        if (!activeLearningSession) return { error: 'no_active_learning_session' };
+        return {
+            moduleId: activeLearningSession.moduleId,
+            currentIndex: activeLearningSession.currentIndex,
+            totalExercises: activeLearningSession.exercises.length,
+            completedCount: activeLearningSession.completedItems.length,
+            errors: activeLearningSession.errors,
+            attempts: activeLearningSession.attempts
+        };
+    }
+
+    function maybeHandleActiveActivityAnswer(generation, text) {
+        if (!activeActivity) return false;
+        if (!generation || generation !== currentGeneration) return false;
+
+        if (activeActivity.type === 'riddle') {
+            const result = contentLibrary.checkRiddleAnswer(activeActivity, text);
+            if (!result.handled) return false;
+
+            const contentId = activeActivity.contentId;
+            activeActivity.attempts = result.attempts;
+            if (result.completed) {
+                activeActivity = null;
+            }
+
+            log('riddle_answer_checked', {
+                generationId: generation.generationId,
+                turnId: generation.turnId,
+                contentId,
+                correct: result.correct,
+                attempts: result.attempts,
+                completed: result.completed,
+            });
+            emit({
+                type: 'activity.answer_checked',
+                activity_type: 'riddle',
+                content_id: contentId,
+                generation_id: generation.generationId,
+                response_id: generation.responseId,
+                turn_id: generation.turnId,
+                correct: result.correct,
+                attempts: result.attempts,
+                completed: result.completed,
+                hint: result.hint || null,
+            });
+            if (typeof providerSession?.sendActivityResult === 'function') {
+                providerSession.sendActivityResult(result);
+            }
+            return true;
+        }
+
+        if (activeActivity.type === 'learning') {
+            const result = learningLibrary.checkLearningAnswer(activeActivity, text);
+            if (!result.handled) return false;
+
+            const contentId = activeActivity.contentId;
+            activeActivity.attempts = result.attempts;
+
+            if (activeLearningSession) {
+                activeLearningSession.attempts += 1;
+                if (!result.correct) {
+                    activeLearningSession.errors += 1;
+                }
+            }
+
+            if (result.completed) {
+                if (activeLearningSession) {
+                    activeLearningSession.completedItems.push(contentId);
+                }
+                activeActivity = null;
+            }
+
+            log('learning_answer_checked', {
+                generationId: generation.generationId,
+                turnId: generation.turnId,
+                contentId,
+                correct: result.correct,
+                attempts: result.attempts,
+                completed: result.completed,
+            });
+            emit({
+                type: 'activity.answer_checked',
+                activity_type: 'learning',
+                content_id: contentId,
+                generation_id: generation.generationId,
+                response_id: generation.responseId,
+                turn_id: generation.turnId,
+                correct: result.correct,
+                attempts: result.attempts,
+                completed: result.completed,
+                hint: result.hint || null,
+            });
+            if (typeof providerSession?.sendActivityResult === 'function') {
+                providerSession.sendActivityResult(result);
+            }
+            return true;
+        }
+
+        return false;
     }
     function safePromptPayload() {
         const prompt = buildPromptBundle();

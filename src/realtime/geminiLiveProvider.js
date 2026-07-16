@@ -83,9 +83,87 @@ const GET_RIDDLE_TOOL_DECLARATION = {
     },
 };
 
+const LEARNING_START_TOOL = {
+    name: 'learning_start',
+    description: 'Mandatory first step to start a structured learning module lesson/session for the child. Call when the child or parent requests to study, learn, practice sounds, or start an educational pack. Returns the first exercise.',
+    parameters: {
+        type: 'OBJECT',
+        properties: {
+            moduleId: {
+                type: 'STRING',
+                description: 'The learning module ID to start (e.g. "speech_development_zh" for Russian sound Ж training or "english_vocabulary_animals" for English animal vocabulary).'
+            }
+        },
+        required: ['moduleId']
+    }
+};
+
+const LEARNING_GET_NEXT_EXERCISE_TOOL = {
+    name: 'learning_get_next_exercise',
+    description: 'Retrieves the next exercise in the active learning session. Must only be called after the current active exercise is completed or skipped. Do not guess or generate the next exercise.',
+    parameters: {
+        type: 'OBJECT',
+        properties: {}
+    }
+};
+
+const LEARNING_GET_HINT_TOOL = {
+    name: 'learning_get_hint',
+    description: 'Retrieves a hint for the current active learning exercise. Call when the child asks for help, says they do not know, or struggles/fails multiple times.',
+    parameters: {
+        type: 'OBJECT',
+        properties: {}
+    }
+};
+
+const LEARNING_REPEAT_INSTRUCTION_TOOL = {
+    name: 'learning_repeat_instruction',
+    description: 'Retrieves the instruction/question text for the current active learning exercise so it can be repeated. Call when the child asks to repeat the task.',
+    parameters: {
+        type: 'OBJECT',
+        properties: {}
+    }
+};
+
+const LEARNING_SKIP_EXERCISE_TOOL = {
+    name: 'learning_skip_exercise',
+    description: 'Skips the current active exercise. Call when the child explicitly asks to skip the task or has failed it completely.',
+    parameters: {
+        type: 'OBJECT',
+        properties: {}
+    }
+};
+
+const LEARNING_FINISH_SESSION_TOOL = {
+    name: 'learning_finish_session',
+    description: 'Ends the active learning session and returns final summary stats. Call when the child wants to stop studying, finishes all exercises, or when the lesson duration is reached.',
+    parameters: {
+        type: 'OBJECT',
+        properties: {}
+    }
+};
+
+const LEARNING_GET_PROGRESS_TOOL = {
+    name: 'learning_get_progress',
+    description: 'Retrieves the progress summary of the active learning session (current index, total exercises, completed count, error count).',
+    parameters: {
+        type: 'OBJECT',
+        properties: {}
+    }
+};
+
 function buildLiveTools({ enabled = areContentToolsEnabled() } = {}) {
     if (!enabled) return [];
-    return [{ functionDeclarations: [GET_RIDDLE_TOOL_DECLARATION] }];
+    return [{ functionDeclarations: [
+        GET_RIDDLE_TOOL_DECLARATION,
+        LEARNING_START_TOOL,
+        LEARNING_GET_NEXT_EXERCISE_TOOL,
+        LEARNING_GET_HINT_TOOL,
+        LEARNING_REPEAT_INSTRUCTION_TOOL,
+        LEARNING_SKIP_EXERCISE_TOOL,
+        LEARNING_FINISH_SESSION_TOOL,
+        LEARNING_GET_PROGRESS_TOOL
+    ] }];
 }
 
 function defaultSystemInstructionText() {
@@ -838,9 +916,19 @@ class GeminiLiveProviderSession {
         if (this.closed || !this.session) return false;
         const correct = Boolean(result?.correct);
         const attempts = Number(result?.attempts || 0);
-        const text = correct
-            ? 'Server checked the child answer to the active riddle: correct. Reply warmly and briefly, then continue normally.'
-            : 'Server checked the child answer to the active riddle: incorrect. Attempts: ' + attempts + '. Reply briefly. If attempts are 2 or more, give a gentle hint without revealing the answer.';
+        const activityType = result?.type || 'riddle';
+
+        let text = '';
+        if (activityType === 'riddle') {
+            text = correct
+                ? 'Server checked the child answer to the active riddle: correct. Reply warmly and briefly, then continue normally.'
+                : 'Server checked the child answer to the active riddle: incorrect. Attempts: ' + attempts + '. Reply briefly. If attempts are 2 or more, give a gentle hint without revealing the answer.';
+        } else if (activityType === 'learning') {
+            text = correct
+                ? 'Server checked the child answer to the learning exercise: correct. Reply warmly and briefly, praise the child, and guide them to use learning_get_next_exercise to proceed.'
+                : 'Server checked the child answer to the learning exercise: incorrect. Attempts: ' + attempts + '. Reply briefly. If attempts are less than 3, encourage them and tell them they can try again. If attempts are 3 or more, tell them the answer or that they can skip using learning_skip_exercise.';
+        }
+
         this.session.sendClientContent({
             turns: [{
                 role: 'user',

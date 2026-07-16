@@ -1,0 +1,128 @@
+{
+  "pack_id": "english_vocabulary_animals",
+  "module": "english_vocabulary",
+  "skill": "animals",
+  "lang": "en",
+  "items": [
+    {
+      "id": "english_animals_001",
+      "level": 1,
+      "instruction": "Как по-английски будет кошка? Повтори: cat.",
+      "expected_answers": ["cat"],
+      "accepted_variants": ["a cat", "кет", "кэт"],
+      "hints": [
+        "Скажи коротко: кэт.",
+        "Послушай: c-a-t. Cat."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_002",
+      "level": 1,
+      "instruction": "Правильно! А собака по-английски будет dog. Повтори: dog.",
+      "expected_answers": ["dog"],
+      "accepted_variants": ["a dog", "дог"],
+      "hints": [
+        "Послушай звук в конце: до-г.",
+        "Скажи громко и чётко: dog."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_003",
+      "level": 1,
+      "instruction": "Отлично! Давай попробуем другое слово. Как по-английски будет рыба? Повтори: fish.",
+      "expected_answers": ["fish"],
+      "accepted_variants": ["a fish", "фиш"],
+      "hints": [
+        "Слушай шипящий звук в конце: фи-шшш.",
+        "Повтори: fish."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_004",
+      "level": 1,
+      "instruction": "Хорошо. А как будет птица? Повтори: bird.",
+      "expected_answers": ["bird"],
+      "accepted_variants": ["a bird", "берд", "бёрд"],
+      "hints": [
+        "Послушай: b-i-r-d. Bird.",
+        "Скажи мягко: бёрд."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_005",
+      "level": 1,
+      "instruction": "Замечательно. Теперь крупный зверь! Как сказать медведь по-английски? Повтори: bear.",
+      "expected_answers": ["bear"],
+      "accepted_variants": ["a bear", "беар", "бэр"],
+      "hints": [
+        "Почти как 'бэр'. Повтори: bear.",
+        "Скажи смело: bear."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_006",
+      "level": 2,
+      "instruction": "Прекрасно. А теперь проверим твою память! Как по-английски кошка? Мы учили это в первом задании.",
+      "expected_answers": ["cat"],
+      "accepted_variants": ["a cat", "кет", "кэт"],
+      "hints": [
+        "Первая буква C. Звучит как кэт.",
+        "Вспомни котика: cat."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_007",
+      "level": 2,
+      "instruction": "Умница! А как по-английски собака? Вспомнишь?",
+      "expected_answers": ["dog"],
+      "accepted_variants": ["a dog", "дог"],
+      "hints": [
+        "Начинается на D. Звучит как дог.",
+        "Вспомни лающего щенка: dog."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_008",
+      "level": 2,
+      "instruction": "Супер! Давай новое слово. Как по-английски будет лев? Повтори: lion.",
+      "expected_answers": ["lion"],
+      "accepted_variants": ["a lion", "лайон"],
+      "hints": [
+        "Скажи красиво: ла-й-он.",
+        "Царь зверей: lion."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_009",
+      "level": 2,
+      "instruction": "Отлично! А весёлая обезьянка по-английски будет monkey. Повтори: monkey.",
+      "expected_answers": ["monkey"],
+      "accepted_variants": ["a monkey", "манки"],
+      "hints": [
+        "Послушай: м-а-н-к-и. Monkey.",
+        "Скажи задорно: monkey."
+      ],
+      "max_attempts": 3
+    },
+    {
+      "id": "english_animals_010",
+      "level": 2,
+      "instruction": "И последнее задание! Зелёная лягушка по-английски — frog. Повтори: frog.",
+      "expected_answers": ["frog"],
+      "accepted_variants": ["a frog", "фрог"],
+      "hints": [
+        "Начинается на F: ф-ф-фрог.",
+        "Скажи чётко: frog."
+      ],
+      "max_attempts": 3
+    }
+  ]
+}
