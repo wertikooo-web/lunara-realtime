@@ -384,7 +384,7 @@
     <div class="bear-container">
       <div id="bearOrb" class="bear-orb"></div>
     </div>
-    <div id="bearPromptText" class="bear-prompt">Нажми и держи шар, пока говоришь</div>
+    <div id="bearPromptText" class="bear-prompt">Нажми и держи, пока говоришь</div>
 
     <section class="grid">
       <div class="panel wide hero">
@@ -727,16 +727,16 @@
 
       let color = '#6b7280'; // Серый при отключении
       let glow = 'rgba(107, 114, 128, 0.4)';
-      let text = 'Нажми и держи шар, пока говоришь';
+      let text = 'Нажми и держи, пока говоришь';
 
       if (lifecycleState === STATES.DISCONNECTED) {
         color = '#6b7280'; // серый
         glow = 'rgba(107, 114, 128, 0.3)';
-        text = 'Нажми и держи шар, пока говоришь';
+        text = 'Нажми и держи, пока говоришь';
       } else if (state === STATES.ERROR) {
         color = '#7f1d1d'; // темно-красный
         glow = 'rgba(127, 29, 29, 0.7)';
-        text = 'Игрушка сломалась. Попробуй переподключиться';
+        text = 'Нет связи, переподключись';
       } else if (state === STATES.LISTENING) {
         color = '#ef4444'; // красный
         glow = 'rgba(239, 68, 68, 0.85)';
@@ -744,7 +744,7 @@
       } else if (lifecycleState === STATES.IDLE || lifecycleState === STATES.PLAYING) {
         color = '#22c55e'; // зеленый
         glow = 'rgba(34, 197, 94, 0.7)';
-        text = 'Нажми и держи шар, пока говоришь';
+        text = 'Нажми и держи, пока говоришь';
       } else {
         // Ожидание
         color = '#eab308'; // желтый
