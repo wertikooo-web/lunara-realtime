@@ -40,6 +40,35 @@
   .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
   .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: #f7f3ff; }
   .checks input { width: auto; }
+  .content-section-card {
+    background: #100c20;
+    border: 1px solid #2f2258;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .content-section-title {
+    color: #c9b8ff;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 0;
+    margin-bottom: 8px;
+  }
+  .checks-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .checks-grid label {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0;
+    color: #f7f3ff;
+  }
+  .checks-grid input {
+    width: auto;
+  }
   .status { color: #86efac; margin-top: 10px; min-height: 20px; font-size: 13px; }
   .status.error { color: #fecaca; }
   .hidden { display: none !important; }
@@ -297,24 +326,42 @@
       <label><input type="radio" name="contentMode" value="library_plus_generation"> <span data-i18n="contentLibraryPlus">Библиотека + генерация</span></label>
     </div>
     <label data-i18n="contentAllowed">Разрешённые типы</label>
-    <div class="checks" id="contentChecks">
-      <label><input type="checkbox" value="riddles" checked> <span data-i18n="cRiddles">Загадки</span></label>
-      <label><input type="checkbox" value="stories" checked> <span data-i18n="cStories">Сказки</span></label>
-      <label><input type="checkbox" value="tongueTwisters" checked> <span data-i18n="cTongueTwisters">Скороговорки</span></label>
-      <label><input type="checkbox" value="jokes" checked> <span data-i18n="cJokes">Шутки</span></label>
-      <label><input type="checkbox" value="miniGames" checked> <span data-i18n="cMiniGames">Мини-игры</span></label>
-      <label><input type="checkbox" value="educationalActivities" checked> <span data-i18n="cEducational">Обучающие активности</span></label>
-      <label><input type="checkbox" value="rolePlay" checked> <span data-i18n="cRolePlay">Ролевые игры</span></label>
-      <label><input type="checkbox" value="speechDevelopment" checked> <span data-i18n="cSpeech">Развитие речи</span></label>
-      <label><input type="checkbox" value="emotionalIntelligence" checked> <span data-i18n="cEmotionalIntelligence">Эмоциональный интеллект</span></label>
-      <label><input type="checkbox" value="interactiveTales" checked> <span data-i18n="cInteractiveTales">Сказки-квесты</span></label>
-      <label><input type="checkbox" value="healthyHabits" checked> <span data-i18n="cHealthyHabits">Полезные привычки</span></label>
-      <label><input type="checkbox" value="safetyFirst" checked> <span data-i18n="cSafetyFirst">Основы безопасности</span></label>
-      <label><input type="checkbox" value="attentionGames" checked> <span data-i18n="cAttentionGames">Игры на внимание</span></label>
-      <label><input type="checkbox" value="goodManners" checked> <span data-i18n="cGoodManners">Школа манер</span></label>
-      <label><input type="checkbox" value="adhdNeurogames" checked> <span data-i18n="cAdhdNeurogames">Нейроигры (СДВГ)</span></label>
-      <label><input type="checkbox" value="worldFacts" checked> <span data-i18n="cFacts">Факты о мире</span></label>
-      <label><input type="checkbox" value="improvisedContent" checked> <span data-i18n="cImprovised">Импровизированный контент</span></label>
+    <div id="contentChecks">
+      <!-- Блок: Общение и Развлечения -->
+      <div class="content-section-card">
+        <h3 class="content-section-title" data-i18n="cGroupCommunication">Общение и Развлечения</h3>
+        <div class="checks-grid">
+          <label><input type="checkbox" value="riddles" checked> <span data-i18n="cRiddles">Загадки</span></label>
+          <label><input type="checkbox" value="stories" checked> <span data-i18n="cStories">Сказки</span></label>
+          <label><input type="checkbox" value="tongueTwisters" checked> <span data-i18n="cTongueTwisters">Скороговорки</span></label>
+          <label><input type="checkbox" value="jokes" checked> <span data-i18n="cJokes">Шутки</span></label>
+          <label><input type="checkbox" value="miniGames" checked> <span data-i18n="cMiniGames">Мини-игры</span></label>
+          <label><input type="checkbox" value="rolePlay" checked> <span data-i18n="cRolePlay">Ролевые игры</span></label>
+          <label><input type="checkbox" value="worldFacts" checked> <span data-i18n="cFacts">Факты о мире</span></label>
+          <label><input type="checkbox" value="improvisedContent" checked> <span data-i18n="cImprovised">Импровизированный контент</span></label>
+        </div>
+      </div>
+
+      <!-- Блок: Обучение и Развитие -->
+      <div class="content-section-card" style="margin-top: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #2f2258; padding-bottom: 8px;">
+          <h3 class="content-section-title" style="margin: 0;" data-i18n="cGroupLearning">Обучение и Развитие</h3>
+          <label style="display: flex; align-items: center; gap: 6px; font-weight: bold; margin: 0; cursor: pointer; color: #fbbf24;">
+            <input type="checkbox" id="masterLearningCheckbox" checked> <span data-i18n="cLearningMaster">Включить все</span>
+          </label>
+        </div>
+        <div class="checks-grid" id="learningChecksContainer">
+          <label><input type="checkbox" value="speechDevelopment" checked> <span data-i18n="cSpeech">Развитие речи</span></label>
+          <label><input type="checkbox" value="emotionalIntelligence" checked> <span data-i18n="cEmotionalIntelligence">Эмоциональный интеллект</span></label>
+          <label><input type="checkbox" value="interactiveTales" checked> <span data-i18n="cInteractiveTales">Сказки-квесты</span></label>
+          <label><input type="checkbox" value="healthyHabits" checked> <span data-i18n="cHealthyHabits">Полезные привычки</span></label>
+          <label><input type="checkbox" value="safetyFirst" checked> <span data-i18n="cSafetyFirst">Основы безопасности</span></label>
+          <label><input type="checkbox" value="attentionGames" checked> <span data-i18n="cAttentionGames">Игры на внимание</span></label>
+          <label><input type="checkbox" value="goodManners" checked> <span data-i18n="cGoodManners">Школа манер</span></label>
+          <label><input type="checkbox" value="adhdNeurogames" checked> <span data-i18n="cAdhdNeurogames">Нейроигры (СДВГ)</span></label>
+          <label><input type="checkbox" value="educationalActivities" checked> <span data-i18n="cEducational">Обучающие активности</span></label>
+        </div>
+      </div>
     </div>
     <label data-i18n="preferredThemes">Любимые темы через запятую</label>
     <input id="preferredThemes" data-i18n-placeholder="preferredThemesPlaceholder" placeholder="космос, животные">
@@ -841,6 +888,7 @@ function readFormIntoCurrent() {
   current.contentMode = modeRadio ? modeRadio.value : 'library_only';
   const allowed = {};
   document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach((box) => {
+    if (box.id === 'masterLearningCheckbox') return;
     allowed[box.value] = box.checked;
   });
   current.allowedContent = allowed;
@@ -907,8 +955,10 @@ function applyCurrentToForm() {
   const modeRadio = document.querySelector(`input[name="contentMode"][value="${current.contentMode}"]`);
   if (modeRadio) modeRadio.checked = true;
   document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach((box) => {
+    if (box.id === 'masterLearningCheckbox') return;
     box.checked = !!current.allowedContent[box.value];
   });
+  updateLearningMasterCheckboxState();
   document.getElementById('preferredThemes').value = current.preferredThemes;
   document.getElementById('blockedThemes').value = current.blockedThemes;
   document.getElementById('sensitiveThemes').value = current.sensitiveThemes;
@@ -1451,6 +1501,7 @@ const I18N = {
     cEmotionalIntelligence: 'Эмоциональный интеллект', cInteractiveTales: 'Сказки-квесты',
     cHealthyHabits: 'Полезные привычки', cSafetyFirst: 'Основы безопасности', cAttentionGames: 'Игры на внимание',
     cGoodManners: 'Школа хороших манер', cAdhdNeurogames: 'Нейроигры (СДВГ)',
+    cGroupCommunication: 'Общение и Развлечения', cGroupLearning: 'Обучение и Развитие', cLearningMaster: 'Включить все',
     cFacts: 'Факты о мире', cImprovised: 'Импровизированный контент', preferredThemes: 'Любимые темы через запятую',
     preferredThemesPlaceholder: 'космос, животные', blockedThemes: 'Запрещённые темы через запятую', blockedThemesPlaceholder: 'оружие, ужасы, война',
     sensitiveThemes: 'Чувствительные темы через запятую', sensitiveThemesPlaceholder: 'развод родителей', storyLength: 'Длина сказки',
@@ -1528,6 +1579,7 @@ const I18N = {
     cEmotionalIntelligence: 'Inteligență emoțională', cInteractiveTales: 'Povești interactive',
     cHealthyHabits: 'Deprinderi sănătoase', cSafetyFirst: 'Reguli de siguranță', cAttentionGames: 'Jocuri de atenție',
     cGoodManners: 'Bunele maniere', cAdhdNeurogames: 'Neurojocuri (ADHD)',
+    cGroupCommunication: 'Comunicare și Divertisment', cGroupLearning: 'Învățare și Dezvoltare', cLearningMaster: 'Activează toate',
     cFacts: 'Fapte despre lume', cImprovised: 'Conținut improvizat', preferredThemes: 'Teme preferate, separate prin virgulă',
     preferredThemesPlaceholder: 'spațiu, animale', blockedThemes: 'Teme interzise, separate prin virgulă', blockedThemesPlaceholder: 'arme, groază, război',
     sensitiveThemes: 'Teme sensibile, separate prin virgulă', sensitiveThemesPlaceholder: 'divorțul părinților', storyLength: 'Lungimea poveștii',
@@ -1605,6 +1657,7 @@ const I18N = {
     cEmotionalIntelligence: 'Emotional intelligence', cInteractiveTales: 'Interactive tales',
     cHealthyHabits: 'Healthy habits', cSafetyFirst: 'Safety first rules', cAttentionGames: 'Attention games',
     cGoodManners: 'Good manners', cAdhdNeurogames: 'ADHD neurogames',
+    cGroupCommunication: 'Communication & Fun', cGroupLearning: 'Learning & Development', cLearningMaster: 'Enable all',
     cFacts: 'World facts', cImprovised: 'Improvised content', preferredThemes: 'Preferred topics, comma separated',
     preferredThemesPlaceholder: 'space, animals', blockedThemes: 'Blocked topics, comma separated', blockedThemesPlaceholder: 'weapons, horror, war',
     sensitiveThemes: 'Sensitive topics, comma separated', sensitiveThemesPlaceholder: 'parents’ divorce', storyLength: 'Story length',
@@ -1768,6 +1821,49 @@ async function pushToServer() {
   }
 }
 
+function updateLearningMasterCheckboxState() {
+  const master = document.getElementById('masterLearningCheckbox');
+  const container = document.getElementById('learningChecksContainer');
+  if (!master || !container) return;
+  const learningBoxes = container.querySelectorAll('input[type="checkbox"]');
+  const anyChecked = Array.from(learningBoxes).some(b => b.checked);
+  const allChecked = Array.from(learningBoxes).every(b => b.checked);
+  
+  master.checked = allChecked;
+  master.indeterminate = anyChecked && !allChecked;
+  
+  learningBoxes.forEach((box) => {
+    box.disabled = !master.checked && !master.indeterminate;
+    box.parentElement.style.opacity = (master.checked || master.indeterminate) ? '1' : '0.5';
+  });
+}
+
+function initLearningMasterCheckboxLogic() {
+  const master = document.getElementById('masterLearningCheckbox');
+  const container = document.getElementById('learningChecksContainer');
+  if (!master || !container) return;
+  const learningBoxes = container.querySelectorAll('input[type="checkbox"]');
+
+  master.addEventListener('change', () => {
+    learningBoxes.forEach((box) => {
+      box.checked = master.checked;
+    });
+    updateLearningMasterCheckboxState();
+    readFormIntoCurrent();
+    renderPreview();
+    markBlockDirtyFromElement(master);
+  });
+
+  learningBoxes.forEach((box) => {
+    box.addEventListener('change', () => {
+      updateLearningMasterCheckboxState();
+      readFormIntoCurrent();
+      renderPreview();
+      markBlockDirtyFromElement(box);
+    });
+  });
+}
+
 async function init() {
   document.getElementById('uiLanguage').value = uiLang;
   populateVoiceSelect();
@@ -1782,11 +1878,12 @@ async function init() {
   await syncFromServer();
 
   applyCurrentToForm();
+  initLearningMasterCheckboxLogic();
   applyTranslations();
   renderMemoryList();
 
   document.querySelectorAll('main input, main select, main textarea').forEach((el) => {
-    if (el.id === 'customPromptText') return; // считается отдельно, см. updateCustomPromptCounter
+    if (el.id === 'customPromptText' || el.id === 'masterLearningCheckbox') return; // считается отдельно
     el.addEventListener('input', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirtyFromElement(el); });
     el.addEventListener('change', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirtyFromElement(el); });
   });
