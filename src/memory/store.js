@@ -218,6 +218,21 @@ async function init() {
     `);
     await pool.query('CREATE INDEX IF NOT EXISTS usage_sessions_device_date_idx ON usage_sessions (device_id, usage_date);');
 
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS dialogue_turns (
+            id SERIAL PRIMARY KEY,
+            device_id TEXT NOT NULL REFERENCES child_profiles(device_id) ON DELETE CASCADE,
+            session_id TEXT,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+            text TEXT NOT NULL,
+            category TEXT DEFAULT 'chat',
+            tone TEXT DEFAULT 'neutral',
+            topic TEXT DEFAULT 'limits'
+        );
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS dialogue_turns_device_created_idx ON dialogue_turns (device_id, created_at);');
+
     ready = true;
 }
 
@@ -705,6 +720,230 @@ async function getDailyUsageMinutes(deviceId, timezone, days = 7) {
     return out;
 }
 
+function classifyTurnHeuristically(text) {
+    const lower = String(text || '').toLowerCase();
+    
+    // 1. Classify Category
+    let category = 'chat';
+    if (lower.includes('сказк') || lower.includes('расскаж') || lower.includes('истори')) {
+        category = 'stories';
+    } else if (lower.includes('загад') || lower.includes('отгад')) {
+        category = 'riddles';
+    } else if (lower.includes('скороговор')) {
+        category = 'tongue_twisters';
+    } else if (lower.includes('игр') || lower.includes('поигра')) {
+        category = 'mini_games';
+    } else if (lower.includes('счита') || lower.includes('посчит') || lower.includes('цифр') || lower.includes('букв') || lower.includes('слож')) {
+        category = 'learning';
+    } else if (lower.includes('представ') || lower.includes('космонавт') || lower.includes('герой') || lower.includes('рол')) {
+        category = 'roleplay';
+    } else if (lower.includes('повтор') || lower.includes('звук') || lower.includes('букв')) {
+        category = 'speech_development';
+    }
+
+    // 2. Classify Tone
+    let tone = 'neutral';
+    if (lower.includes('!') || lower.includes('ура') || lower.includes('класс') || lower.includes('круто')) {
+        tone = 'happy';
+    } else if (lower.includes('пожалуйста') || lower.includes('спасибо') || lower.includes('помоги')) {
+        tone = 'supportive';
+    } else if (lower.includes('?')) {
+        tone = 'curious';
+    }
+
+    // 3. Classify Topic
+    let topic = 'limits';
+    if (lower.includes('животн') || lower.includes('кошк') || lower.includes('собак') || lower.includes('звер')) {
+        topic = 'animals';
+    } else if (lower.includes('космос') || lower.includes('звезд') || lower.includes('лун') || lower.includes('планет')) {
+        topic = 'space';
+    } else if (lower.includes('ед') || lower.includes('конфет') || lower.includes('яблок') || lower.includes('суп')) {
+        topic = 'food';
+    } else if (lower.includes('друг') || lower.includes('дружб') || lower.includes('вместе')) {
+        topic = 'friendship';
+    }
+
+    return { category, tone, topic };
+}
+
+async function saveDialogueTurn(deviceId, sessionId, role, text) {
+    if (!ready || !pool) return;
+    const { category, tone, topic } = classifyTurnHeuristically(text);
+    const id = normalizeDeviceId(deviceId);
+    await pool.query(
+        `INSERT INTO dialogue_turns (device_id, session_id, role, text, category, tone, topic)
+         VALUES ($1, $2, $3, $4, $5, $6, $7);`,
+        [id, sessionId || null, role, text, category, tone, topic]
+    );
+}
+
+// Shared period-name -> date-range resolver, used by both
+// getDialogueAnalytics() and getDialogueTurns() (the full-transcript
+// export) so "неделя"/"месяц"/"год"/"всё время"/"свой период" mean
+// exactly the same date range in the analytics summary and in the
+// transcript a parent downloads for that same period — one definition,
+// not two independently-maintained ones.
+const PERIOD_NAMES = ['today', 'yesterday', '7d', '30d', 'year', 'all', 'custom'];
+
+function resolvePeriodRange(timezone, options = {}) {
+    const todayStr = localDateStringInTz(timezone);
+    const todayParts = todayStr.split('-');
+    const today = new Date(Date.UTC(Number(todayParts[0]), Number(todayParts[1]) - 1, Number(todayParts[2])));
+
+    const period = PERIOD_NAMES.includes(options.period) ? options.period : '7d';
+    let fromDateStr = '';
+    let toDateStr = todayStr;
+
+    if (period === 'today') {
+        fromDateStr = todayStr;
+        toDateStr = todayStr;
+    } else if (period === 'yesterday') {
+        const yest = new Date(today.getTime() - 86400000);
+        fromDateStr = localDateStringInTz(timezone, yest);
+        toDateStr = fromDateStr;
+    } else if (period === '7d') {
+        const oldest = new Date(today.getTime() - 6 * 86400000);
+        fromDateStr = localDateStringInTz(timezone, oldest);
+    } else if (period === '30d') {
+        const oldest = new Date(today.getTime() - 29 * 86400000);
+        fromDateStr = localDateStringInTz(timezone, oldest);
+    } else if (period === 'year') {
+        const oldest = new Date(today.getTime() - 364 * 86400000);
+        fromDateStr = localDateStringInTz(timezone, oldest);
+    } else if (period === 'all') {
+        fromDateStr = '1970-01-01';
+    } else if (period === 'custom') {
+        fromDateStr = options.from || todayStr;
+        toDateStr = options.to || todayStr;
+    }
+
+    return {
+        period,
+        todayStr,
+        fromDateStr,
+        toDateStr,
+        periodStart: fromDateStr + ' 00:00:00+00',
+        periodEnd: toDateStr + ' 23:59:59+00',
+    };
+}
+
+async function getDialogueAnalytics(deviceId, timezone, options = {}) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    const { period, todayStr, fromDateStr, toDateStr, periodStart, periodEnd } = resolvePeriodRange(timezone, options);
+
+    const todayStart = todayStr + ' 00:00:00+00';
+    const todayEnd = todayStr + ' 23:59:59+00';
+
+    const [
+        todayTurnsRes,
+        todayAnswersRes,
+        turnsPeriodRes,
+        answersPeriodRes,
+        categoriesRes,
+        tonesRes,
+        topicsRes,
+        durationRes,
+        dailyTurnsRes,
+        dailyDurationRes
+    ] = await Promise.all([
+        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2 AND created_at <= $3;`, [id, todayStart, todayEnd]),
+        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'assistant' AND created_at >= $2 AND created_at <= $3;`, [id, todayStart, todayEnd]),
+        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz;`, [id, periodStart, periodEnd]),
+        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'assistant' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz;`, [id, periodStart, periodEnd]),
+        pool.query(`SELECT category, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz GROUP BY category ORDER BY count DESC;`, [id, periodStart, periodEnd]),
+        pool.query(`SELECT tone, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz GROUP BY tone ORDER BY count DESC;`, [id, periodStart, periodEnd]),
+        pool.query(`SELECT topic, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz GROUP BY topic ORDER BY count DESC;`, [id, periodStart, periodEnd]),
+        pool.query(`SELECT COALESCE(SUM(duration_seconds), 0) as total_seconds FROM usage_sessions WHERE device_id = $1 AND usage_date >= $2::date AND usage_date <= $3::date;`, [id, fromDateStr, toDateStr]),
+        pool.query(`SELECT created_at::date as usage_date, COUNT(CASE WHEN role='user' THEN 1 END) as turns, COUNT(CASE WHEN role='assistant' THEN 1 END) as answers FROM dialogue_turns WHERE device_id = $1 AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz GROUP BY usage_date;`, [id, periodStart, periodEnd]),
+        pool.query(`SELECT usage_date, COALESCE(SUM(duration_seconds), 0) as total_seconds FROM usage_sessions WHERE device_id = $1 AND usage_date >= $2::date AND usage_date <= $3::date GROUP BY usage_date;`, [id, fromDateStr, toDateStr])
+    ]);
+
+    const categories = categoriesRes.rows.map(r => ({ category: r.category, count: Number(r.count) }));
+    const tones = tonesRes.rows.map(r => ({ tone: r.tone, count: Number(r.count) }));
+    const topics = topicsRes.rows.map(r => ({ topic: r.topic, count: Number(r.count) }));
+    
+    const dailyMap = new Map();
+    dailyTurnsRes.rows.forEach(r => {
+        const dStr = localDateStringInTz(timezone, new Date(r.usage_date));
+        dailyMap.set(dStr, { usage_date: dStr, turns: Number(r.turns), answers: Number(r.answers), duration_minutes: 0 });
+    });
+    dailyDurationRes.rows.forEach(r => {
+        const dStr = localDateStringInTz(timezone, new Date(r.usage_date));
+        const val = dailyMap.get(dStr) || { usage_date: dStr, turns: 0, answers: 0, duration_minutes: 0 };
+        val.duration_minutes = Math.floor(Number(r.total_seconds) / 60);
+        dailyMap.set(dStr, val);
+    });
+
+    const daily = Array.from(dailyMap.values()).sort((a, b) => a.usage_date.localeCompare(b.usage_date));
+
+    return {
+        today: todayStr,
+        period,
+        period_from: fromDateStr,
+        period_to: toDateStr,
+        today_turns: Number(todayTurnsRes.rows[0]?.count || 0),
+        today_answers: Number(todayAnswersRes.rows[0]?.count || 0),
+        turns_period: Number(turnsPeriodRes.rows[0]?.count || 0),
+        answers_period: Number(answersPeriodRes.rows[0]?.count || 0),
+        duration_minutes_period: Math.floor(Number(durationRes.rows[0]?.total_seconds || 0) / 60),
+        categories,
+        tones,
+        topics,
+        daily
+    };
+}
+
+// Full text transcript for a parent to read/download — every saved turn
+// (both the child's words and Lumi's replies) in chronological order for
+// the resolved period, via the exact same resolvePeriodRange() used by
+// getDialogueAnalytics() so "неделя"/"год"/"свой период" mean the same
+// date range in both places.
+//
+// TRANSCRIPT_ROW_CAP guards against one pathological unbounded query (a
+// device with years of daily use and no cleanup) rather than a realistic
+// concern — a full year of daily use is on the order of a few thousand
+// rows (see docs sizing note in the parent panel), nowhere near this cap
+// in practice. `truncated: true` tells the caller (and the parent-facing
+// UI) explicitly when the cap was hit, instead of silently returning a
+// partial transcript that looks complete.
+const TRANSCRIPT_ROW_CAP = 20000;
+
+async function getDialogueTurns(deviceId, timezone, options = {}) {
+    requireReady();
+    const id = normalizeDeviceId(deviceId);
+    const { period, fromDateStr, toDateStr, periodStart, periodEnd } = resolvePeriodRange(timezone, options);
+
+    const { rows } = await pool.query(
+        `SELECT id, session_id, created_at, role, text, category, tone, topic
+         FROM dialogue_turns
+         WHERE device_id = $1 AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz
+         ORDER BY created_at ASC, id ASC
+         LIMIT $4;`,
+        [id, periodStart, periodEnd, TRANSCRIPT_ROW_CAP + 1],
+    );
+
+    const truncated = rows.length > TRANSCRIPT_ROW_CAP;
+    const turns = (truncated ? rows.slice(0, TRANSCRIPT_ROW_CAP) : rows).map((row) => ({
+        id: row.id,
+        session_id: row.session_id,
+        created_at: row.created_at,
+        role: row.role,
+        text: row.text,
+        category: row.category,
+        tone: row.tone,
+        topic: row.topic,
+    }));
+
+    return {
+        period,
+        period_from: fromDateStr,
+        period_to: toDateStr,
+        turns,
+        truncated,
+    };
+}
+
 module.exports = {
     init,
     normalizeDeviceId,
@@ -737,4 +976,7 @@ module.exports = {
     getDailyUsageMinutes,
     localDateStringInTz,
     DEFAULT_TIMEZONE,
+    saveDialogueTurn,
+    getDialogueAnalytics,
+    getDialogueTurns,
 };

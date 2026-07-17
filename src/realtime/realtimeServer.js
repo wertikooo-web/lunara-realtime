@@ -650,6 +650,12 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         if (!clean) return;
         recentTurns.push({ role, text: clean.slice(0, 240) });
         while (recentTurns.length > 12) recentTurns.shift();
+
+        if (memoryEnabledFlag) {
+            memoryStore.saveDialogueTurn(deviceId, sessionId, role, clean).catch(err => {
+                log('failed_to_save_dialogue_turn', { error: err.message });
+            });
+        }
     }
 
     function buildPromptBundle() {

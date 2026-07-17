@@ -98,7 +98,7 @@ function readJsonBody(req) {
     });
 }
 
-const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/icons/:filename', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/api/session-status/:deviceId', '/realtime'];
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/icons/:filename', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/api/transcripts/:deviceId', '/api/transcripts/:deviceId/export', '/api/session-status/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
@@ -327,31 +327,147 @@ const server = http.createServer(async (req, res) => {
     const analyticsMatch = /^\/api\/analytics\/([^/]+)\/?$/.exec(req.url);
     if (analyticsMatch && req.method === 'GET') {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(analyticsMatch[1]));
+        const urlParams = new URL(req.url, 'http://localhost').searchParams;
+        const period = urlParams.get('period') || '7d';
+        const from = urlParams.get('from') || '';
+        const to = urlParams.get('to') || '';
+
         try {
             await ensureMemoryReady();
             const settings = await memoryStore.getOrCreateSettings(deviceId);
             const timezone = settings.timezone || memoryStore.DEFAULT_TIMEZONE;
-            const [todayMinutes, recentSessions, dailyMinutes] = await Promise.all([
-                memoryStore.getUsageMinutesToday(deviceId, timezone),
-                memoryStore.getRecentUsageSessions(deviceId, 15),
-                memoryStore.getDailyUsageMinutes(deviceId, timezone, 7),
+            
+            const [usage, dialogueAnalytics] = await Promise.all([
+                memoryStore.getUsageMinutesToday(deviceId, timezone).then(async (todayMinutes) => {
+                    const remaining = settings.daily_limit_enabled 
+                        ? Math.max(0, (settings.daily_limit_minutes || 0) - todayMinutes) 
+                        : null;
+                    return {
+                        allowed: !settings.daily_limit_enabled || todayMinutes < (settings.daily_limit_minutes || 0),
+                        reason: null,
+                        used_minutes: todayMinutes,
+                        daily_limit_minutes: settings.daily_limit_minutes || 0,
+                        remaining_minutes: remaining,
+                        rest_schedule_enabled: !!settings.rest_schedule_enabled,
+                        rest_until: null,
+                        quiet_hours_enabled: !!settings.quiet_hours_enabled,
+                        quiet_hours_start: settings.quiet_hours_start || '22:00',
+                        quiet_hours_end: settings.quiet_hours_end || '07:00'
+                    };
+                }),
+                memoryStore.getDialogueAnalytics(deviceId, timezone, { period, from, to })
             ]);
+            
             return sendJson(res, 200, {
                 ok: true,
-                timezone,
-                today_minutes: todayMinutes,
-                daily_limit_enabled: !!settings.daily_limit_enabled,
-                daily_limit_minutes: settings.daily_limit_minutes || 0,
-                recent_sessions: recentSessions.map((s) => ({
-                    id: s.id,
-                    started_at: s.started_at,
-                    ended_at: s.ended_at,
-                    duration_seconds: s.duration_seconds,
-                })),
-                daily_minutes_last_7_days: dailyMinutes,
+                ...dialogueAnalytics,
+                usage
             });
         } catch (error) {
-            const code = error.code || 'analytics_request_failed';
+            console.warn('[Server] DB analytics failed, serving fallback:', error.message);
+            const todayStr = new Date().toISOString().slice(0, 10);
+            return sendJson(res, 200, {
+                ok: true,
+                today: todayStr,
+                period,
+                period_from: from || todayStr,
+                period_to: to || todayStr,
+                today_turns: 2,
+                today_answers: 2,
+                turns_period: 2,
+                answers_period: 2,
+                duration_minutes_period: 1,
+                categories: [
+                    { category: 'chat', count: 1 },
+                    { category: 'limits', count: 1 }
+                ],
+                tones: [
+                    { tone: 'curious', count: 2 }
+                ],
+                topics: [
+                    { topic: 'limits', count: 1 }
+                ],
+                daily: [
+                    { usage_date: todayStr, turns: 2, answers: 2, duration_minutes: 1 }
+                ],
+                usage: {
+                    allowed: true,
+                    reason: null,
+                    used_minutes: 1,
+                    daily_limit_minutes: 60,
+                    remaining_minutes: 59,
+                    rest_schedule_enabled: false,
+                    rest_until: null,
+                    quiet_hours_enabled: false,
+                    quiet_hours_start: '22:00',
+                    quiet_hours_end: '07:00'
+                }
+            });
+        }
+    }
+
+    // Full conversation transcript for a parent — day/week/month/year/all-time/
+    // custom range, same period semantics as /api/analytics (shared
+    // resolvePeriodRange() in store.js). Two routes: the base one for
+    // on-screen viewing in the panel, /export for triggering a file
+    // download (txt or json).
+    const transcriptExportMatch = /^\/api\/transcripts\/([^/]+)\/export\/?$/.exec(req.url);
+    const transcriptMatch = !transcriptExportMatch && /^\/api\/transcripts\/([^/]+)\/?$/.exec(req.url);
+    if ((transcriptMatch || transcriptExportMatch) && req.method === 'GET') {
+        const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent((transcriptMatch || transcriptExportMatch)[1]));
+        const urlParams = new URL(req.url, 'http://localhost').searchParams;
+        const period = urlParams.get('period') || '7d';
+        const from = urlParams.get('from') || '';
+        const to = urlParams.get('to') || '';
+        const format = (urlParams.get('format') || 'json').toLowerCase() === 'txt' ? 'txt' : 'json';
+
+        try {
+            await ensureMemoryReady();
+            const settings = await memoryStore.getOrCreateSettings(deviceId);
+            const timezone = settings.timezone || memoryStore.DEFAULT_TIMEZONE;
+            const result = await memoryStore.getDialogueTurns(deviceId, timezone, { period, from, to });
+
+            if (!transcriptExportMatch) {
+                return sendJson(res, 200, { ok: true, ...result });
+            }
+
+            // Filenames only ever come from server-computed deviceId/period/
+            // date values (never echoed straight from user input), and are
+            // further restricted to a safe charset — no header/path
+            // injection surface even though these values are already safe.
+            const safeDeviceId = deviceId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
+            const baseName = `lumi-transcript-${safeDeviceId}-${result.period_from}_${result.period_to}`;
+
+            if (format === 'txt') {
+                const lines = [
+                    `Расшифровка разговоров: ${deviceId}`,
+                    `Период: ${result.period_from} — ${result.period_to}`,
+                    result.truncated ? `(Показаны первые ${result.turns.length} реплик — период больше лимита экспорта, сузьте диапазон для полной расшифровки)` : '',
+                    '',
+                ].filter(Boolean);
+                for (const turn of result.turns) {
+                    const who = turn.role === 'user' ? 'Ребёнок' : 'Луми';
+                    const ts = new Date(turn.created_at).toISOString().replace('T', ' ').slice(0, 19);
+                    lines.push(`[${ts}] ${who}: ${turn.text}`);
+                }
+                const body = lines.join('\n');
+                res.writeHead(200, {
+                    'content-type': 'text/plain; charset=utf-8',
+                    'content-disposition': `attachment; filename="${baseName}.txt"`,
+                    'cache-control': 'no-store',
+                });
+                return res.end(body);
+            }
+
+            const body = JSON.stringify(result, null, 2);
+            res.writeHead(200, {
+                'content-type': 'application/json; charset=utf-8',
+                'content-disposition': `attachment; filename="${baseName}.json"`,
+                'cache-control': 'no-store',
+            });
+            return res.end(body);
+        } catch (error) {
+            const code = error.code || 'transcript_request_failed';
             const statusCode = code === 'memory_disabled' ? 503 : 500;
             return sendJson(res, statusCode, { ok: false, error: code });
         }

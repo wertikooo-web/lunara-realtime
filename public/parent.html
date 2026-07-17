@@ -115,16 +115,11 @@
     0%, 100% { box-shadow: 0 0 0 rgba(251,191,36,0); transform: scale(1); }
     50% { box-shadow: 0 0 20px 5px rgba(251,191,36,.7); transform: scale(1.045); }
   }
-  .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
-  .analytics-tile { background: #100c20; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; }
-  .analytics-tile .value { font-size: 22px; font-weight: 700; color: #fff; }
-  .analytics-tile .label { color: #a999d6; font-size: 12px; margin-top: 4px; }
-  .analytics-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
-  .analytics-table th, .analytics-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #2f2258; color: #d8ccff; }
-  .analytics-bars { display: flex; align-items: flex-end; gap: 8px; height: 96px; margin: 18px 0 26px; }
-  .analytics-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
-  .analytics-bar { width: 100%; background: #8b5cf6; border-radius: 4px 4px 0 0; min-height: 2px; }
-  .analytics-bar-label { position: absolute; bottom: -20px; font-size: 10px; color: #a999d6; }
+  .analytics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+  .metric { background: #100c20; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; }
+  .metric .metric-label { display: block; color: #a999d6; font-size: 12px; }
+  .metric strong { display: block; font-size: 22px; font-weight: 700; color: #fff; margin-top: 4px; }
+  .analytics-panel { margin-top: 12px; }
   /* Collapsible panel blocks: every <section>'s <h2> is clickable and shows
      an arrow (▾ expanded, rotated to ▸ collapsed), matching the existing
      .toggle-button arrow convention above. Collapsed state hides everything
@@ -511,7 +506,7 @@
   </section>
 
   <section id="customPromptPanel">
-    <h2 class="collapsible" data-i18n="customPromptTitle">Свой системный промт</h2>
+    <h2 class="collapsible" data-i18n="customPromptTitle">ПРОМТ</h2>
     <label class="inline-check"><input id="customPromptEnabled" type="checkbox" onchange="readFormIntoCurrent(); renderPreview(); saveSettings();"> <span data-i18n="customPromptToggle">Использовать этот промт вместо стандартного</span></label>
     <p class="small" data-i18n="customPromptHint">До 16000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.</p>
     <textarea id="customPromptText" maxlength="16000" oninput="updateCustomPromptCounter()" onchange="readFormIntoCurrent(); renderPreview();" style="min-height:220px"></textarea>
@@ -539,34 +534,59 @@
     <div class="save-row"><button class="save-btn" id="save-restrictionsPanel" type="button" data-i18n="blockSave" onclick="readFormIntoCurrent(); saveSettings();">Сохранить</button></div>
   </section>
 
-  <section id="analyticsPanel">
+  <section id="analyticsSection">
     <h2 class="collapsible" data-i18n="analyticsTitle">Аналитика</h2>
-    <div class="analytics-grid">
-      <div class="analytics-tile">
-        <div class="value" id="analyticsTodayMinutes">—</div>
-        <div class="label" data-i18n="analyticsTodayLabel">Сегодня использовано, мин</div>
+    <div id="analyticsPanel" class="analytics-panel">
+      <div class="row-actions analytics-period-row" style="margin-bottom: 12px;">
+        <select id="analyticsPeriod" onchange="toggleAnalyticsCustomRange(); loadAnalytics().catch(() => {})">
+          <option value="today" data-i18n="analyticsPeriodToday">Сегодня</option>
+          <option value="yesterday" data-i18n="analyticsPeriodYesterday">Вчера</option>
+          <option value="7d" selected data-i18n="analyticsPeriod7d">7 дней</option>
+          <option value="30d" data-i18n="analyticsPeriod30d">30 дней</option>
+          <option value="all" data-i18n="analyticsPeriodAll">Всё время</option>
+          <option value="custom" data-i18n="analyticsPeriodCustom">Свой период</option>
+        </select>
+        <input id="analyticsFrom" class="analytics-custom-range hidden" type="date" onchange="loadAnalytics().catch(() => {})">
+        <input id="analyticsTo" class="analytics-custom-range hidden" type="date" onchange="loadAnalytics().catch(() => {})">
       </div>
-      <div class="analytics-tile">
-        <div class="value" id="analyticsLimitValue">—</div>
-        <div class="label" data-i18n="analyticsLimitLabel">Дневной лимит, мин</div>
+      <div class="analytics-grid">
+        <div class="metric"><span class="metric-label" data-i18n="analyticsUsed">Сегодня использовано</span><strong id="metricUsedToday">0 мин</strong></div>
+        <div class="metric"><span class="metric-label" data-i18n="analyticsRemaining">Осталось сегодня</span><strong id="metricRemainingToday">Без лимита</strong></div>
+        <div class="metric"><span class="metric-label" data-i18n="analyticsStatus">Статус</span><strong id="metricRuntimeStatus">Работает</strong></div>
+        <div class="metric"><span class="metric-label" data-i18n="analyticsTurnsToday">Сообщений сегодня</span><strong id="metricTurnsToday">0</strong></div>
+        <div class="metric"><span class="metric-label" data-i18n="analyticsTurnsWeek">Сообщений за период</span><strong id="metricTurnsPeriod">0</strong></div>
+        <div class="metric"><span class="metric-label" data-i18n="analyticsAnswersWeek">Ответов Lumi</span><strong id="metricAnswersPeriod">0</strong></div>
       </div>
+      <div id="analyticsSummary" class="memory-card memory-empty" style="margin-top: 12px;" data-i18n="analyticsEmpty">Аналитика появится после новых разговоров.</div>
     </div>
-    <label data-i18n="analyticsWeekLabel">Использование за последние 7 дней</label>
-    <div id="analyticsBars" class="analytics-bars"></div>
-    <label data-i18n="analyticsSessionsLabel">Недавние сессии</label>
-    <div style="overflow-x:auto">
-      <table class="analytics-table">
-        <thead><tr>
-          <th data-i18n="analyticsColStart">Начало</th>
-          <th data-i18n="analyticsColDuration">Длительность</th>
-        </tr></thead>
-        <tbody id="analyticsSessionsBody"></tbody>
-      </table>
-    </div>
-    <div class="row-actions">
+    <div class="row-actions" style="margin-top: 10px;">
       <button class="secondary" type="button" data-i18n="analyticsRefresh" onclick="loadAnalytics()">Обновить</button>
     </div>
     <div id="analyticsStatus" class="status"></div>
+  </section>
+
+  <section id="transcriptSection">
+    <h2 class="collapsible" data-i18n="transcriptTitle">Расшифровка разговоров</h2>
+    <p class="small" data-i18n="transcriptHint">Полный текст того, что говорил ребёнок и что отвечала Луми, за выбранный период. Можно посмотреть здесь или скачать файлом.</p>
+    <div class="row-actions analytics-period-row" style="margin-bottom: 12px;">
+      <select id="transcriptPeriod" onchange="toggleTranscriptCustomRange(); loadTranscript().catch(() => {})">
+        <option value="today" data-i18n="analyticsPeriodToday">Сегодня</option>
+        <option value="7d" selected data-i18n="analyticsPeriod7d">7 дней</option>
+        <option value="30d" data-i18n="transcriptPeriodMonth">Месяц</option>
+        <option value="year" data-i18n="transcriptPeriodYear">Год</option>
+        <option value="all" data-i18n="analyticsPeriodAll">Всё время</option>
+        <option value="custom" data-i18n="analyticsPeriodCustom">Свой период</option>
+      </select>
+      <input id="transcriptFrom" class="transcript-custom-range hidden" type="date" onchange="loadTranscript().catch(() => {})">
+      <input id="transcriptTo" class="transcript-custom-range hidden" type="date" onchange="loadTranscript().catch(() => {})">
+    </div>
+    <div id="transcriptBox" class="preview-box" style="max-height: 420px;" data-i18n="transcriptEmpty">Расшифровка появится после первого разговора.</div>
+    <div class="row-actions" style="margin-top: 10px;">
+      <button class="secondary" type="button" data-i18n="transcriptRefresh" onclick="loadTranscript()">Обновить</button>
+      <button class="secondary" type="button" data-i18n="transcriptDownloadTxt" onclick="downloadTranscript('txt')">Скачать .txt</button>
+      <button class="secondary" type="button" data-i18n="transcriptDownloadJson" onclick="downloadTranscript('json')">Скачать .json</button>
+    </div>
+    <div id="transcriptStatus" class="status"></div>
   </section>
 
   <section id="dataDeletionPanel" class="data-delete-panel">
@@ -1434,36 +1454,179 @@ function formatDurationSeconds(sec) {
   return `${m}${translate('min')} ${s}s`;
 }
 
+function toggleAnalyticsCustomRange() {
+  const custom = document.getElementById('analyticsPeriod')?.value === 'custom';
+  document.querySelectorAll('.analytics-custom-range').forEach(el => el.classList.toggle('hidden', !custom));
+}
+
+function renderRuntime(runtime = {}) {
+  const used = Number(runtime.used_minutes || 0);
+  const remaining = runtime.remaining_minutes;
+  const status = runtime.allowed === false ? translate('analyticsBlocked') : translate('analyticsWorks');
+  
+  const usedEl = document.getElementById('metricUsedToday');
+  if (usedEl) usedEl.textContent = `${used} ${translate('min')}`;
+  
+  const remainingEl = document.getElementById('metricRemainingToday');
+  if (remainingEl) remainingEl.textContent = remaining == null ? translate('analyticsNoLimit') : `${Math.max(0, remaining)} ${translate('min')}`;
+  
+  const statusEl = document.getElementById('metricRuntimeStatus');
+  if (statusEl) statusEl.textContent = status;
+}
+
+const ANALYTICS_LABELS = {
+  chat: 'общение',
+  riddles: 'загадки',
+  stories: 'сказки',
+  tongue_twisters: 'скороговорки',
+  mini_games: 'мини-игры',
+  learning: 'обучающие активности',
+  roleplay: 'ролевые игры',
+  speech_development: 'развитие речи',
+  curious: 'любознательный',
+  neutral: 'нейтральный',
+  supportive: 'поддерживающий',
+  happy: 'радостный',
+  calm: 'спокойный',
+  animals: 'животные',
+  food: 'еда',
+  friendship: 'дружба',
+  space: 'космос',
+  limits: 'limits'
+};
+
+function analyticsLabel(raw) {
+  const value = String(raw || '').trim();
+  return ANALYTICS_LABELS[value] || value.replaceAll('_', ' ');
+}
+
+function listSummary(rows = []) {
+  return rows.length
+    ? rows.map(row => `${escapeHtml(analyticsLabel(row.category || row.tone || row.topic))}: ${Number(row.count || 0)}`).join(', ')
+    : '';
+}
+
+function renderAnalytics(data = {}) {
+  renderRuntime(data.usage || {});
+  
+  const turnsTodayEl = document.getElementById('metricTurnsToday');
+  if (turnsTodayEl) turnsTodayEl.textContent = String(data.today_turns || 0);
+  
+  const turnsPeriodEl = document.getElementById('metricTurnsPeriod');
+  if (turnsPeriodEl) turnsPeriodEl.textContent = String(data.turns_period || 0);
+  
+  const answersPeriodEl = document.getElementById('metricAnswersPeriod');
+  if (answersPeriodEl) answersPeriodEl.textContent = String(data.answers_period || 0);
+  
+  const rows = [];
+  const categories = listSummary(data.categories || []);
+  const tones = listSummary(data.tones || []);
+  const topics = listSummary(data.topics || []);
+  if (categories) rows.push(`<div class="memory-row"><div class="memory-label">${escapeHtml(translate('analyticsCategories'))}</div><div>${categories}</div></div>`);
+  if (tones) rows.push(`<div class="memory-row"><div class="memory-label">${escapeHtml(translate('analyticsTone'))}</div><div>${tones}</div></div>`);
+  if (topics) rows.push(`<div class="memory-row"><div class="memory-label">${escapeHtml(translate('analyticsTopics'))}</div><div>${topics}</div></div>`);
+  if (data.duration_minutes_period) rows.push(`<div class="memory-row"><div class="memory-label">${escapeHtml(translate('analyticsTimePeriod'))}</div><div>${Number(data.duration_minutes_period)} ${translate('min')}</div></div>`);
+  if (Array.isArray(data.daily) && data.daily.length) {
+    const daily = data.daily.map(row => `${escapeHtml(row.usage_date)}: ${Number(row.turns || 0)} / ${Number(row.duration_minutes || 0)} ${translate('min')}`).join(', ');
+    rows.push(`<div class="memory-row"><div class="memory-label">${escapeHtml(translate('analyticsDaily'))}</div><div>${daily}</div></div>`);
+  }
+  const box = document.getElementById('analyticsSummary');
+  if (!rows.length) {
+    box.className = 'memory-card memory-empty';
+    box.textContent = translate('analyticsEmpty');
+    return;
+  }
+  box.className = 'memory-card';
+  box.innerHTML = rows.join('');
+}
+
 async function loadAnalytics() {
   const statusEl = document.getElementById('analyticsStatus');
+  if (!statusEl) return;
   statusEl.classList.remove('error');
   statusEl.textContent = '';
   try {
-    const res = await fetch(`/api/analytics/${DEVICE_ID}`);
+    const period = document.getElementById('analyticsPeriod')?.value || '7d';
+    const params = new URLSearchParams({ period });
+    if (period === 'custom') {
+      const from = document.getElementById('analyticsFrom')?.value;
+      const to = document.getElementById('analyticsTo')?.value;
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+    }
+    const res = await fetch(`/api/analytics/${DEVICE_ID}?` + params.toString());
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'request_failed');
-
-    document.getElementById('analyticsTodayMinutes').textContent = data.today_minutes ?? 0;
-    document.getElementById('analyticsLimitValue').textContent = data.daily_limit_enabled ? data.daily_limit_minutes : translate('unlimited');
-
-    const week = Array.isArray(data.daily_minutes_last_7_days) ? data.daily_minutes_last_7_days : [];
-    const maxMinutes = Math.max(1, ...week.map((d) => d.minutes));
-    const barsBox = document.getElementById('analyticsBars');
-    barsBox.innerHTML = week.map((d) => {
-      const heightPct = Math.max(2, Math.round((d.minutes / maxMinutes) * 100));
-      const dayLabel = (d.date || '').slice(5);
-      return `<div class="analytics-bar-wrap"><div class="analytics-bar" style="height:${heightPct}%" title="${d.minutes} min"></div><span class="analytics-bar-label">${escapeHtml(dayLabel)}</span></div>`;
-    }).join('');
-
-    const sessions = Array.isArray(data.recent_sessions) ? data.recent_sessions : [];
-    const body = document.getElementById('analyticsSessionsBody');
-    body.innerHTML = sessions.length
-      ? sessions.map((s) => `<tr><td>${escapeHtml(formatSessionStart(s.started_at))}</td><td>${escapeHtml(formatDurationSeconds(s.duration_seconds))}</td></tr>`).join('')
-      : `<tr><td colspan="2">${escapeHtml(translate('analyticsEmpty'))}</td></tr>`;
+    renderAnalytics(data);
   } catch (err) {
     statusEl.classList.add('error');
     statusEl.textContent = translate('analyticsError') + ' (' + (err.message || err) + ')';
   }
+}
+
+// --- Transcript (full conversation history for a parent) -----------------
+function toggleTranscriptCustomRange() {
+  const custom = document.getElementById('transcriptPeriod')?.value === 'custom';
+  document.querySelectorAll('.transcript-custom-range').forEach(el => el.classList.toggle('hidden', !custom));
+}
+
+function buildTranscriptParams() {
+  const period = document.getElementById('transcriptPeriod')?.value || '7d';
+  const params = new URLSearchParams({ period });
+  if (period === 'custom') {
+    const from = document.getElementById('transcriptFrom')?.value;
+    const to = document.getElementById('transcriptTo')?.value;
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+  }
+  return params;
+}
+
+function renderTranscript(data) {
+  const box = document.getElementById('transcriptBox');
+  if (!box) return;
+  if (!data.turns || data.turns.length === 0) {
+    box.textContent = translate('transcriptEmpty');
+    return;
+  }
+  const lines = data.turns.map((turn) => {
+    const who = turn.role === 'user' ? translate('transcriptChild') : translate('transcriptToy');
+    const ts = new Date(turn.created_at).toLocaleString(uiLang === 'ru' ? 'ru-RU' : uiLang === 'ro' ? 'ro-RO' : 'en-US');
+    return `<div><span class="small">[${escapeHtml(ts)}]</span> <strong>${escapeHtml(who)}:</strong> ${escapeHtml(turn.text)}</div>`;
+  });
+  if (data.truncated) {
+    lines.unshift(`<div class="small">${translate('transcriptTruncated')}</div>`);
+  }
+  box.innerHTML = lines.join('');
+}
+
+async function loadTranscript() {
+  const statusEl = document.getElementById('transcriptStatus');
+  if (!statusEl) return;
+  statusEl.classList.remove('error');
+  statusEl.textContent = '';
+  try {
+    const params = buildTranscriptParams();
+    const res = await fetch(`/api/transcripts/${DEVICE_ID}?` + params.toString());
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'request_failed');
+    renderTranscript(data);
+  } catch (err) {
+    statusEl.classList.add('error');
+    statusEl.textContent = translate('transcriptError') + ' (' + (err.message || err) + ')';
+  }
+}
+
+function downloadTranscript(format) {
+  const params = buildTranscriptParams();
+  params.set('format', format);
+  const url = `/api/transcripts/${DEVICE_ID}/export?` + params.toString();
+  const link = document.createElement('a');
+  link.href = url;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 // --- i18n ---------------------------------------------------------------
@@ -1514,7 +1677,7 @@ const I18N = {
     memoryAddButton: 'Добавить', memoryView: 'Посмотреть, что помнит Луми', memoryDeleteOne: 'Удалить', memoryClearButton: 'Очистить память',
     memoryEmpty: 'Луми пока ничего не запомнила. Добавьте факт вручную',
     confirmClearMemory: 'Очистить всю память Луми? Профиль ребёнка при этом не удаляется.',
-    customPromptTitle: 'Свой системный промт', customPromptToggle: 'Использовать этот промт вместо стандартного',
+    customPromptTitle: 'ПРОМТ', customPromptToggle: 'Использовать этот промт вместо стандартного',
     customPromptHint: 'До 16000 знаков. Можно взять стандартный текст за основу и видоизменить, сохранить или в любой момент откатить обратно.',
     customPromptReset: 'Сбросить к дефолтному', customPromptSave: 'Сохранить промт', customPromptResetOk: 'Промт сброшен к стандартному',
     voicePreviewLoading: 'Генерируем образец голоса…', voicePreviewSampleText: 'Привет! Меня зовут Луми. Давай поиграем?',
@@ -1533,9 +1696,34 @@ const I18N = {
     deleteProfile: 'Удалить профиль ребёнка', clearMemory: 'Очистить память', deleteChildData: 'Удалить данные ребёнка', deleteAll: 'Удалить всё',
     memoryNotConnectedTitle: 'Память ещё не подключена',
     analyticsTitle: 'Аналитика',
-    analyticsTodayLabel: 'Сегодня использовано, мин', analyticsLimitLabel: 'Дневной лимит, мин', analyticsWeekLabel: 'Использование за последние 7 дней',
-    analyticsSessionsLabel: 'Недавние сессии', analyticsColStart: 'Начало', analyticsColDuration: 'Длительность', analyticsRefresh: 'Обновить',
-    analyticsEmpty: 'Сессий пока нет', analyticsError: 'Не удалось загрузить аналитику',
+    analyticsUsed: 'Сегодня использовано',
+    analyticsRemaining: 'Осталось сегодня',
+    analyticsStatus: 'Статус',
+    analyticsTurnsToday: 'Сообщений сегодня',
+    analyticsTurnsWeek: 'Сообщений за период',
+    analyticsAnswersWeek: 'Ответов Lumi',
+    analyticsEmpty: 'Аналитика появится после новых разговоров.',
+    analyticsCategories: 'Любимые форматы',
+    analyticsTone: 'Тон',
+    analyticsTopics: 'Частые темы',
+    analyticsTimePeriod: 'Время за период',
+    analyticsDaily: 'По дням',
+    analyticsNoLimit: 'Без лимита',
+    analyticsWorks: 'Работает',
+    analyticsBlocked: 'Ограничено',
+    analyticsRefresh: 'Обновить',
+    analyticsError: 'Не удалось загрузить аналитику',
+    analyticsPeriodToday: 'Сегодня',
+    analyticsPeriodYesterday: 'Вчера',
+    analyticsPeriod7d: '7 дней',
+    analyticsPeriod30d: '30 дней',
+    analyticsPeriodAll: 'Всё время',
+    analyticsPeriodCustom: 'Свой период',
+    transcriptTitle: 'Расшифровка разговоров', transcriptHint: 'Полный текст того, что говорил ребёнок и что отвечала Луми, за выбранный период. Можно посмотреть здесь или скачать файлом.',
+    transcriptPeriodMonth: 'Месяц', transcriptPeriodYear: 'Год', transcriptEmpty: 'Расшифровка появится после первого разговора.',
+    transcriptRefresh: 'Обновить', transcriptDownloadTxt: 'Скачать .txt', transcriptDownloadJson: 'Скачать .json',
+    transcriptChild: 'Ребёнок', transcriptToy: 'Луми', transcriptError: 'Не удалось загрузить расшифровку',
+    transcriptTruncated: 'Показана только часть за этот период — сузьте диапазон, чтобы увидеть всё.',
     chipToyName: 'Игрушка', chipProfile: 'Профиль', chipProfileNone: 'нет активного', chipMemory: 'Память',
     chipDailyLimit: 'Дневной лимит', chipNightMode: 'Ночной режим', chipRealtime: 'Realtime-соединение', chipGemini: 'Gemini Live',
     chipNotConnected: 'не подключено', chipConnected: 'подключено', on: 'вкл', off: 'выкл', unlimited: 'без лимита', min: 'мин',
@@ -1592,7 +1780,7 @@ const I18N = {
     memoryAddButton: 'Adaugă', memoryView: 'Vezi ce își amintește Lumi', memoryDeleteOne: 'Șterge', memoryClearButton: 'Șterge memoria',
     memoryEmpty: 'Lumi nu ține minte încă nimic. Adaugă un fapt manual sau așteaptă memoria de pe server.',
     confirmClearMemory: 'Ștergi toată memoria lui Lumi? Profilul copilului nu este șters.',
-    customPromptTitle: 'Prompt de sistem personalizat', customPromptToggle: 'Folosește acest prompt în loc de cel standard',
+    customPromptTitle: 'PROMPT', customPromptToggle: 'Folosește acest prompt în loc de cel standard',
     customPromptHint: 'Până la 16000 de caractere. Poți porni de la textul standard, îl poți modifica, salva sau reveni oricând la varianta implicită.',
     customPromptReset: 'Revino la standard', customPromptSave: 'Salvează promptul', customPromptResetOk: 'Prompt resetat la standard',
     voicePreviewLoading: 'Se generează o mostră de voce…', voicePreviewSampleText: 'Salut! Mă numesc Lumi. Hai să ne jucăm?',
@@ -1611,9 +1799,34 @@ const I18N = {
     deleteProfile: 'Șterge profilul copilului', clearMemory: 'Șterge memoria', deleteChildData: 'Șterge datele copilului', deleteAll: 'Șterge tot',
     memoryNotConnectedTitle: 'Memoria nu este încă conectată',
     analyticsTitle: 'Analitice',
-    analyticsTodayLabel: 'Folosit azi, min', analyticsLimitLabel: 'Limită zilnică, min', analyticsWeekLabel: 'Utilizare în ultimele 7 zile',
-    analyticsSessionsLabel: 'Sesiuni recente', analyticsColStart: 'Început', analyticsColDuration: 'Durată', analyticsRefresh: 'Actualizează',
-    analyticsEmpty: 'Nicio sesiune încă', analyticsError: 'Nu s-au putut încărca analiticele',
+    analyticsUsed: 'Folosit azi',
+    analyticsRemaining: 'Rămas azi',
+    analyticsStatus: 'Status',
+    analyticsTurnsToday: 'Mesaje azi',
+    analyticsTurnsWeek: 'Mesaje în perioadă',
+    analyticsAnswersWeek: 'Răspunsuri Lumi',
+    analyticsEmpty: 'Analiticele vor apărea după noi conversații.',
+    analyticsCategories: 'Formate preferate',
+    analyticsTone: 'Ton',
+    analyticsTopics: 'Subiecte frecvente',
+    analyticsTimePeriod: 'Timp în perioadă',
+    analyticsDaily: 'Pe zile',
+    analyticsNoLimit: 'Fără limită',
+    analyticsWorks: 'Activ',
+    analyticsBlocked: 'Limitat',
+    analyticsRefresh: 'Actualizează',
+    analyticsError: 'Nu s-au putut încărca analiticele',
+    analyticsPeriodToday: 'Azi',
+    analyticsPeriodYesterday: 'Ieri',
+    analyticsPeriod7d: '7 zile',
+    analyticsPeriod30d: '30 zile',
+    analyticsPeriodAll: 'Tot timpul',
+    analyticsPeriodCustom: 'Perioadă personalizată',
+    transcriptTitle: 'Transcriere conversații', transcriptHint: 'Textul complet a ceea ce a spus copilul și a răspuns Lumi, pentru perioada selectată. Poți vedea aici sau descărca un fișier.',
+    transcriptPeriodMonth: 'Lună', transcriptPeriodYear: 'An', transcriptEmpty: 'Transcrierea va apărea după prima conversație.',
+    transcriptRefresh: 'Actualizează', transcriptDownloadTxt: 'Descarcă .txt', transcriptDownloadJson: 'Descarcă .json',
+    transcriptChild: 'Copil', transcriptToy: 'Lumi', transcriptError: 'Transcrierea nu a putut fi încărcată',
+    transcriptTruncated: 'Este afișată doar o parte din perioadă — restrânge intervalul pentru a vedea totul.',
     chipToyName: 'Jucărie', chipProfile: 'Profil', chipProfileNone: 'niciunul activ', chipMemory: 'Memorie',
     chipDailyLimit: 'Limită zilnică', chipNightMode: 'Mod nocturn', chipRealtime: 'Conexiune realtime', chipGemini: 'Gemini Live',
     chipNotConnected: 'neconectat', chipConnected: 'conectat', on: 'activ', off: 'inactiv', unlimited: 'fără limită', min: 'min',
@@ -1670,7 +1883,7 @@ const I18N = {
     memoryAddButton: 'Add', memoryView: 'See what Lumi remembers', memoryDeleteOne: 'Delete', memoryClearButton: 'Clear memory',
     memoryEmpty: 'Lumi does not remember anything yet. Add a fact manually or wait for server memory.',
     confirmClearMemory: "Clear all of Lumi's memory? The child profile itself is not deleted.",
-    customPromptTitle: 'Custom system prompt', customPromptToggle: 'Use this prompt instead of the default one',
+    customPromptTitle: 'PROMPT', customPromptToggle: 'Use this prompt instead of the default one',
     customPromptHint: 'Up to 16000 characters. You can start from the default text, tweak it, save it, or revert to default at any time.',
     customPromptReset: 'Reset to default', customPromptSave: 'Save prompt', customPromptResetOk: 'Prompt reset to default',
     voicePreviewLoading: 'Generating a voice sample…', voicePreviewSampleText: 'Hi! My name is Lumi. Shall we play?',
@@ -1689,9 +1902,34 @@ const I18N = {
     deleteProfile: 'Delete child profile', clearMemory: 'Clear memory', deleteChildData: 'Delete child data', deleteAll: 'Delete everything',
     memoryNotConnectedTitle: 'Memory is not connected yet',
     analyticsTitle: 'Analytics',
-    analyticsTodayLabel: 'Used today, min', analyticsLimitLabel: 'Daily limit, min', analyticsWeekLabel: 'Usage over the last 7 days',
-    analyticsSessionsLabel: 'Recent sessions', analyticsColStart: 'Start', analyticsColDuration: 'Duration', analyticsRefresh: 'Refresh',
-    analyticsEmpty: 'No sessions yet', analyticsError: 'Could not load analytics',
+    analyticsUsed: 'Used today',
+    analyticsRemaining: 'Left today',
+    analyticsStatus: 'Status',
+    analyticsTurnsToday: 'Messages today',
+    analyticsTurnsWeek: 'Messages in period',
+    analyticsAnswersWeek: 'Lumi replies',
+    analyticsEmpty: 'Analytics will appear after new conversations.',
+    analyticsCategories: 'Favorite formats',
+    analyticsTone: 'Tone',
+    analyticsTopics: 'Common topics',
+    analyticsTimePeriod: 'Time in period',
+    analyticsDaily: 'By days',
+    analyticsNoLimit: 'No limit',
+    analyticsWorks: 'Active',
+    analyticsBlocked: 'Limited',
+    analyticsRefresh: 'Refresh',
+    analyticsError: 'Could not load analytics',
+    analyticsPeriodToday: 'Today',
+    analyticsPeriodYesterday: 'Yesterday',
+    analyticsPeriod7d: '7 days',
+    analyticsPeriod30d: '30 days',
+    analyticsPeriodAll: 'All time',
+    analyticsPeriodCustom: 'Custom range',
+    transcriptTitle: 'Conversation transcript', transcriptHint: 'The full text of what the child said and what Lumi replied, for the selected period. View it here or download it as a file.',
+    transcriptPeriodMonth: 'Month', transcriptPeriodYear: 'Year', transcriptEmpty: 'The transcript will appear after the first conversation.',
+    transcriptRefresh: 'Refresh', transcriptDownloadTxt: 'Download .txt', transcriptDownloadJson: 'Download .json',
+    transcriptChild: 'Child', transcriptToy: 'Lumi', transcriptError: 'Could not load the transcript',
+    transcriptTruncated: 'Only part of this period is shown — narrow the range to see everything.',
     chipToyName: 'Toy', chipProfile: 'Profile', chipProfileNone: 'none active', chipMemory: 'Memory',
     chipDailyLimit: 'Daily limit', chipNightMode: 'Night mode', chipRealtime: 'Realtime connection', chipGemini: 'Gemini Live',
     chipNotConnected: 'not connected', chipConnected: 'connected', on: 'on', off: 'off', unlimited: 'unlimited', min: 'min',

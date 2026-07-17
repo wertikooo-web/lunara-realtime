@@ -1191,6 +1191,8 @@
     let batchCompleteTimeout = null;
     let batchWaitingForReconnect = false;
     let audioEndReceived = false;
+    let assistantAudioBytes = [];
+    let assistantAudioSampleRate = 24000;
 
     function advanceBatchTest() {
       if (!isBatchTesting) return;
@@ -1237,6 +1239,7 @@
         batchLastAnswer = '';
         modelRefusalTriggered = false;
         audioEndReceived = false;
+        assistantAudioBytes = [];
         
         userTranscript.textContent = `User transcript: ${nextQuestion}`;
         updateBubbleText('user', nextQuestion);
@@ -1388,6 +1391,13 @@
       batchLastAnswer = '';
       modelRefusalTriggered = false;
       audioEndReceived = false;
+      assistantAudioBytes = [];
+      const audioWrapTemp = document.getElementById('audioWrap');
+      const audioPlayerTemp = document.getElementById('audioPlayer');
+      if (audioWrapTemp && audioPlayerTemp) {
+        audioPlayerTemp.src = '';
+        audioWrapTemp.classList.remove('on');
+      }
 
       userTranscript.textContent = `User transcript: ${firstQuestion}`;
       updateBubbleText('user', firstQuestion);
@@ -1515,6 +1525,13 @@
       modelTranscriptBuffer = ''; // Clear accumulated response buffer
       modelRefusalTriggered = false;
       audioEndReceived = false;
+      assistantAudioBytes = [];
+      const audioWrapText = document.getElementById('audioWrap');
+      const audioPlayerText = document.getElementById('audioPlayer');
+      if (audioWrapText && audioPlayerText) {
+        audioPlayerText.src = '';
+        audioWrapText.classList.remove('on');
+      }
       if (batchCompleteTimeout) {
         clearTimeout(batchCompleteTimeout);
         batchCompleteTimeout = null;
@@ -1940,6 +1957,13 @@
       await ensureMic();
       if (audioContext?.state === 'suspended') await audioContext.resume();
 
+      assistantAudioBytes = [];
+      const audioWrapMic = document.getElementById('audioWrap');
+      const audioPlayerMic = document.getElementById('audioPlayer');
+      if (audioWrapMic && audioPlayerMic) {
+        audioPlayerMic.src = '';
+        audioWrapMic.classList.remove('on');
+      }
       isRecording = true;
       pttEndSent = false;
       bytesSentThisTurn = 0;
@@ -2152,6 +2176,7 @@
         currentGenerationId = payload.generation_id || currentGenerationId;
         currentResponseId = payload.response_id || '';
         responseStartedAt = performance.now();
+        assistantAudioBytes = [];
         updateIds();
       } else if (payload.type === 'audio.start') {
         if (isLateEvent(payload)) {
@@ -2168,6 +2193,27 @@
           recentTurns.push({ role: 'assistant', text: modelTranscriptBuffer });
           while (recentTurns.length > 12) recentTurns.shift();
           updateCurrentContextPreview();
+        }
+
+        // Generate WAV and load into audioPlayer
+        if (!isBatchTesting && assistantAudioBytes.length > 0) {
+          const totalLength = assistantAudioBytes.reduce((acc, val) => acc + val.length, 0);
+          const pcmBytes = new Uint8Array(totalLength);
+          let offset = 0;
+          for (const chunk of assistantAudioBytes) {
+            pcmBytes.set(chunk, offset);
+            offset += chunk.length;
+          }
+          
+          const wavBlob = pcmToWavBlob(pcmBytes, assistantAudioSampleRate);
+          const audioUrl = URL.createObjectURL(wavBlob);
+          
+          const audioPlayer = document.getElementById('audioPlayer');
+          const audioWrap = document.getElementById('audioWrap');
+          if (audioPlayer && audioWrap) {
+            audioPlayer.src = audioUrl;
+            audioWrap.classList.add('on');
+          }
         }
         
         if (isBatchTesting) {
@@ -2189,6 +2235,7 @@
         if (payload.response_id) cancelledResponses.add(payload.response_id);
         clearPlayback('response_cancelled');
         if (payload.cancel_latency_ms != null) metrics.interrupt.textContent = ms(payload.cancel_latency_ms);
+        assistantAudioBytes = [];
         if (lifecycleState !== STATES.LISTENING) setState(STATES.IDLE);
       } else if (payload.type === 'response.failed') {
         if (payload.generation_id) cancelledGenerations.add(payload.generation_id);
@@ -2313,6 +2360,21 @@
       updateMetricCounters();
       logAggregate(`audio.chunk:${payload.response_id || payload.generation_id}`, 'audio.chunk', payload);
 
+      // Accumulate chunks for WAV generation
+      if (payload.audio_base64 && !isLateEvent(payload)) {
+        try {
+          const binary = atob(payload.audio_base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
+          }
+          assistantAudioBytes.push(bytes);
+          assistantAudioSampleRate = payload.sample_rate || assistantAudioSampleRate;
+        } catch (e) {
+          console.error('Failed to parse audio base64 for player:', e);
+        }
+      }
+
       if (isBatchTesting && batchMuteAudio) {
         // Skip audio decoding and queueing completely to save CPU and RAM during evaluations!
         if (providerChunksReceived === 1) {
@@ -2396,6 +2458,38 @@
       }
       audioContext = audioContext || new AudioContext({ sampleRate: 16000 });
       return audioContext.decodeAudioData(bytes.buffer);
+    }
+
+    function pcmToWavBlob(pcmBytes, sampleRate = 24000) {
+      const buffer = new ArrayBuffer(44 + pcmBytes.length);
+      const view = new DataView(buffer);
+
+      // Write WAV headers
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + pcmBytes.length, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // raw PCM
+      view.setUint16(22, 1, true); // mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true); // byte rate
+      view.setUint16(32, 2, true); // block align
+      view.setUint16(34, 16, true); // bits per sample
+      writeString(view, 36, 'data');
+      view.setUint32(40, pcmBytes.length, true);
+
+      // Write PCM samples
+      const pcmArray = new Uint8Array(buffer, 44);
+      pcmArray.set(pcmBytes);
+
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function writeString(view, offset, string) {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
     }
 
     function playNext() {
