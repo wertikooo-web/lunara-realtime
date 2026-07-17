@@ -533,39 +533,7 @@
       box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
     }
 
-    /* ── Model Selector ── */
-    .model-row {
-      position: absolute;
-      top: 18px;
-      left: 16px;
-      display: flex;
-      gap: 5px;
-      z-index: 20;
-    }
-    .model-btn {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1.5px solid rgba(251, 191, 36, 0.22);
-      border-radius: 8px;
-      padding: 4px 8px;
-      color: rgba(251, 191, 36, 0.72);
-      font-family: 'Comfortaa', sans-serif;
-      font-size: 0.66rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.15s;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-    .model-btn:hover {
-      border-color: var(--gold);
-      color: #fde68a;
-    }
-    .model-btn.active {
-      background: rgba(251, 191, 36, 0.16);
-      border-color: rgba(251, 191, 36, 0.65);
-      color: #fde68a;
-      box-shadow: 0 0 10px rgba(251, 191, 36, 0.18);
-    }
+
 
     /* ── Developer Dashboard Panels below the phone ── */
     .dev-panels {
@@ -798,12 +766,7 @@
       <!-- Twinkling stars inside phone -->
       <div class="phone-stars" id="phoneStars"></div>
 
-      <!-- Model selector buttons -->
-      <div class="model-row">
-        <button class="model-btn" id="modelGPT" type="button">GPT</button>
-        <button class="model-btn" id="modelDS" type="button">DS</button>
-        <button class="model-btn active" id="modelAUTO" type="button">AUTO</button>
-      </div>
+
 
       <!-- Language selector buttons -->
       <div class="lang-row">
@@ -859,7 +822,6 @@
         <div class="status-row">
           <div class="conn-dot" id="connDot"></div>
           <span class="conn-label" id="connLabel">Connection OK</span>
-          <span class="model-status" id="modelStatus">AUTO</span>
         </div>
 
         <!-- Text input row -->
@@ -2183,24 +2145,7 @@
       bottomMicBtn.addEventListener('lostpointercapture', onLostPointerCapture);
     }
 
-    // Model buttons functionality
-    const modelStatus = document.getElementById('modelStatus');
-    const modelButtons = [
-      document.getElementById('modelGPT'),
-      document.getElementById('modelDS'),
-      document.getElementById('modelAUTO')
-    ];
-    modelButtons.forEach(btn => {
-      if (!btn) return;
-      btn.addEventListener('click', () => {
-        modelButtons.forEach(b => b && b.classList.remove('active'));
-        btn.classList.add('active');
-        if (modelStatus) {
-          modelStatus.textContent = btn.textContent;
-        }
-        logLine('model_select', { selected: btn.textContent });
-      });
-    });
+
 
     // Language buttons functionality
     const langButtons = [
