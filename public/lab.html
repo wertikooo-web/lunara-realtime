@@ -532,8 +532,39 @@
       color: var(--text);
       box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
     }
-
-
+    /* ── Test Phrase Mode Selector ── */
+    .mode-row {
+      position: absolute;
+      top: 18px;
+      left: 16px;
+      display: flex;
+      gap: 5px;
+      z-index: 20;
+    }
+    .mode-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1.5px solid rgba(251, 191, 36, 0.22);
+      border-radius: 8px;
+      padding: 4px 8px;
+      color: rgba(251, 191, 36, 0.72);
+      font-family: 'Comfortaa', sans-serif;
+      font-size: 0.66rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .mode-btn:hover {
+      border-color: var(--gold);
+      color: #fde68a;
+    }
+    .mode-btn.active {
+      background: rgba(251, 191, 36, 0.16);
+      border-color: rgba(251, 191, 36, 0.65);
+      color: #fde68a;
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.18);
+    }
 
     /* ── Developer Dashboard Panels below the phone ── */
     .dev-panels {
@@ -766,7 +797,11 @@
       <!-- Twinkling stars inside phone -->
       <div class="phone-stars" id="phoneStars"></div>
 
-
+      <!-- Test phrase type selector (Детское / Взрослое) -->
+      <div class="mode-row" role="group" aria-label="Тип тестовой фразы">
+        <button class="mode-btn active" id="childModeBtn" type="button" aria-pressed="true">Детское</button>
+        <button class="mode-btn" id="adultModeBtn" type="button" aria-pressed="false">Взрослое</button>
+      </div>
 
       <!-- Language selector buttons -->
       <div class="lang-row">
@@ -855,8 +890,7 @@
         <div id="stateBadge">Lifecycle State: DISCONNECTED</div>
         <button id="pttButton" class="ptt-button waiting" disabled>Reconnect</button>
         <div id="stateHint" class="pill">Connect to start a realtime session.</div>
-        <button id="childModeBtn" class="active"></button>
-        <button id="adultModeBtn"></button>
+        <!-- Mode buttons moved to top of phone mockup -->
         <div id="textTestStatus"></div>
         <div id="micInfo" hidden></div>
         <div id="userTranscript"></div>
