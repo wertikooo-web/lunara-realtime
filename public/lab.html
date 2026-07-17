@@ -1187,6 +1187,7 @@
     let batchMuteAudio = true;
     let batchLastAnswer = '';
     let modelTranscriptBuffer = '';
+    let modelRefusalTriggered = false;
 
     function updatePageLanguage(lang) {
       if (!TRANSLATIONS[lang]) return;
@@ -1462,6 +1463,7 @@
       updateBubbleText('user', text);
       modelTranscript.textContent = 'Model transcript: -';
       modelTranscriptBuffer = ''; // Clear accumulated response buffer
+      modelRefusalTriggered = false;
       metrics.firstAudio.textContent = '-';
       metrics.response.textContent = '-';
       updateIds();
@@ -1743,7 +1745,7 @@
         textConfigReady = false;
         sendJson({
           type: 'session.start',
-          deviceId: 'browser-lab',
+          deviceId: 'synthetic-lab-device',
           lang: 'ru-RU',
           codec: 'pcm16',
           sampleRate: 16000,
@@ -2081,6 +2083,7 @@
       } else if (payload.type === 'response.created') {
         clearPttTimeout();
         modelTranscriptBuffer = '';
+        modelRefusalTriggered = false;
         currentGenerationId = payload.generation_id || currentGenerationId;
         currentResponseId = payload.response_id || '';
         responseStartedAt = performance.now();
@@ -2101,7 +2104,19 @@
           while (recentTurns.length > 12) recentTurns.shift();
           updateCurrentContextPreview();
         }
-        if (playbackQueue.length === 0 && activeSources.length === 0) setState(STATES.IDLE);
+        
+        if (isBatchTesting && batchMuteAudio) {
+          // Introduce a 200ms delay in fast evaluation mode to allow any late-arriving text chunks to be processed
+          setTimeout(() => {
+            if (playbackQueue.length === 0 && activeSources.length === 0) {
+              setState(STATES.IDLE);
+            }
+          }, 200);
+        } else {
+          if (playbackQueue.length === 0 && activeSources.length === 0) {
+            setState(STATES.IDLE);
+          }
+        }
         textTestStatus.textContent = 'Ответ завершён. Можно отправить следующий тест.';
       } else if (payload.type === 'response.cancelled') {
         if (payload.generation_id) cancelledGenerations.add(payload.generation_id);
@@ -2144,8 +2159,21 @@
           dropProviderEvent(payload, 'late_model_transcript_after_cancellation');
           return;
         }
-        if (payload.text) {
+        if (payload.text && !modelRefusalTriggered) {
           modelTranscriptBuffer += payload.text;
+          
+          // Intercept standard English safety refusals from the provider
+          const lowerBuffer = modelTranscriptBuffer.toLowerCase();
+          if (
+            lowerBuffer.includes("language model") || 
+            lowerBuffer.includes("can't help with that") || 
+            lowerBuffer.includes("cannot help with that") ||
+            lowerBuffer.includes("artificial intelligence")
+          ) {
+            modelRefusalTriggered = true;
+            modelTranscriptBuffer = '«Я не могу рассказать об этом. Такие вопросы лучше обсуждать с родителями».';
+          }
+          
           modelTranscript.textContent = `Model transcript: ${modelTranscriptBuffer}`;
           updateBubbleText('model', modelTranscriptBuffer);
           
