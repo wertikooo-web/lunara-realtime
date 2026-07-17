@@ -308,6 +308,11 @@
       <label><input type="checkbox" value="speechDevelopment" checked> <span data-i18n="cSpeech">Развитие речи</span></label>
       <label><input type="checkbox" value="emotionalIntelligence" checked> <span data-i18n="cEmotionalIntelligence">Эмоциональный интеллект</span></label>
       <label><input type="checkbox" value="interactiveTales" checked> <span data-i18n="cInteractiveTales">Сказки-квесты</span></label>
+      <label><input type="checkbox" value="healthyHabits" checked> <span data-i18n="cHealthyHabits">Полезные привычки</span></label>
+      <label><input type="checkbox" value="safetyFirst" checked> <span data-i18n="cSafetyFirst">Основы безопасности</span></label>
+      <label><input type="checkbox" value="attentionGames" checked> <span data-i18n="cAttentionGames">Игры на внимание</span></label>
+      <label><input type="checkbox" value="goodManners" checked> <span data-i18n="cGoodManners">Школа манер</span></label>
+      <label><input type="checkbox" value="adhdNeurogames" checked> <span data-i18n="cAdhdNeurogames">Нейроигры (СДВГ)</span></label>
       <label><input type="checkbox" value="worldFacts" checked> <span data-i18n="cFacts">Факты о мире</span></label>
       <label><input type="checkbox" value="improvisedContent" checked> <span data-i18n="cImprovised">Импровизированный контент</span></label>
     </div>
@@ -593,6 +598,7 @@ const BASE_SETTINGS = {
     riddles: true, stories: true, tongueTwisters: true, jokes: true, miniGames: true,
     educationalActivities: true, rolePlay: true, speechDevelopment: true, worldFacts: true,
     improvisedContent: true, emotionalIntelligence: true, interactiveTales: true,
+    healthyHabits: true, safetyFirst: true, attentionGames: true, goodManners: true, adhdNeurogames: true,
   },
   preferredThemes: '',
   blockedThemes: '',
@@ -997,6 +1003,11 @@ function buildGeneratedRestrictionsAddition(s) {
     speechDevelopment: 'speech development activities', worldFacts: 'world facts', improvisedContent: 'improvised content',
     emotionalIntelligence: 'emotional intelligence activities',
     interactiveTales: 'interactive stories and choose-your-own-adventure tales',
+    healthyHabits: 'healthy habits and hygiene',
+    safetyFirst: 'safety first rules',
+    attentionGames: 'attention and logic games',
+    goodManners: 'etiquette and good manners',
+    adhdNeurogames: 'ADHD attention and self-regulation neurogames',
   };
   const enabled = Object.keys(contentLabels).filter((k) => s.allowedContent[k]).map((k) => contentLabels[k]);
   const disabled = Object.keys(contentLabels).filter((k) => !s.allowedContent[k]).map((k) => contentLabels[k]);
@@ -1438,6 +1449,8 @@ const I18N = {
     contentAllowed: 'Разрешённые типы', cRiddles: 'Загадки', cStories: 'Сказки', cTongueTwisters: 'Скороговорки', cJokes: 'Шутки',
     cMiniGames: 'Мини-игры', cEducational: 'Обучающие активности', cRolePlay: 'Ролевые игры', cSpeech: 'Развитие речи',
     cEmotionalIntelligence: 'Эмоциональный интеллект', cInteractiveTales: 'Сказки-квесты',
+    cHealthyHabits: 'Полезные привычки', cSafetyFirst: 'Основы безопасности', cAttentionGames: 'Игры на внимание',
+    cGoodManners: 'Школа хороших манер', cAdhdNeurogames: 'Нейроигры (СДВГ)',
     cFacts: 'Факты о мире', cImprovised: 'Импровизированный контент', preferredThemes: 'Любимые темы через запятую',
     preferredThemesPlaceholder: 'космос, животные', blockedThemes: 'Запрещённые темы через запятую', blockedThemesPlaceholder: 'оружие, ужасы, война',
     sensitiveThemes: 'Чувствительные темы через запятую', sensitiveThemesPlaceholder: 'развод родителей', storyLength: 'Длина сказки',
@@ -1513,6 +1526,8 @@ const I18N = {
     contentAllowed: 'Tipuri permise', cRiddles: 'Ghicitori', cStories: 'Povești', cTongueTwisters: 'Frământări de limbă', cJokes: 'Glume',
     cMiniGames: 'Mini-jocuri', cEducational: 'Activități educative', cRolePlay: 'Jocuri de rol', cSpeech: 'Dezvoltarea vorbirii',
     cEmotionalIntelligence: 'Inteligență emoțională', cInteractiveTales: 'Povești interactive',
+    cHealthyHabits: 'Deprinderi sănătoase', cSafetyFirst: 'Reguli de siguranță', cAttentionGames: 'Jocuri de atenție',
+    cGoodManners: 'Bunele maniere', cAdhdNeurogames: 'Neurojocuri (ADHD)',
     cFacts: 'Fapte despre lume', cImprovised: 'Conținut improvizat', preferredThemes: 'Teme preferate, separate prin virgulă',
     preferredThemesPlaceholder: 'spațiu, animale', blockedThemes: 'Teme interzise, separate prin virgulă', blockedThemesPlaceholder: 'arme, groază, război',
     sensitiveThemes: 'Teme sensibile, separate prin virgulă', sensitiveThemesPlaceholder: 'divorțul părinților', storyLength: 'Lungimea poveștii',
@@ -1588,6 +1603,8 @@ const I18N = {
     contentAllowed: 'Allowed types', cRiddles: 'Riddles', cStories: 'Stories', cTongueTwisters: 'Tongue twisters', cJokes: 'Jokes',
     cMiniGames: 'Mini-games', cEducational: 'Educational activities', cRolePlay: 'Role-play', cSpeech: 'Speech development',
     cEmotionalIntelligence: 'Emotional intelligence', cInteractiveTales: 'Interactive tales',
+    cHealthyHabits: 'Healthy habits', cSafetyFirst: 'Safety first rules', cAttentionGames: 'Attention games',
+    cGoodManners: 'Good manners', cAdhdNeurogames: 'ADHD neurogames',
     cFacts: 'World facts', cImprovised: 'Improvised content', preferredThemes: 'Preferred topics, comma separated',
     preferredThemesPlaceholder: 'space, animals', blockedThemes: 'Blocked topics, comma separated', blockedThemesPlaceholder: 'weapons, horror, war',
     sensitiveThemes: 'Sensitive topics, comma separated', sensitiveThemesPlaceholder: 'parents’ divorce', storyLength: 'Story length',

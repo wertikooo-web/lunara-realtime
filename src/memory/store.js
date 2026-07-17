@@ -56,6 +56,11 @@ const CONTENT_LABELS = {
     speechDevelopment: 'speech development activities', worldFacts: 'world facts', improvisedContent: 'improvised content',
     emotionalIntelligence: 'emotional intelligence activities',
     interactiveTales: 'interactive stories and choose-your-own-adventure tales',
+    healthyHabits: 'healthy habits and hygiene',
+    safetyFirst: 'safety first rules',
+    attentionGames: 'attention and logic games',
+    goodManners: 'etiquette and good manners',
+    adhdNeurogames: 'ADHD attention and self-regulation neurogames',
 };
 
 let pool = null;
@@ -139,7 +144,7 @@ async function init() {
             initiative_level TEXT DEFAULT 'sometimes',
             custom_character_notes TEXT DEFAULT '',
             content_mode TEXT DEFAULT 'library_only',
-            allowed_content JSONB DEFAULT '{"riddles":true,"stories":true,"tongueTwisters":true,"jokes":true,"miniGames":true,"educationalActivities":true,"rolePlay":true,"speechDevelopment":true,"worldFacts":true,"improvisedContent":true,"emotionalIntelligence":true,"interactiveTales":true}',
+            allowed_content JSONB DEFAULT '{"riddles":true,"stories":true,"tongueTwisters":true,"jokes":true,"miniGames":true,"educationalActivities":true,"rolePlay":true,"speechDevelopment":true,"worldFacts":true,"improvisedContent":true,"emotionalIntelligence":true,"interactiveTales":true,"healthyHabits":true,"safetyFirst":true,"attentionGames":true,"goodManners":true,"adhdNeurogames":true}',
             preferred_themes TEXT DEFAULT '',
             blocked_themes TEXT DEFAULT '',
             sensitive_themes TEXT DEFAULT '',

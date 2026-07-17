@@ -761,6 +761,53 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 });
                 return { error: 'content_type_disabled', message: 'Interactive tales are disabled by parental control.' };
             }
+
+            const isHabit = moduleId.startsWith('healthy_');
+            const isSafety = moduleId.startsWith('safety_');
+            const isAttention = moduleId.startsWith('attention_');
+            const isManners = moduleId.startsWith('good_');
+            const isAdhd = moduleId.startsWith('adhd_');
+            
+            if (isHabit && allowedContentSettings.healthyHabits === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'Healthy habits are disabled by parental control.' };
+            }
+            if (isSafety && allowedContentSettings.safetyFirst === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'Safety rules are disabled by parental control.' };
+            }
+            if (isAttention && allowedContentSettings.attentionGames === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'Attention games are disabled by parental control.' };
+            }
+            if (isManners && allowedContentSettings.goodManners === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'Good manners are disabled by parental control.' };
+            }
+            if (isAdhd && allowedContentSettings.adhdNeurogames === false) {
+                log('learning_tool_rejected', {
+                    reason: 'parental_restriction',
+                    moduleId,
+                    generationId,
+                });
+                return { error: 'content_type_disabled', message: 'ADHD neurogames are disabled by parental control.' };
+            }
         }
 
         const session = learningLibrary.startSession(moduleId);
