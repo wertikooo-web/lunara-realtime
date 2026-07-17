@@ -378,45 +378,15 @@ const server = http.createServer(async (req, res) => {
                 usage
             });
         } catch (error) {
-            console.warn('[Server] DB analytics failed, serving fallback:', error.message);
-            const todayStr = new Date().toISOString().slice(0, 10);
-            return sendJson(res, 200, {
-                ok: true,
-                today: todayStr,
-                period,
-                period_from: from || todayStr,
-                period_to: to || todayStr,
-                today_turns: 2,
-                today_answers: 2,
-                turns_period: 2,
-                answers_period: 2,
-                duration_minutes_period: 1,
-                categories: [
-                    { category: 'chat', count: 1 },
-                    { category: 'limits', count: 1 }
-                ],
-                tones: [
-                    { tone: 'curious', count: 2 }
-                ],
-                topics: [
-                    { topic: 'limits', count: 1 }
-                ],
-                daily: [
-                    { usage_date: todayStr, turns: 2, answers: 2, duration_minutes: 1 }
-                ],
-                usage: {
-                    allowed: true,
-                    reason: null,
-                    used_minutes: 1,
-                    daily_limit_minutes: 60,
-                    remaining_minutes: 59,
-                    rest_schedule_enabled: false,
-                    rest_until: null,
-                    quiet_hours_enabled: false,
-                    quiet_hours_start: '22:00',
-                    quiet_hours_end: '07:00'
-                }
-            });
+            // Previously this fell back to hardcoded fake numbers
+            // (today_turns: 2, etc.) with ok:true, so a real DB/query
+            // failure was invisible to the parent — they'd see plausible-
+            // looking stats with no indication they weren't real. A failed
+            // request must look like a failure, not like data.
+            console.warn('[Server] Analytics request failed:', error.message);
+            const code = error.code || 'analytics_request_failed';
+            const statusCode = code === 'memory_disabled' ? 503 : 500;
+            return sendJson(res, statusCode, { ok: false, error: code });
         }
     }
 
