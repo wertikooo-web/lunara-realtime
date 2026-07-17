@@ -101,6 +101,20 @@ function readJsonBody(req) {
 const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/icons/:filename', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/api/transcripts/:deviceId', '/api/transcripts/:deviceId/export', '/api/session-status/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
+    // req.url includes the query string (e.g. "/api/analytics/browser-lab?period=today").
+    // Every :deviceId route below is matched via a `[^/]+` capture group,
+    // which is greedy and does NOT stop at `?` — matching against raw
+    // req.url let a query string get silently absorbed into the captured
+    // deviceId (e.g. deviceId became the literal string
+    // "browser-lab?period=today"), so calls with different query params
+    // silently read/wrote completely different device rows in Postgres.
+    // Found live while testing the new /api/transcripts export endpoint
+    // (which reuses this same route-matching style) — confirmed via a
+    // direct regex test, not assumed. Route matching now happens against
+    // the parsed pathname only; query params are still read from
+    // `url.searchParams` exactly as before in each handler.
+    const pathname = new URL(req.url, 'http://localhost').pathname;
+
     if (req.method === 'GET' && req.url === '/health') {
         return sendJson(res, 200, {
             ok: true,
@@ -173,7 +187,7 @@ const server = http.createServer(async (req, res) => {
     // this server has no generic static-file middleware, so each served
     // subdirectory needs an explicit route. Restricted to a basename match
     // (no path separators) so req.url can't escape public/icons/.
-    const iconMatch = /^\/icons\/([a-zA-Z0-9_-]+\.(?:png|svg|jpg|jpeg|webp))$/.exec(req.url);
+    const iconMatch = /^\/icons\/([a-zA-Z0-9_-]+\.(?:png|svg|jpg|jpeg|webp))$/.exec(pathname);
     if (req.method === 'GET' && iconMatch) {
         const filePath = path.join(publicDir, 'icons', iconMatch[1]);
         const contentType = filePath.endsWith('.svg') ? 'image/svg+xml' : `image/${path.extname(filePath).slice(1)}`;
@@ -223,7 +237,7 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    const memoryMatch = /^\/api\/memory\/([^/]+)(\/facts(?:\/([^/]+))?|\/clear)?\/?$/.exec(req.url);
+    const memoryMatch = /^\/api\/memory\/([^/]+)(\/facts(?:\/([^/]+))?|\/clear)?\/?$/.exec(pathname);
     if (memoryMatch) {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(memoryMatch[1]));
         const subPath = memoryMatch[2] || '';
@@ -276,7 +290,7 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    const settingsMatch = /^\/api\/settings\/([^/]+)\/?$/.exec(req.url);
+    const settingsMatch = /^\/api\/settings\/([^/]+)\/?$/.exec(pathname);
     if (settingsMatch) {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(settingsMatch[1]));
         try {
@@ -318,13 +332,13 @@ const server = http.createServer(async (req, res) => {
     // connected right now, instead of the hardcoded "not connected" text it
     // had before. No memory/DB dependency — reads realtimeServer.js's
     // in-process connection registry directly.
-    const sessionStatusMatch = /^\/api\/session-status\/([^/]+)\/?$/.exec(req.url);
+    const sessionStatusMatch = /^\/api\/session-status\/([^/]+)\/?$/.exec(pathname);
     if (sessionStatusMatch && req.method === 'GET') {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(sessionStatusMatch[1]));
         return sendJson(res, 200, { ok: true, ...getDeviceConnectionStatus(deviceId) });
     }
 
-    const analyticsMatch = /^\/api\/analytics\/([^/]+)\/?$/.exec(req.url);
+    const analyticsMatch = /^\/api\/analytics\/([^/]+)\/?$/.exec(pathname);
     if (analyticsMatch && req.method === 'GET') {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(analyticsMatch[1]));
         const urlParams = new URL(req.url, 'http://localhost').searchParams;
@@ -411,8 +425,8 @@ const server = http.createServer(async (req, res) => {
     // resolvePeriodRange() in store.js). Two routes: the base one for
     // on-screen viewing in the panel, /export for triggering a file
     // download (txt or json).
-    const transcriptExportMatch = /^\/api\/transcripts\/([^/]+)\/export\/?$/.exec(req.url);
-    const transcriptMatch = !transcriptExportMatch && /^\/api\/transcripts\/([^/]+)\/?$/.exec(req.url);
+    const transcriptExportMatch = /^\/api\/transcripts\/([^/]+)\/export\/?$/.exec(pathname);
+    const transcriptMatch = !transcriptExportMatch && /^\/api\/transcripts\/([^/]+)\/?$/.exec(pathname);
     if ((transcriptMatch || transcriptExportMatch) && req.method === 'GET') {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent((transcriptMatch || transcriptExportMatch)[1]));
         const urlParams = new URL(req.url, 'http://localhost').searchParams;
@@ -473,7 +487,7 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    const profilesMatch = /^\/api\/profiles\/([^/]+)(\/load\/([^/]+))?\/?$/.exec(req.url);
+    const profilesMatch = /^\/api\/profiles\/([^/]+)(\/load\/([^/]+))?\/?$/.exec(pathname);
     if (profilesMatch) {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(profilesMatch[1]));
         const loadProfileId = profilesMatch[3] ? decodeURIComponent(profilesMatch[3]) : null;
@@ -510,7 +524,7 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    const profileDeleteMatch = /^\/api\/profiles\/([^/]+)\/([^/]+)\/?$/.exec(req.url);
+    const profileDeleteMatch = /^\/api\/profiles\/([^/]+)\/([^/]+)\/?$/.exec(pathname);
     if (profileDeleteMatch && req.method === 'DELETE') {
         const deviceId = memoryStore.normalizeDeviceId(decodeURIComponent(profileDeleteMatch[1]));
         const profileId = decodeURIComponent(profileDeleteMatch[2]);

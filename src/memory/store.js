@@ -777,6 +777,48 @@ async function saveDialogueTurn(deviceId, sessionId, role, text) {
     );
 }
 
+// Computes the UTC instant of local midnight (00:00:00) for `dateStr`
+// (YYYY-MM-DD) in `timezone`. Needed because "today"/"неделя"/etc. day
+// boundaries must be the DEVICE's local midnight, not UTC midnight —
+// appending a literal "+00" to a local date string (the previous approach)
+// silently asserted every device is in UTC. Found live: a device
+// configured for Europe/Chisinau (UTC+3 in summer) had a conversation at
+// 21:38 UTC on day N, which is already 00:38 local time on day N+1 — a
+// naive "date + 00:00:00+00" query for "today" (day N+1, UTC-interpreted)
+// excluded that row entirely, even though it unambiguously happened
+// "today" from the device's own local perspective.
+//
+// Method: guess the UTC instant equal to dateStr's UTC midnight, read what
+// wall-clock time that instant shows in `timezone` (via Intl, no library),
+// and shift by the difference — a standard technique for timezone-aware
+// midnight conversion using only the platform's built-in Intl API.
+function localMidnightUtcMs(timezone, dateStr) {
+    const guessMs = Date.parse(dateStr + 'T00:00:00.000Z');
+    let parts;
+    try {
+        parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone || DEFAULT_TIMEZONE, hourCycle: 'h23',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+        }).formatToParts(new Date(guessMs));
+    } catch {
+        return guessMs; // invalid timezone string -> fall back to UTC, same as localDateStringInTz's own fallback
+    }
+    const map = {};
+    parts.forEach((p) => { if (p.type !== 'literal') map[p.type] = p.value; });
+    const localReadingAsUtcMs = Date.UTC(
+        Number(map.year), Number(map.month) - 1, Number(map.day),
+        Number(map.hour), Number(map.minute), Number(map.second),
+    );
+    const offsetMs = localReadingAsUtcMs - guessMs;
+    return guessMs - offsetMs;
+}
+
+function addDaysToDateStr(dateStr, days) {
+    const ms = Date.parse(dateStr + 'T00:00:00.000Z') + days * 86400000;
+    return new Date(ms).toISOString().slice(0, 10);
+}
+
 // Shared period-name -> date-range resolver, used by both
 // getDialogueAnalytics() and getDialogueTurns() (the full-transcript
 // export) so "неделя"/"месяц"/"год"/"всё время"/"свой период" mean
@@ -817,23 +859,28 @@ function resolvePeriodRange(timezone, options = {}) {
         toDateStr = options.to || todayStr;
     }
 
+    // periodEndExclusive = local midnight of the day AFTER toDateStr, so
+    // callers use `created_at < periodEndExclusive` — correctly includes
+    // every instant of toDateStr in the device's own timezone, with no
+    // last-second-of-the-day edge case and no UTC-vs-local mismatch.
     return {
         period,
         todayStr,
         fromDateStr,
         toDateStr,
-        periodStart: fromDateStr + ' 00:00:00+00',
-        periodEnd: toDateStr + ' 23:59:59+00',
+        periodStart: new Date(localMidnightUtcMs(timezone, fromDateStr)).toISOString(),
+        periodEndExclusive: new Date(localMidnightUtcMs(timezone, addDaysToDateStr(toDateStr, 1))).toISOString(),
     };
 }
 
 async function getDialogueAnalytics(deviceId, timezone, options = {}) {
     requireReady();
     const id = normalizeDeviceId(deviceId);
-    const { period, todayStr, fromDateStr, toDateStr, periodStart, periodEnd } = resolvePeriodRange(timezone, options);
+    const { period, todayStr, fromDateStr, toDateStr, periodStart, periodEndExclusive } = resolvePeriodRange(timezone, options);
+    const tz = timezone || DEFAULT_TIMEZONE;
 
-    const todayStart = todayStr + ' 00:00:00+00';
-    const todayEnd = todayStr + ' 23:59:59+00';
+    const todayStart = new Date(localMidnightUtcMs(tz, todayStr)).toISOString();
+    const todayEndExclusive = new Date(localMidnightUtcMs(tz, addDaysToDateStr(todayStr, 1))).toISOString();
 
     const [
         todayTurnsRes,
@@ -847,15 +894,19 @@ async function getDialogueAnalytics(deviceId, timezone, options = {}) {
         dailyTurnsRes,
         dailyDurationRes
     ] = await Promise.all([
-        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2 AND created_at <= $3;`, [id, todayStart, todayEnd]),
-        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'assistant' AND created_at >= $2 AND created_at <= $3;`, [id, todayStart, todayEnd]),
-        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz;`, [id, periodStart, periodEnd]),
-        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'assistant' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz;`, [id, periodStart, periodEnd]),
-        pool.query(`SELECT category, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz GROUP BY category ORDER BY count DESC;`, [id, periodStart, periodEnd]),
-        pool.query(`SELECT tone, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz GROUP BY tone ORDER BY count DESC;`, [id, periodStart, periodEnd]),
-        pool.query(`SELECT topic, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz GROUP BY topic ORDER BY count DESC;`, [id, periodStart, periodEnd]),
+        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at < $3::timestamptz;`, [id, todayStart, todayEndExclusive]),
+        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'assistant' AND created_at >= $2::timestamptz AND created_at < $3::timestamptz;`, [id, todayStart, todayEndExclusive]),
+        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at < $3::timestamptz;`, [id, periodStart, periodEndExclusive]),
+        pool.query(`SELECT COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'assistant' AND created_at >= $2::timestamptz AND created_at < $3::timestamptz;`, [id, periodStart, periodEndExclusive]),
+        pool.query(`SELECT category, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at < $3::timestamptz GROUP BY category ORDER BY count DESC;`, [id, periodStart, periodEndExclusive]),
+        pool.query(`SELECT tone, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at < $3::timestamptz GROUP BY tone ORDER BY count DESC;`, [id, periodStart, periodEndExclusive]),
+        pool.query(`SELECT topic, COUNT(*) as count FROM dialogue_turns WHERE device_id = $1 AND role = 'user' AND created_at >= $2::timestamptz AND created_at < $3::timestamptz GROUP BY topic ORDER BY count DESC;`, [id, periodStart, periodEndExclusive]),
         pool.query(`SELECT COALESCE(SUM(duration_seconds), 0) as total_seconds FROM usage_sessions WHERE device_id = $1 AND usage_date >= $2::date AND usage_date <= $3::date;`, [id, fromDateStr, toDateStr]),
-        pool.query(`SELECT created_at::date as usage_date, COUNT(CASE WHEN role='user' THEN 1 END) as turns, COUNT(CASE WHEN role='assistant' THEN 1 END) as answers FROM dialogue_turns WHERE device_id = $1 AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz GROUP BY usage_date;`, [id, periodStart, periodEnd]),
+        // created_at is converted to the device's own local date (not the
+        // database session's timezone, which is UTC on Railway) so a
+        // conversation just after local midnight is grouped under the
+        // correct local day, not the previous UTC day.
+        pool.query(`SELECT (created_at AT TIME ZONE $4)::date as usage_date, COUNT(CASE WHEN role='user' THEN 1 END) as turns, COUNT(CASE WHEN role='assistant' THEN 1 END) as answers FROM dialogue_turns WHERE device_id = $1 AND created_at >= $2::timestamptz AND created_at < $3::timestamptz GROUP BY usage_date;`, [id, periodStart, periodEndExclusive, tz]),
         pool.query(`SELECT usage_date, COALESCE(SUM(duration_seconds), 0) as total_seconds FROM usage_sessions WHERE device_id = $1 AND usage_date >= $2::date AND usage_date <= $3::date GROUP BY usage_date;`, [id, fromDateStr, toDateStr])
     ]);
 
@@ -912,15 +963,15 @@ const TRANSCRIPT_ROW_CAP = 20000;
 async function getDialogueTurns(deviceId, timezone, options = {}) {
     requireReady();
     const id = normalizeDeviceId(deviceId);
-    const { period, fromDateStr, toDateStr, periodStart, periodEnd } = resolvePeriodRange(timezone, options);
+    const { period, fromDateStr, toDateStr, periodStart, periodEndExclusive } = resolvePeriodRange(timezone, options);
 
     const { rows } = await pool.query(
         `SELECT id, session_id, created_at, role, text, category, tone, topic
          FROM dialogue_turns
-         WHERE device_id = $1 AND created_at >= $2::timestamptz AND created_at <= $3::timestamptz
+         WHERE device_id = $1 AND created_at >= $2::timestamptz AND created_at < $3::timestamptz
          ORDER BY created_at ASC, id ASC
          LIMIT $4;`,
-        [id, periodStart, periodEnd, TRANSCRIPT_ROW_CAP + 1],
+        [id, periodStart, periodEndExclusive, TRANSCRIPT_ROW_CAP + 1],
     );
 
     const truncated = rows.length > TRANSCRIPT_ROW_CAP;
