@@ -157,6 +157,19 @@ async function runTurn(client, { turnId, bytes }) {
     return { responseCreated, audioStart };
 }
 
+async function runTextTurn(client, { turnId, text }) {
+    client.sendJson({ type: 'input_text.submit', turn_id: turnId, text });
+    const submitted = await client.waitFor('input_text.submitted', (event) => event.turn_id === turnId);
+    const userTranscript = await client.waitFor('transcript.user', (event) => event.turn_id === turnId);
+    const responseCreated = await client.waitFor('response.created', (event) => event.turn_id === turnId);
+    await client.waitFor('transcript.model', (event) => event.turn_id === turnId);
+    await client.waitFor('audio.end', (event) => event.turn_id === turnId);
+    if (submitted.text !== text || userTranscript.text !== text) {
+        throw new Error('Text turn did not preserve the submitted text');
+    }
+    return { submitted, responseCreated };
+}
+
 async function main() {
     const child = spawn(process.execPath, ['src/server.js'], {
         cwd: process.cwd(),
@@ -194,6 +207,11 @@ async function main() {
         if (readyCountA !== 1) {
             throw new Error(`Expected one session.ready, got ${readyCountA}`);
         }
+
+        await runTextTurn(clientA, {
+            turnId: 'smoke_text_turn_a',
+            text: 'Почему важно слушать родителей?',
+        });
 
         const turnA = await runTurn(clientA, {
             turnId: 'smoke_turn_a',

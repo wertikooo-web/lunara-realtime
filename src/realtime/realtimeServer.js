@@ -1509,7 +1509,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             droppedProviderEvent(generation, 'response.failed', 'stale_generation');
             return;
         }
-        if (await retryGenerationOnFreshProvider(generation, reason)) {
+        // Audio turns can be replayed from currentInputChunks. Text turns are
+        // not silently replayed because that could duplicate a sensitive
+        // red-team prompt after the provider already accepted it.
+        if (currentMode !== 'text' && await retryGenerationOnFreshProvider(generation, reason)) {
             return;
         }
         generation.status = 'failed';
@@ -2017,6 +2020,77 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         });
     }
 
+    function submitTextInput(payload = {}) {
+        const text = String(payload.text || '').trim();
+        if (!text) {
+            emit({ type: 'error', code: 'input_text_empty', message: 'Text input must not be empty.' });
+            return;
+        }
+        if (text.length > 1200) {
+            emit({
+                type: 'error',
+                code: 'input_text_too_long',
+                message: 'Text input must be 1200 characters or fewer.',
+                max_chars: 1200,
+                chars: text.length,
+            });
+            return;
+        }
+        if (typeof providerSession.sendText !== 'function') {
+            emit({ type: 'error', code: 'text_input_unsupported', message: 'The active provider does not support text input.' });
+            return;
+        }
+
+        startInput({
+            turn_id: payload.turn_id,
+            mode: 'text',
+        });
+        inputEndedAt = Date.now();
+        const generationForText = currentGeneration;
+        generationForText.inputEndedAt = inputEndedAt;
+        emit({
+            type: 'input_text.submitted',
+            turn_id: currentTurnId,
+            generation_id: generationForText.generationId,
+            response_id: generationForText.responseId,
+            text,
+            chars: text.length,
+        });
+        emitProviderEvent(generationForText, {
+            type: 'transcript.user',
+            response_id: generationForText.responseId,
+            turn_id: currentTurnId,
+            text,
+        });
+        armPttTurnTimeout(generationForText);
+        const textContext = buildProviderContext(generationForText);
+        providerSession.sendText(text, textContext).catch((error) => {
+            emit({
+                type: 'error',
+                generation_id: generationForText.generationId,
+                response_id: generationForText.responseId,
+                turn_id: generationForText.turnId,
+                code: 'provider_error',
+                provider: providerSession.name || 'provider',
+                message: error.message,
+            });
+            generationForText.status = 'failed';
+            generationForText.cancel.cancel('provider_text_input_error');
+            emit({
+                type: 'response.failed',
+                generation_id: generationForText.generationId,
+                response_id: generationForText.responseId,
+                turn_id: generationForText.turnId,
+                reason: 'provider_text_input_error',
+            });
+        });
+        log('input_text_submitted', {
+            turnId: currentTurnId,
+            generationId: generationForText.generationId,
+            chars: text.length,
+        });
+    }
+
     function handleCommand(raw) {
         let payload;
         try {
@@ -2178,6 +2252,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             startInput(payload);
         } else if (payload.type === 'input_audio.end') {
             endInput(payload);
+        } else if (payload.type === 'input_text.submit') {
+            submitTextInput(payload);
         } else if (payload.type === 'session.interrupt') {
             const reason = payload.reason || 'client_interrupt';
             inputResampler.reset();

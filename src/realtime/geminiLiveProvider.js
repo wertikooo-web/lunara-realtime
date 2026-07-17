@@ -751,6 +751,28 @@ class GeminiLiveProviderSession {
         });
     }
 
+    sendText(text, context) {
+        if (this.closed) return Promise.reject(new Error('Provider session is closed'));
+        const cleanText = String(text || '').trim();
+        if (!cleanText) return Promise.reject(new Error('Text input is empty'));
+
+        return this.connect(context.log).then(() => {
+            if (
+                !this.active
+                || this.active.generationId !== context.generationId
+                || this.active.signal.cancelled
+            ) {
+                return;
+            }
+            this.session.sendRealtimeInput({ text: cleanText });
+            context.log('gemini_text_input_sent', {
+                generationId: context.generationId,
+                turnId: context.turnId,
+                chars: cleanText.length,
+            });
+        });
+    }
+
     interrupt(reason = 'interrupt', context = {}) {
         const interrupted = this.active;
         this.pendingInterrupt = {

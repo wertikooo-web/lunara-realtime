@@ -164,6 +164,16 @@ class MockRealtimeProviderSession {
         this.activeSignal = null;
         this.inputBytes = 0;
     }
+
+    async sendText(text, context) {
+        context.onEvent({
+            type: 'transcript.model',
+            response_id: context.responseId,
+            turn_id: context.turnId,
+            text: `Mock response to: ${String(text).slice(0, 120)}`,
+        });
+        return this.endInput(context);
+    }
 }
 
 module.exports = {
