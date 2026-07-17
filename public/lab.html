@@ -1465,13 +1465,20 @@
 
     function submitTextTurn() {
       const text = textTestInput.value.trim();
-      if (!text || lifecycleState !== STATES.IDLE) return;
+      if (!text) return;
+      if (lifecycleState !== STATES.IDLE) {
+        logLine('submit_text_turn.aborted_state_not_idle', { state: lifecycleState });
+        return;
+      }
       currentTurnId = makeId('trn_text');
       clientGenerationId = makeId('gen_text_client');
       currentGenerationId = clientGenerationId;
       currentResponseId = '';
       releaseAt = performance.now();
       responseStartedAt = 0;
+      providerChunksReceived = 0;
+      playableChunksReceived = 0;
+      chunksPlayed = 0;
       userTranscript.textContent = `User transcript: ${text}`;
       updateBubbleText('user', text);
       modelTranscript.textContent = 'Model transcript: -';
