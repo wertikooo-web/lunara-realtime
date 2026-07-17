@@ -532,6 +532,42 @@
       color: var(--text);
       box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
     }
+
+    /* ── Centered Connect Button inside Phone Mockup ── */
+    .btn-connect-mockup {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 140px;
+      height: 36px;
+      margin: 5px auto;
+      background: linear-gradient(135deg, var(--purple), var(--purple2));
+      border: none;
+      border-radius: 18px;
+      color: #fff;
+      font-family: 'Comfortaa', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(124, 58, 237, 0.4);
+      transition: all 0.25s ease;
+      z-index: 10;
+    }
+    .btn-connect-mockup:hover {
+      transform: scale(1.04);
+      box-shadow: 0 6px 14px rgba(124, 58, 237, 0.6);
+    }
+    .btn-connect-mockup.connected {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1.5px solid rgba(239, 68, 68, 0.45);
+      color: #f87171;
+      box-shadow: none;
+    }
+    .btn-connect-mockup.connected:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      transform: scale(1.04);
+    }
     /* ── Test Phrase Mode Selector ── */
     .mode-row {
       display: flex;
@@ -843,6 +879,9 @@
 
       <!-- Bottom panel with status, text input composer and PTT microphone -->
       <div class="bottom">
+        <!-- Connection button centered -->
+        <button id="connectBtn" class="btn-connect-mockup" type="button">Connect</button>
+
         <!-- Status and route -->
         <div class="status-row">
           <div style="display: flex; align-items: center; gap: 7px;">
@@ -892,19 +931,12 @@
         <div id="userTranscript"></div>
         <div id="modelTranscript"></div>
         <div id="trackInfo" hidden></div>
-      </div>
-
-      <!-- Developer connection and logs controls -->
-      <div class="panel">
-        <h2>Server Connection</h2>
-        <div class="controls">
-          <button id="connectBtn" class="primary">Connect</button>
-          <button id="reconnectBtn">Reconnect</button>
-          <button id="disconnectBtn" class="danger">Disconnect</button>
-          <button id="clearBtn">Clear log</button>
-        </div>
-        <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Disconnected</span></div>
-        <div id="providerInfo" class="pill">Provider unknown</div>
+        <button id="reconnectBtn"></button>
+        <button id="disconnectBtn"></button>
+        <button id="clearBtn"></button>
+        <div id="statusDot"></div>
+        <div id="statusText"></div>
+        <div id="providerInfo"></div>
       </div>
 
       <!-- Advanced Prompt Lab Collapsible Details -->
@@ -1118,7 +1150,9 @@
         promptError: "Нет связи, переподключись",
         connOk: "● Connection OK",
         connNo: "● Нет связи",
-        placeholder: "Напиши Луми..."
+        placeholder: "Напиши Луми...",
+        btnConnect: "Подключить",
+        btnDisconnect: "Отключить"
       },
       RO: {
         welcome: "Salut! Sunt Lumi! ✨ Apasă pe sfera luminoasă din labele mele sau pe microfonul de jos și hai să vorbim!",
@@ -1128,7 +1162,9 @@
         promptError: "Fără conexiune, reconectează-te",
         connOk: "● Conexiune OK",
         connNo: "● Lipsă conexiune",
-        placeholder: "Scrie lui Lumi..."
+        placeholder: "Scrie lui Lumi...",
+        btnConnect: "Conectează",
+        btnDisconnect: "Deconectează"
       },
       EN: {
         welcome: "Hello! I'm Lumi! ✨ Press the glowing orb in my paws or the microphone below and let's chat!",
@@ -1138,7 +1174,9 @@
         promptError: "No connection, reconnect",
         connOk: "● Connection OK",
         connNo: "● No connection",
-        placeholder: "Write to Lumi..."
+        placeholder: "Write to Lumi...",
+        btnConnect: "Connect",
+        btnDisconnect: "Disconnect"
       }
     };
     let currentLang = 'RU';
@@ -1211,6 +1249,11 @@
       if (connDot && connLabel) {
         connDot.classList.toggle('off', !connected);
         connLabel.textContent = connected ? TRANSLATIONS[currentLang].connOk : TRANSLATIONS[currentLang].connNo;
+      }
+
+      if (connectBtn) {
+        connectBtn.textContent = connected ? TRANSLATIONS[currentLang].btnDisconnect : TRANSLATIONS[currentLang].btnConnect;
+        connectBtn.classList.toggle('connected', connected);
       }
     }
 
@@ -2248,7 +2291,14 @@
 
     window.addEventListener('blur', onWindowBlur);
     document.addEventListener('visibilitychange', onVisibilityChange);
-    connectBtn.addEventListener('click', connect);
+    connectBtn.addEventListener('click', () => {
+      const connected = ws && ws.readyState === WebSocket.OPEN;
+      if (connected) {
+        disconnect();
+      } else {
+        connect();
+      }
+    });
     reconnectBtn.addEventListener('click', reconnect);
     disconnectBtn.addEventListener('click', disconnect);
     applyPromptBtn.addEventListener('click', () => applyPromptByReconnect('button'));
