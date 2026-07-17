@@ -433,6 +433,17 @@ class GeminiLiveProviderSession {
                     outputAudioTranscription: {},
                     tools: buildLiveTools({ enabled: this.contentToolsEnabled }),
                     realtimeInputConfig: buildGeminiRealtimeInputConfig({ ActivityHandling, TurnCoverage }),
+                    // Fully disables Gemini's internal "thinking" pass (draft
+                    // reasoning/plan/critique the model normally generates
+                    // before its final answer and is supposed to keep
+                    // private). Found in production: with no thinkingConfig
+                    // set at all, that internal scratchpad leaked verbatim
+                    // into one child-facing reply (plan/draft/critique text
+                    // appeared before the real answer). thinkingBudget: 0
+                    // stops the model from generating that scratchpad at
+                    // all, which removes the leak at its source rather than
+                    // trying to filter/detect it after the fact.
+                    thinkingConfig: { thinkingBudget: 0 },
                     systemInstruction: {
                         parts: [{
                             text: systemPrompt,
