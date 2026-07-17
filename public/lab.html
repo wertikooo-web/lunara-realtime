@@ -350,7 +350,7 @@
     .status-row {
       display: flex;
       align-items: center;
-      gap: 7px;
+      justify-content: space-between;
       width: 100%;
     }
     .conn-dot {
@@ -534,9 +534,6 @@
     }
     /* ── Test Phrase Mode Selector ── */
     .mode-row {
-      position: absolute;
-      top: 18px;
-      left: 16px;
       display: flex;
       gap: 5px;
       z-index: 20;
@@ -797,15 +794,8 @@
       <!-- Twinkling stars inside phone -->
       <div class="phone-stars" id="phoneStars"></div>
 
-      <!-- Test phrase type selector (Детское / Взрослое) -->
-      <div class="mode-row" role="group" aria-label="Тип тестовой фразы">
-        <button class="mode-btn active" id="childModeBtn" type="button" aria-pressed="true">Детское</button>
-        <button class="mode-btn" id="adultModeBtn" type="button" aria-pressed="false">Взрослое</button>
-      </div>
-
       <!-- Language selector buttons -->
       <div class="lang-row">
-        <button class="lang-btn" id="langAUTO" type="button">AUTO</button>
         <button class="lang-btn active" id="langRU" type="button">RU</button>
         <button class="lang-btn" id="langRO" type="button">RO</button>
         <button class="lang-btn" id="langEN" type="button">EN</button>
@@ -855,8 +845,15 @@
       <div class="bottom">
         <!-- Status and route -->
         <div class="status-row">
-          <div class="conn-dot" id="connDot"></div>
-          <span class="conn-label" id="connLabel">Connection OK</span>
+          <div style="display: flex; align-items: center; gap: 7px;">
+            <div class="conn-dot" id="connDot"></div>
+            <span class="conn-label" id="connLabel">Connection OK</span>
+          </div>
+          <!-- Test phrase type selector (Детское / Взрослое) positioned to the right -->
+          <div class="mode-row" role="group" aria-label="Тип тестовой фразы">
+            <button class="mode-btn active" id="childModeBtn" type="button" aria-pressed="true">Детское</button>
+            <button class="mode-btn" id="adultModeBtn" type="button" aria-pressed="false">Взрослое</button>
+          </div>
         </div>
 
         <!-- Text input row -->
@@ -890,7 +887,6 @@
         <div id="stateBadge">Lifecycle State: DISCONNECTED</div>
         <button id="pttButton" class="ptt-button waiting" disabled>Reconnect</button>
         <div id="stateHint" class="pill">Connect to start a realtime session.</div>
-        <!-- Mode buttons moved to top of phone mockup -->
         <div id="textTestStatus"></div>
         <div id="micInfo" hidden></div>
         <div id="userTranscript"></div>
@@ -1112,6 +1108,59 @@
     const recentTurns = [];
     let textTestMode = 'child';
     let textConfigReady = false;
+
+    const TRANSLATIONS = {
+      RU: {
+        welcome: "Привет! Я — Луми! ✨ Нажми на светящуюся сферу в моих лапках или на микрофон внизу и давай пообщаемся!",
+        promptHold: "Нажми и держи, пока говоришь",
+        promptSpeak: "Говори...",
+        promptThinking: "Мишка думает...",
+        promptError: "Нет связи, переподключись",
+        connOk: "● Connection OK",
+        connNo: "● Нет связи",
+        placeholder: "Напиши Луми..."
+      },
+      RO: {
+        welcome: "Salut! Sunt Lumi! ✨ Apasă pe sfera luminoasă din labele mele sau pe microfonul de jos și hai să vorbim!",
+        promptHold: "Apasă și ține în timp ce vorbești",
+        promptSpeak: "Vorbește...",
+        promptThinking: "Lumi se gândește...",
+        promptError: "Fără conexiune, reconectează-te",
+        connOk: "● Conexiune OK",
+        connNo: "● Lipsă conexiune",
+        placeholder: "Scrie lui Lumi..."
+      },
+      EN: {
+        welcome: "Hello! I'm Lumi! ✨ Press the glowing orb in my paws or the microphone below and let's chat!",
+        promptHold: "Press and hold while speaking",
+        promptSpeak: "Speak...",
+        promptThinking: "Lumi is thinking...",
+        promptError: "No connection, reconnect",
+        connOk: "● Connection OK",
+        connNo: "● No connection",
+        placeholder: "Write to Lumi..."
+      }
+    };
+    let currentLang = 'RU';
+
+    function updatePageLanguage(lang) {
+      if (!TRANSLATIONS[lang]) return;
+      currentLang = lang;
+
+      // Update welcome text if it hasn't been changed by conversation
+      if (bubbleText && (bubbleText.textContent.includes('Привет! Я') || bubbleText.textContent.includes('Salut! Sunt') || bubbleText.textContent.includes('Hello! I'))) {
+        bubbleText.textContent = TRANSLATIONS[lang].welcome;
+      }
+
+      if (textTestInput) {
+        textTestInput.placeholder = TRANSLATIONS[lang].placeholder;
+      }
+
+      // Refresh current states
+      setStatus(ws && ws.readyState === WebSocket.OPEN);
+      renderPttButton();
+    }
+
     const generatedTextPools = {
       child: [
         'Почему небо меняет цвет вечером? Расскажи так, чтобы понял ребёнок пяти лет.',
@@ -1161,7 +1210,7 @@
 
       if (connDot && connLabel) {
         connDot.classList.toggle('off', !connected);
-        connLabel.textContent = connected ? '● Connection OK' : '● No connection';
+        connLabel.textContent = connected ? TRANSLATIONS[currentLang].connOk : TRANSLATIONS[currentLang].connNo;
       }
     }
 
@@ -1249,29 +1298,29 @@
 
       let color = '#6b7280'; // Серый при отключении
       let glow = 'rgba(107, 114, 128, 0.4)';
-      let text = 'Нажми и держи, пока говоришь';
+      let text = TRANSLATIONS[currentLang].promptHold;
 
       if (lifecycleState === STATES.DISCONNECTED) {
         color = '#6b7280'; // серый
         glow = 'rgba(107, 114, 128, 0.3)';
-        text = 'Нажми и держи, пока говоришь';
+        text = TRANSLATIONS[currentLang].promptHold;
       } else if (state === STATES.ERROR) {
         color = '#7f1d1d'; // темно-красный
         glow = 'rgba(127, 29, 29, 0.7)';
-        text = 'Нет связи, переподключись';
+        text = TRANSLATIONS[currentLang].promptError;
       } else if (state === STATES.LISTENING) {
         color = '#ef4444'; // красный
         glow = 'rgba(239, 68, 68, 0.85)';
-        text = 'Говори...';
+        text = TRANSLATIONS[currentLang].promptSpeak;
       } else if (lifecycleState === STATES.IDLE || lifecycleState === STATES.PLAYING) {
         color = '#22c55e'; // зеленый
         glow = 'rgba(34, 197, 94, 0.7)';
-        text = 'Нажми и держи, пока говоришь';
+        text = TRANSLATIONS[currentLang].promptHold;
       } else {
         // Ожидание
         color = '#eab308'; // желтый
         glow = 'rgba(234, 179, 8, 0.5)';
-        text = 'Мишка думает...';
+        text = TRANSLATIONS[currentLang].promptThinking;
       }
 
       bearOrb.style.setProperty('--orb-color', color);
@@ -2183,7 +2232,6 @@
 
     // Language buttons functionality
     const langButtons = [
-      document.getElementById('langAUTO'),
       document.getElementById('langRU'),
       document.getElementById('langRO'),
       document.getElementById('langEN')
@@ -2194,6 +2242,7 @@
         langButtons.forEach(b => b && b.classList.remove('active'));
         btn.classList.add('active');
         logLine('language_select', { selected: btn.textContent });
+        updatePageLanguage(btn.textContent);
       });
     });
 
