@@ -37,9 +37,19 @@ const { createLearningLibrary } = require('../content/learningLibrary');
 const memoryStore = require('../memory/store');
 const memoryGuard = require('../memory/guard');
 const { extractMemoryActions } = require('../memory/extractor');
+const safetyGuard = require('../memory/safetyGuard');
+const { classifySafetyRisk } = require('../memory/safetyClassifier');
 
 function memoryEnabledFromEnv() {
     return /^(1|true|yes|on|enabled)$/i.test(String(process.env.REALTIME_MEMORY_ENABLED || ''));
+}
+
+// Post-hoc output safety net (self-harm / sexual content) — on by default,
+// unlike memory, since this is a safety feature, not a convenience one.
+// Set REALTIME_SAFETY_GUARD=false to disable (e.g. cost-constrained local
+// dev without GEMINI_API_KEY, where the classifier call would just fail).
+function safetyGuardEnabledFromEnv() {
+    return !/^(0|false|no|off|disabled)$/i.test(String(process.env.REALTIME_SAFETY_GUARD || ''));
 }
 
 function id(prefix) {
@@ -260,6 +270,7 @@ function createGeneration({ turnId }) {
         firstValidAudioAt: 0,
         userTranscriptBuffer: '',
         memoryExtractionStarted: false,
+        safetyCheckStarted: false,
     };
 }
 
@@ -401,6 +412,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let providerSession = providerFactory(buildProviderSessionOptions('initial'));
     let deviceId = memoryStore.normalizeDeviceId();
     const memoryEnabledFlag = memoryEnabledFromEnv();
+    const safetyGuardEnabledFlag = safetyGuardEnabledFromEnv();
 
     // Live connection status for this device (see registry above) — mutated
     // in place as the provider rotates / becomes ready, moved between
@@ -562,6 +574,52 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 }
             } catch (error) {
                 log('memory_extraction_error', { deviceId, message: error.message });
+            }
+        })();
+    }
+
+    // Post-hoc second-opinion safety net for the two highest-severity
+    // categories (self-harm, sexual content) — independent of whether the
+    // primary CORE_PROMPT-driven generation already said something it
+    // shouldn't have. HONEST LIMITATION: this runs AFTER the reply's audio
+    // has already streamed to the client (audio.chunk plays as it arrives,
+    // well before this async classifier call resolves) — it cannot un-say
+    // what was already spoken. What it DOES do: (1) create a real,
+    // independent audit trail beyond trusting the prompt (dedicated log
+    // stage below), (2) immediately end the session on a high-confidence
+    // flag so the same connection cannot continue escalating. A true
+    // pre-playback block would require buffering the entire response
+    // before any audio reaches the client, which conflicts with this
+    // product's realtime-voice latency requirement — not attempted here.
+    // Fire-and-forget like maybeExtractMemory: never blocks the reply
+    // itself. safetyGuard.looksRisky() is a cheap pre-filter so most turns
+    // never reach the LLM classifier call at all.
+    function maybeCheckOutputSafety(generation, replyText) {
+        if (!safetyGuardEnabledFlag || generation.safetyCheckStarted) return;
+        generation.safetyCheckStarted = true;
+        if (!safetyGuard.looksRisky(replyText)) return;
+
+        (async () => {
+            try {
+                const result = await classifySafetyRisk({ text: replyText });
+                if (!result.self_harm && !result.sexual_content) {
+                    log('safety_check_clear', { deviceId, generationId: generation.generationId });
+                    return;
+                }
+                const category = result.self_harm ? 'self_harm' : 'sexual_content';
+                log('safety_flagged', {
+                    deviceId,
+                    generationId: generation.generationId,
+                    turnId: generation.turnId,
+                    category,
+                    reason: result.reason,
+                });
+                terminateForPolicy({
+                    reason: 'safety_flagged_' + category,
+                    message: 'This session was ended by an automated safety check. Please start a new session.',
+                });
+            } catch (error) {
+                log('safety_check_error', { deviceId, message: error.message });
             }
         })();
     }
@@ -1747,6 +1805,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             generation.status = 'completed';
             clearGenerationTimeout(generation);
             maybeExtractMemory(generation);
+            maybeCheckOutputSafety(generation, assistantTranscriptBuffer);
             rememberTurn('assistant', assistantTranscriptBuffer);
             assistantTranscriptBuffer = '';
         }
