@@ -333,7 +333,7 @@
       width: 100%;
       max-width: 320px;
       aspect-ratio: 1 / 1;
-      background: url('bear.jpg') no-repeat center center;
+      background: url('icons/bear.jpg') no-repeat center center;
       background-size: cover;
       border-radius: 16px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
@@ -387,8 +387,9 @@
     <div id="bearPromptText" class="bear-prompt">Нажми и держи, пока говоришь</div>
 
     <section class="grid">
-      <div class="panel wide hero">
-        <div id="stateBadge" class="state-badge">Lifecycle State: DISCONNECTED</div>
+      <!-- Резервные элементы PTT и состояния (скрыты из интерфейса) -->
+      <div style="display: none;">
+        <div id="stateBadge">Lifecycle State: DISCONNECTED</div>
         <button id="pttButton" class="ptt-button waiting" disabled>Reconnect</button>
         <div id="stateHint" class="pill">Connect to start a realtime session.</div>
       </div>
