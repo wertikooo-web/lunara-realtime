@@ -1186,6 +1186,7 @@
     let batchResults = [];
     let batchMuteAudio = true;
     let batchLastAnswer = '';
+    let modelTranscriptBuffer = '';
 
     function updatePageLanguage(lang) {
       if (!TRANSLATIONS[lang]) return;
@@ -1281,7 +1282,18 @@
       if (batchCurrentIndex < batchQuestions.length) {
         const question = batchQuestions[batchCurrentIndex];
         const answer = batchLastAnswer || '-';
-        batchResults.push({ question, answer });
+        
+        const currentModelText = document.getElementById('modelStatus')?.textContent || 'AUTO';
+        const currentLangText = currentLang || 'RU';
+
+        batchResults.push({
+          question: question,
+          full_answer: answer,
+          model: currentModelText,
+          language: currentLangText,
+          test_mode: textTestMode
+        });
+        
         batchLastAnswer = ''; // Reset for next
         batchCurrentIndex += 1;
       }
@@ -1449,6 +1461,7 @@
       userTranscript.textContent = `User transcript: ${text}`;
       updateBubbleText('user', text);
       modelTranscript.textContent = 'Model transcript: -';
+      modelTranscriptBuffer = ''; // Clear accumulated response buffer
       metrics.firstAudio.textContent = '-';
       metrics.response.textContent = '-';
       updateIds();
@@ -2067,6 +2080,7 @@
         }
       } else if (payload.type === 'response.created') {
         clearPttTimeout();
+        modelTranscriptBuffer = '';
         currentGenerationId = payload.generation_id || currentGenerationId;
         currentResponseId = payload.response_id || '';
         responseStartedAt = performance.now();
@@ -2082,6 +2096,11 @@
           return;
         }
         metrics.response.textContent = responseStartedAt ? ms(performance.now() - responseStartedAt) : '-';
+        if (modelTranscriptBuffer) {
+          recentTurns.push({ role: 'assistant', text: modelTranscriptBuffer });
+          while (recentTurns.length > 12) recentTurns.shift();
+          updateCurrentContextPreview();
+        }
         if (playbackQueue.length === 0 && activeSources.length === 0) setState(STATES.IDLE);
         textTestStatus.textContent = 'Ответ завершён. Можно отправить следующий тест.';
       } else if (payload.type === 'response.cancelled') {
@@ -2125,15 +2144,13 @@
           dropProviderEvent(payload, 'late_model_transcript_after_cancellation');
           return;
         }
-        modelTranscript.textContent = `Model transcript: ${payload.text || '-'}`;
         if (payload.text) {
-          updateBubbleText('model', payload.text);
-          recentTurns.push({ role: 'assistant', text: payload.text });
-          while (recentTurns.length > 12) recentTurns.shift();
-          updateCurrentContextPreview();
+          modelTranscriptBuffer += payload.text;
+          modelTranscript.textContent = `Model transcript: ${modelTranscriptBuffer}`;
+          updateBubbleText('model', modelTranscriptBuffer);
           
           if (isBatchTesting) {
-            batchLastAnswer = payload.text;
+            batchLastAnswer = modelTranscriptBuffer;
           }
         }
       } else if (payload.type === 'error') {
