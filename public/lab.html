@@ -1192,14 +1192,65 @@
     let batchWaitingForReconnect = false;
     let audioEndReceived = false;
 
-    function triggerBatchIdleCheck() {
-      if (!audioEndReceived) return; // Wait until audio.end is received!
-      if (batchCompleteTimeout) clearTimeout(batchCompleteTimeout);
-      batchCompleteTimeout = setTimeout(() => {
-        if (playbackQueue.length === 0 && activeSources.length === 0) {
-          setState(STATES.IDLE);
-        }
-      }, 500);
+    function advanceBatchTest() {
+      if (!isBatchTesting) return;
+
+      // 1. Record the previous result if we just finished a question
+      if (batchCurrentIndex < batchQuestions.length) {
+        const question = batchQuestions[batchCurrentIndex];
+        const answer = batchLastAnswer || '-';
+        
+        const currentModelText = document.getElementById('modelStatus')?.textContent || 'AUTO';
+        const currentLangText = currentLang || 'RU';
+
+        batchResults.push({
+          question: question,
+          full_answer: answer,
+          model: currentModelText,
+          language: currentLangText,
+          test_mode: textTestMode
+        });
+        
+        batchLastAnswer = ''; // Reset for next
+        batchCurrentIndex += 1;
+      }
+
+      // 2. Check if we have more questions
+      if (batchCurrentIndex < batchQuestions.length) {
+        updateBatchProgressUI();
+        // Send next question
+        const nextQuestion = batchQuestions[batchCurrentIndex];
+        textTestInput.value = nextQuestion;
+        autoGrowInput();
+        
+        // Prepare next turn
+        currentTurnId = makeId('trn_text');
+        clientGenerationId = makeId('gen_text_client');
+        currentGenerationId = clientGenerationId;
+        currentResponseId = '';
+        releaseAt = performance.now();
+        responseStartedAt = 0;
+        providerChunksReceived = 0;
+        playableChunksReceived = 0;
+        chunksPlayed = 0;
+        modelTranscriptBuffer = '';
+        batchLastAnswer = '';
+        modelRefusalTriggered = false;
+        audioEndReceived = false;
+        
+        userTranscript.textContent = `User transcript: ${nextQuestion}`;
+        updateBubbleText('user', nextQuestion);
+        modelTranscript.textContent = 'Model transcript: -';
+        metrics.firstAudio.textContent = '-';
+        metrics.response.textContent = '-';
+        updateIds();
+
+        // Send directly!
+        sendJson({ type: 'input_text.submit', turn_id: currentTurnId, text: nextQuestion, test_mode: textTestMode });
+      } else {
+        // We are done!
+        finishBatchTest();
+      }
     }
 
     function updatePageLanguage(lang) {
@@ -1284,52 +1335,9 @@
       renderPttButton();
       stateHint.textContent = hint || defaultHint(next);
       renderTextTestControls();
-
-      // If batch testing is running and state returns to IDLE, proceed to next step
-      if (next === STATES.IDLE && isBatchTesting) {
-        handleBatchStepComplete();
-      }
     }
 
-    function handleBatchStepComplete() {
-      // 1. Record the previous result if we just finished a question
-      if (batchCurrentIndex < batchQuestions.length) {
-        const question = batchQuestions[batchCurrentIndex];
-        const answer = batchLastAnswer || '-';
-        
-        const currentModelText = document.getElementById('modelStatus')?.textContent || 'AUTO';
-        const currentLangText = currentLang || 'RU';
-
-        batchResults.push({
-          question: question,
-          full_answer: answer,
-          model: currentModelText,
-          language: currentLangText,
-          test_mode: textTestMode
-        });
-        
-        batchLastAnswer = ''; // Reset for next
-        batchCurrentIndex += 1;
-      }
-
-      // 2. Check if we have more questions
-      if (batchCurrentIndex < batchQuestions.length) {
-        updateBatchProgressUI();
-        // Send next question
-        const nextQuestion = batchQuestions[batchCurrentIndex];
-        textTestInput.value = nextQuestion;
-        autoGrowInput();
-        
-        // Wait 100ms before submitting so the UI updates nicely
-        setTimeout(() => {
-          if (!isBatchTesting) return; // safety check
-          submitTextTurn();
-        }, 100);
-      } else {
-        // We are done!
-        finishBatchTest();
-      }
-    }
+    // handleBatchStepComplete was deprecated in favor of advanceBatchTest
 
     function startBatchTest() {
       const text = document.getElementById('batchQuestionsInput').value.trim();
@@ -1366,7 +1374,29 @@
       const firstQuestion = batchQuestions[0];
       textTestInput.value = firstQuestion;
       autoGrowInput();
-      submitTextTurn();
+
+      currentTurnId = makeId('trn_text');
+      clientGenerationId = makeId('gen_text_client');
+      currentGenerationId = clientGenerationId;
+      currentResponseId = '';
+      releaseAt = performance.now();
+      responseStartedAt = 0;
+      providerChunksReceived = 0;
+      playableChunksReceived = 0;
+      chunksPlayed = 0;
+      modelTranscriptBuffer = '';
+      batchLastAnswer = '';
+      modelRefusalTriggered = false;
+      audioEndReceived = false;
+
+      userTranscript.textContent = `User transcript: ${firstQuestion}`;
+      updateBubbleText('user', firstQuestion);
+      modelTranscript.textContent = 'Model transcript: -';
+      metrics.firstAudio.textContent = '-';
+      metrics.response.textContent = '-';
+      updateIds();
+
+      sendJson({ type: 'input_text.submit', turn_id: currentTurnId, text: firstQuestion, test_mode: textTestMode });
     }
 
     function stopBatchTest(reason = 'Остановлено пользователем') {
@@ -2140,9 +2170,14 @@
           updateCurrentContextPreview();
         }
         
-        if (isBatchTesting && batchMuteAudio) {
-          audioEndReceived = true;
-          triggerBatchIdleCheck();
+        if (isBatchTesting) {
+          if (batchMuteAudio) {
+            setTimeout(advanceBatchTest, 100);
+          } else {
+            if (playbackQueue.length === 0 && activeSources.length === 0) {
+              advanceBatchTest();
+            }
+          }
         } else {
           if (playbackQueue.length === 0 && activeSources.length === 0) {
             setState(STATES.IDLE);
@@ -2190,12 +2225,33 @@
         if (isBatchTesting && batchWaitingForReconnect) {
           batchWaitingForReconnect = false;
           logLine('batch.resuming', { index: batchCurrentIndex });
-          setState(STATES.IDLE);
           const currentQuestion = batchQuestions[batchCurrentIndex];
           textTestInput.value = currentQuestion;
           autoGrowInput();
+          
+          currentTurnId = makeId('trn_text');
+          clientGenerationId = makeId('gen_text_client');
+          currentGenerationId = clientGenerationId;
+          currentResponseId = '';
+          releaseAt = performance.now();
+          responseStartedAt = 0;
+          providerChunksReceived = 0;
+          playableChunksReceived = 0;
+          chunksPlayed = 0;
+          modelTranscriptBuffer = '';
+          batchLastAnswer = '';
+          modelRefusalTriggered = false;
+          audioEndReceived = false;
+
+          userTranscript.textContent = `User transcript: ${currentQuestion}`;
+          updateBubbleText('user', currentQuestion);
+          modelTranscript.textContent = 'Model transcript: -';
+          metrics.firstAudio.textContent = '-';
+          metrics.response.textContent = '-';
+          updateIds();
+
           setTimeout(() => {
-            submitTextTurn();
+            sendJson({ type: 'input_text.submit', turn_id: currentTurnId, text: currentQuestion, test_mode: textTestMode });
           }, 1000); // 1-second delay to let the session stabilize
         }
       } else if (payload.type === 'transcript.model') {
@@ -2223,9 +2279,6 @@
           
           if (isBatchTesting) {
             batchLastAnswer = modelTranscriptBuffer;
-            if (batchMuteAudio) {
-              triggerBatchIdleCheck();
-            }
           }
         }
       } else if (payload.type === 'error') {
@@ -2358,8 +2411,12 @@
         chunksPlayed += 1;
         updateMetricCounters();
         playing = false;
-        if (playbackQueue.length === 0 && activeSources.length === 0 && lifecycleState === STATES.PLAYING) {
-          setState(STATES.IDLE);
+        if (playbackQueue.length === 0 && activeSources.length === 0) {
+          if (isBatchTesting) {
+            advanceBatchTest();
+          } else if (lifecycleState === STATES.PLAYING) {
+            setState(STATES.IDLE);
+          }
         }
         playNext();
       };
