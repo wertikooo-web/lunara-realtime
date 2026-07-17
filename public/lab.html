@@ -599,26 +599,51 @@
       box-shadow: 0 0 10px rgba(251, 191, 36, 0.18);
     }
 
-    /* ── Developer Dashboard Panels below the phone ── */
-    .dev-panels {
+    /* ── Collapsible Realtime Prompt Lab Accordion ── */
+    .dev-panels-accordion {
       width: 100%;
       max-width: 390px;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 24px;
-      padding: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
       margin-top: 10px;
       margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
     }
-    .dev-panels h2 {
+    .dev-panels-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+    .dev-panels-summary::-webkit-details-marker { display: none; }
+    .dev-panels-summary span {
       font-family: 'Unbounded', sans-serif;
       font-size: 1.1rem;
+      font-weight: 700;
       color: var(--purple3);
-      margin-top: 0;
-      margin-bottom: 16px;
+    }
+    .dev-panels-summary::after {
+      content: '›';
+      color: var(--purple3);
+      font-size: 28px;
+      line-height: 1;
+      transform: rotate(0deg);
+      transition: transform 160ms ease;
+    }
+    .dev-panels-accordion[open] .dev-panels-summary::after {
+      transform: rotate(90deg);
+    }
+    .dev-panels-accordion[open] .dev-panels-summary {
       border-bottom: 1px solid var(--line);
-      padding-bottom: 8px;
+    }
+    .dev-panels-content {
+      padding: 20px;
+      background: rgba(10, 6, 24, 0.95);
     }
 
     .panel {
@@ -706,47 +731,7 @@
       color: var(--text2);
     }
 
-    /* ── Collapsible Accordion ── */
-    .realtime-lab-accordion {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: rgba(10, 6, 24, 0.95);
-      overflow: hidden;
-    }
-    .realtime-lab-accordion summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      min-height: 44px;
-      padding: 0 16px;
-      cursor: pointer;
-      color: var(--purple3);
-      font-size: 0.85rem;
-      font-weight: 700;
-      list-style: none;
-      user-select: none;
-    }
-    .realtime-lab-accordion summary::-webkit-details-marker { display: none; }
-    .realtime-lab-accordion summary::after {
-      content: '›';
-      color: var(--purple3);
-      font-size: 24px;
-      line-height: 1;
-      transform: rotate(0deg);
-      transition: transform 160ms ease;
-    }
-    .realtime-lab-accordion[open] summary::after {
-      transform: rotate(90deg);
-    }
-    .realtime-lab-accordion[open] summary {
-      border-bottom: 1px solid var(--line);
-    }
-    .realtime-lab-content {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+    /* Accordion styles replaced by dev-panels-accordion */
 
     .prompt-grid {
       display: flex;
@@ -917,95 +902,79 @@
       </div>
     </div>
 
-    <!-- Developer/Debug panels styled to match the dark theme and placed below the phone mockup -->
-    <div class="dev-panels">
-      <h2>Lumi Developer Dashboard</h2>
+    <!-- Collapsible Realtime Prompt Lab Dashboard -->
+    <details class="dev-panels-accordion">
+      <summary class="dev-panels-summary">
+        <span>Realtime Prompt Lab</span>
+      </summary>
 
-      <!-- Hidden PTT targets to maintain JS references without breaking logic -->
-      <div style="display: none;">
-        <div id="stateBadge">Lifecycle State: DISCONNECTED</div>
-        <button id="pttButton" class="ptt-button waiting" disabled>Reconnect</button>
-        <div id="stateHint" class="pill">Connect to start a realtime session.</div>
-        <div id="textTestStatus"></div>
-        <div id="micInfo" hidden></div>
-        <div id="userTranscript"></div>
-        <div id="modelTranscript"></div>
-        <div id="trackInfo" hidden></div>
-        <button id="reconnectBtn"></button>
-        <button id="disconnectBtn"></button>
-        <button id="clearBtn"></button>
-        <div id="statusDot"></div>
-        <div id="statusText"></div>
-        <div id="providerInfo"></div>
-      </div>
+      <div class="dev-panels-content">
+        <!-- Hidden targets to maintain JS references without breaking logic -->
+        <div style="display: none;">
+          <div id="stateBadge">Lifecycle State: DISCONNECTED</div>
+          <button id="pttButton" class="ptt-button waiting" disabled>Reconnect</button>
+          <div id="stateHint" class="pill">Connect to start a realtime session.</div>
+          <div id="textTestStatus"></div>
+          <div id="micInfo" hidden></div>
+          <div id="userTranscript"></div>
+          <div id="modelTranscript"></div>
+          <div id="trackInfo" hidden></div>
+          <button id="reconnectBtn"></button>
+          <button id="disconnectBtn"></button>
+          <button id="clearBtn"></button>
+          <div id="statusDot"></div>
+          <div id="statusText"></div>
+          <div id="providerInfo"></div>
+          <div id="log" class="log"></div>
 
-      <!-- Advanced Prompt Lab Collapsible Details -->
-      <details class="realtime-lab-accordion wide">
-        <summary>Realtime Prompt Lab Settings</summary>
-        <div class="realtime-lab-content">
-          <div class="panel wide">
-            <h2>Realtime Prompt Lab</h2>
-            <div id="promptStatus" class="pill">Prompt config: loading</div>
-            <div class="controls">
-              <button id="applyPromptBtn" class="primary">Apply prompt</button>
-              <button id="resetPromptBtn">Restore default</button>
-            </div>
-            <div class="prompt-grid">
-              <div class="prompt-field">
-                <label for="corePromptInput">CORE SYSTEM PROMPT</label>
-                <textarea id="corePromptInput" spellcheck="false"></textarea>
-                <div id="corePromptMeta" class="pill">0 chars</div>
-              </div>
-              <div class="prompt-field">
-                <label for="childContextInput">CHILD PROFILE / CONFIRMED MEMORY</label>
-                <textarea id="childContextInput" spellcheck="false"></textarea>
-                <div id="childContextMeta" class="pill">0 chars</div>
-              </div>
-              <div class="prompt-field">
-                <label for="parentRulesInput">PARENT SETTINGS / RESTRICTIONS</label>
-                <textarea id="parentRulesInput" spellcheck="false"></textarea>
-                <div id="parentRulesMeta" class="pill">0 chars</div>
-              </div>
-              <div class="prompt-field" style="display: none;">
-                <label for="currentContextPreview">CURRENT CONTEXT (readonly)</label>
-                <textarea id="currentContextPreview" readonly spellcheck="false"></textarea>
-                <div id="currentContextMeta" class="pill">Generated locally</div>
-              </div>
-            </div>
+          <!-- Hidden IDs and Metrics to prevent JS null references -->
+          <strong id="idSession"></strong>
+          <strong id="idTurn"></strong>
+          <strong id="idGeneration"></strong>
+          <strong id="idResponse"></strong>
+          <strong id="mRecord"></strong>
+          <strong id="mFirstAudio"></strong>
+          <strong id="mResponse"></strong>
+          <strong id="mInterrupt"></strong>
+          <strong id="mProviderChunks"></strong>
+          <strong id="mChunksPlayed"></strong>
+          <strong id="mChunksDropped"></strong>
+          <strong id="mTimeouts"></strong>
+          <strong id="mReconnect"></strong>
+        </div>
+
+        <!-- Visible Prompt Lab Panel -->
+        <div class="panel wide" style="margin-bottom: 0;">
+          <div id="promptStatus" class="pill" style="margin-top: 0; margin-bottom: 12px;">Prompt config: loading</div>
+          <div class="controls" style="margin-bottom: 16px;">
+            <button id="applyPromptBtn" class="primary">Apply prompt</button>
+            <button id="resetPromptBtn">Restore default</button>
           </div>
-
-          <div class="panel wide">
-            <h2>Lifecycle IDs</h2>
-            <div class="ids">
-              <div class="card"><span>session_id</span><strong id="idSession">not connected</strong></div>
-              <div class="card"><span>turn_id</span><strong id="idTurn">not started</strong></div>
-              <div class="card"><span>generation_id</span><strong id="idGeneration">not started</strong></div>
-              <div class="card"><span>response_id</span><strong id="idResponse">not created</strong></div>
+          <div class="prompt-grid">
+            <div class="prompt-field">
+              <label for="corePromptInput">CORE SYSTEM PROMPT</label>
+              <textarea id="corePromptInput" spellcheck="false"></textarea>
+              <div id="corePromptMeta" class="pill">0 chars</div>
             </div>
-          </div>
-
-          <div class="panel wide">
-            <h2>Metrics</h2>
-            <div class="metrics">
-              <div class="card metric"><span>Recording duration</span><strong id="mRecord">-</strong></div>
-              <div class="card metric"><span>Release -> First Audible Audio</span><strong id="mFirstAudio">-</strong></div>
-              <div class="card metric"><span>Response duration</span><strong id="mResponse">-</strong></div>
-              <div class="card metric"><span>Manual interruption latency</span><strong id="mInterrupt">-</strong></div>
-              <div class="card metric"><span>Provider chunks received</span><strong id="mProviderChunks">0</strong></div>
-              <div class="card metric"><span>Chunks played</span><strong id="mChunksPlayed">0</strong></div>
-              <div class="card metric"><span>Chunks dropped</span><strong id="mChunksDropped">0</strong></div>
-              <div class="card metric"><span>PTT turn timeouts</span><strong id="mTimeouts">0</strong></div>
-              <div class="card metric"><span>Reconnect count</span><strong id="mReconnect">0</strong></div>
+            <div class="prompt-field">
+              <label for="childContextInput">CHILD PROFILE / CONFIRMED MEMORY</label>
+              <textarea id="childContextInput" spellcheck="false"></textarea>
+              <div id="childContextMeta" class="pill">0 chars</div>
             </div>
-          </div>
-
-          <div class="panel wide">
-            <h2>Events</h2>
-            <div id="log" class="log"></div>
+            <div class="prompt-field">
+              <label for="parentRulesInput">PARENT SETTINGS / RESTRICTIONS</label>
+              <textarea id="parentRulesInput" spellcheck="false"></textarea>
+              <div id="parentRulesMeta" class="pill">0 chars</div>
+            </div>
+            <div class="prompt-field" style="display: none;">
+              <label for="currentContextPreview">CURRENT CONTEXT (readonly)</label>
+              <textarea id="currentContextPreview" readonly spellcheck="false"></textarea>
+              <div id="currentContextMeta" class="pill">Generated locally</div>
+            </div>
           </div>
         </div>
-      </details>
-    </div>
+      </div>
+    </details>
   </main>
 
   <script>
