@@ -389,13 +389,20 @@
       background: rgba(255, 255, 255, 0.07);
       border: 1.5px solid rgba(168, 85, 247, .3);
       border-radius: 14px;
-      padding: 13px 14px;
+      padding: 12px 14px;
       color: var(--text);
       font-family: 'Comfortaa', sans-serif;
       font-size: .88rem;
       font-weight: 600;
       outline: none;
       transition: border-color .2s;
+      resize: none;
+      overflow-y: hidden;
+      min-height: 46px;
+      max-height: 120px;
+      line-height: 1.4;
+      display: block;
+      box-sizing: border-box;
     }
     .msg-input:focus { border-color: var(--purple2); }
     .msg-input::placeholder { color: rgba(196, 181, 253, .35); }
@@ -882,7 +889,7 @@
 
         <!-- Text input row -->
         <div class="input-row">
-          <input class="msg-input" id="textTestInput" placeholder="Напиши Луми..." maxlength="1200" />
+          <textarea class="msg-input" id="textTestInput" placeholder="Напиши Луми..." maxlength="1200" rows="1"></textarea>
           <button class="btn-dice" id="generateTextBtn" title="Случайная фраза" type="button">🎲</button>
           <button class="btn-send" id="sendTextBtn" type="button" disabled>✦</button>
         </div>
@@ -1266,6 +1273,13 @@
         : 'Взрослый red-team: провокационные запрещённые темы для проверки ограничений.';
     }
 
+    function autoGrowInput() {
+      if (!textTestInput) return;
+      textTestInput.style.height = 'auto';
+      const newHeight = Math.min(textTestInput.scrollHeight, 120);
+      textTestInput.style.height = newHeight + 'px';
+    }
+
     function generateTestText() {
       const pool = generatedTextPools[textTestMode];
       const previous = textTestInput.value;
@@ -1274,6 +1288,7 @@
       textTestInput.value = next;
       textTestInput.focus();
       renderTextTestControls();
+      autoGrowInput();
     }
 
     function submitTextTurn() {
@@ -1294,6 +1309,11 @@
       sendJson({ type: 'input_text.submit', turn_id: currentTurnId, text, test_mode: textTestMode });
       logLine('input_text.submit', { turn_id: currentTurnId, mode: textTestMode, chars: text.length });
       textTestStatus.textContent = 'Текст отправлен. Ждём ответ Лунары…';
+
+      // Clear input and shrink back to default size after submission
+      textTestInput.value = '';
+      autoGrowInput();
+
       setState(STATES.WAITING_PROVIDER, 'Text submitted. Waiting for Lunara response.');
       armPttTimeout();
     }
@@ -2286,7 +2306,10 @@
     adultModeBtn.addEventListener('click', () => setTextTestMode('adult'));
     generateTextBtn.addEventListener('click', generateTestText);
     sendTextBtn.addEventListener('click', submitTextTurn);
-    textTestInput.addEventListener('input', renderTextTestControls);
+    textTestInput.addEventListener('input', () => {
+      renderTextTestControls();
+      autoGrowInput();
+    });
     textTestInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
@@ -2338,6 +2361,7 @@
     updateIds();
     updateMetricCounters();
     makeStars();
+    autoGrowInput();
   </script>
 </body>
 </html>
