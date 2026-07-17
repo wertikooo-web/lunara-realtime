@@ -980,6 +980,29 @@
             </div>
           </div>
         </div>
+
+        <!-- Batch Tester Panel -->
+        <div class="panel wide" style="margin-top: 16px; margin-bottom: 0; border-top: 1px solid var(--line); padding-top: 16px;">
+          <h2 style="font-family: 'Unbounded', sans-serif; font-size: 0.95rem; color: var(--purple3); margin-top: 0; margin-bottom: 6px;">Automated Batch Red-Teaming (Evals)</h2>
+          <p style="font-size: 0.72rem; color: var(--text2); margin-top: 0; margin-bottom: 12px; line-height: 1.3;">
+            Запустите пакетное тестирование Луми на наборе вопросов для оценки безопасности и качества ответов без задержек на воспроизведение звука.
+          </p>
+          <div class="prompt-field" style="margin-bottom: 12px;">
+            <label for="batchQuestionsInput">СПИСОК ВОПРОСОВ (по одному на строке)</label>
+            <textarea id="batchQuestionsInput" rows="5" placeholder="Введите вопросы здесь..." style="font-family: inherit; font-size: 0.75rem; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); color: var(--text); resize: vertical; width: 100%; box-sizing: border-box; min-height: 80px;"></textarea>
+          </div>
+          <div class="controls" style="align-items: center; justify-content: space-between; display: flex; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button id="startBatchBtn" type="button" class="primary">Запустить тест</button>
+              <button id="stopBatchBtn" type="button" style="display: none;" class="danger">Остановить</button>
+              <button id="downloadBatchBtn" type="button" disabled>Скачать результаты (JSON)</button>
+            </div>
+            <label style="font-size: 0.72rem; color: var(--text2); display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="muteAudioCheckbox" checked style="accent-color: var(--purple2);" /> Без звука (быстро)
+            </label>
+          </div>
+          <div id="batchStatus" class="pill" style="margin-top: 12px; display: none; width: 100%; box-sizing: border-box; text-align: center; font-weight: bold; background: rgba(124, 58, 237, 0.15); border-color: rgba(124, 58, 237, 0.45); color: var(--purple3); padding: 6px 12px;"></div>
+        </div>
       </div>
     </details>
   </main>
@@ -1157,6 +1180,13 @@
     };
     let currentLang = 'RU';
 
+    let isBatchTesting = false;
+    let batchQuestions = [];
+    let batchCurrentIndex = 0;
+    let batchResults = [];
+    let batchMuteAudio = true;
+    let batchLastAnswer = '';
+
     function updatePageLanguage(lang) {
       if (!TRANSLATIONS[lang]) return;
       currentLang = lang;
@@ -1239,6 +1269,122 @@
       renderPttButton();
       stateHint.textContent = hint || defaultHint(next);
       renderTextTestControls();
+
+      // If batch testing is running and state returns to IDLE, proceed to next step
+      if (next === STATES.IDLE && isBatchTesting) {
+        handleBatchStepComplete();
+      }
+    }
+
+    function handleBatchStepComplete() {
+      // 1. Record the previous result if we just finished a question
+      if (batchCurrentIndex < batchQuestions.length) {
+        const question = batchQuestions[batchCurrentIndex];
+        const answer = batchLastAnswer || '-';
+        batchResults.push({ question, answer });
+        batchLastAnswer = ''; // Reset for next
+        batchCurrentIndex += 1;
+      }
+
+      // 2. Check if we have more questions
+      if (batchCurrentIndex < batchQuestions.length) {
+        updateBatchProgressUI();
+        // Send next question
+        const nextQuestion = batchQuestions[batchCurrentIndex];
+        textTestInput.value = nextQuestion;
+        autoGrowInput();
+        
+        // Wait 100ms before submitting so the UI updates nicely
+        setTimeout(() => {
+          if (!isBatchTesting) return; // safety check
+          submitTextTurn();
+        }, 100);
+      } else {
+        // We are done!
+        finishBatchTest();
+      }
+    }
+
+    function startBatchTest() {
+      const text = document.getElementById('batchQuestionsInput').value.trim();
+      if (!text) {
+        alert('Пожалуйста, введите хотя бы один вопрос!');
+        return;
+      }
+      
+      const socketOpen = Boolean(ws && ws.readyState === WebSocket.OPEN);
+      if (!socketOpen) {
+        alert('Сначала подключитесь к серверу (нажмите CONNECT)!');
+        return;
+      }
+
+      batchQuestions = text.split('\n').map(q => q.trim()).filter(Boolean);
+      if (batchQuestions.length === 0) return;
+
+      isBatchTesting = true;
+      batchCurrentIndex = 0;
+      batchResults = [];
+      batchLastAnswer = '';
+      batchMuteAudio = document.getElementById('muteAudioCheckbox').checked;
+
+      // Update UI
+      document.getElementById('startBatchBtn').style.display = 'none';
+      document.getElementById('stopBatchBtn').style.display = 'inline-flex';
+      document.getElementById('downloadBatchBtn').disabled = true;
+      document.getElementById('batchStatus').style.display = 'block';
+      document.getElementById('batchQuestionsInput').disabled = true;
+
+      updateBatchProgressUI();
+
+      // Submit the first question
+      const firstQuestion = batchQuestions[0];
+      textTestInput.value = firstQuestion;
+      autoGrowInput();
+      submitTextTurn();
+    }
+
+    function stopBatchTest(reason = 'Остановлено пользователем') {
+      if (!isBatchTesting) return;
+      isBatchTesting = false;
+      
+      document.getElementById('startBatchBtn').style.display = 'inline-flex';
+      document.getElementById('stopBatchBtn').style.display = 'none';
+      document.getElementById('batchQuestionsInput').disabled = false;
+      
+      const statusEl = document.getElementById('batchStatus');
+      statusEl.textContent = `Тестирование остановлено: ${reason}`;
+      if (batchResults.length > 0) {
+        document.getElementById('downloadBatchBtn').disabled = false;
+      }
+    }
+
+    function finishBatchTest() {
+      isBatchTesting = false;
+      
+      document.getElementById('startBatchBtn').style.display = 'inline-flex';
+      document.getElementById('stopBatchBtn').style.display = 'none';
+      document.getElementById('batchQuestionsInput').disabled = false;
+      
+      const statusEl = document.getElementById('batchStatus');
+      statusEl.textContent = `Тестирование завершено! Успешно пройдено: ${batchResults.length} / ${batchQuestions.length}`;
+      document.getElementById('downloadBatchBtn').disabled = false;
+    }
+
+    function updateBatchProgressUI() {
+      const statusEl = document.getElementById('batchStatus');
+      statusEl.textContent = `Выполнение: ${batchCurrentIndex + 1} из ${batchQuestions.length} — Ждём ответ...`;
+    }
+
+    function downloadBatchResults() {
+      if (batchResults.length === 0) return;
+      
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(batchResults, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `lumi_batch_results_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     }
 
     function updateBubbleText(origin, text) {
@@ -1615,6 +1761,7 @@
         setStatus(false);
         setState(STATES.ERROR, 'WebSocket closed. Reconnect to continue.');
         logLine('connect.close');
+        if (typeof stopBatchTest === 'function') stopBatchTest('Подключение разорвано');
       });
 
       ws.addEventListener('error', () => {
@@ -1623,6 +1770,7 @@
         setStatus(false);
         setError('WebSocket error.');
         logLine('connect.error');
+        if (typeof stopBatchTest === 'function') stopBatchTest('Ошибка сети');
       });
     }
 
@@ -1983,6 +2131,10 @@
           recentTurns.push({ role: 'assistant', text: payload.text });
           while (recentTurns.length > 12) recentTurns.shift();
           updateCurrentContextPreview();
+          
+          if (isBatchTesting) {
+            batchLastAnswer = payload.text;
+          }
         }
       } else if (payload.type === 'error') {
         setError(payload.message || payload.code || 'Provider error');
@@ -2015,6 +2167,19 @@
       providerChunksReceived += 1;
       updateMetricCounters();
       logAggregate(`audio.chunk:${payload.response_id || payload.generation_id}`, 'audio.chunk', payload);
+
+      if (isBatchTesting && batchMuteAudio) {
+        // Skip audio decoding and queueing completely to save CPU and RAM during evaluations!
+        if (providerChunksReceived === 1) {
+          clearPttTimeout();
+          metrics.firstAudio.textContent = ms(performance.now() - releaseAt);
+          if (!currentResponseId && payload.response_id) currentResponseId = payload.response_id;
+          if (payload.generation_id) currentGenerationId = payload.generation_id;
+          updateIds();
+          setState(STATES.PLAYING);
+        }
+        return;
+      }
 
       if (isLateEvent(payload)) {
         dropProviderEvent(payload, 'late_chunk_after_cancellation');
@@ -2316,6 +2481,16 @@
         submitTextTurn();
       }
     });
+
+    document.getElementById('startBatchBtn').addEventListener('click', startBatchTest);
+    document.getElementById('stopBatchBtn').addEventListener('click', () => stopBatchTest());
+    document.getElementById('downloadBatchBtn').addEventListener('click', downloadBatchResults);
+
+    // Pre-populate batch questions with the default adult pool
+    const batchInput = document.getElementById('batchQuestionsInput');
+    if (batchInput) {
+      batchInput.value = generatedTextPools.adult.join('\n');
+    }
 
     function makeStars() {
       const bg = document.getElementById('bgStars');
