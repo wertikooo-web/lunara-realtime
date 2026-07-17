@@ -330,6 +330,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let promptBlocks = defaultPromptBlocks();
     let promptSource = 'default';
     const recentTurns = [];
+    let assistantTranscriptBuffer = '';
     let currentTurnId = null;
     let currentGeneration = null;
     let inputStartedAt = 0;
@@ -1731,7 +1732,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             });
         }
         if (eventType === 'transcript.model') {
-            rememberTurn('assistant', payload.text);
+            assistantTranscriptBuffer += String(payload.text || '');
         }
         if (startsGenerationEvents.has(eventType)) {
             emitResponseCreated(generation, eventType);
@@ -1739,12 +1740,15 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         if (eventType === 'response.cancelled') {
             generation.status = 'cancelled';
             clearGenerationTimeout(generation);
+            assistantTranscriptBuffer = '';
         }
         const shouldRotateAfterAudioEnd = eventType === 'audio.end' && shouldRotateProviderAfterOutputComplete();
         if (eventType === 'audio.end') {
             generation.status = 'completed';
             clearGenerationTimeout(generation);
             maybeExtractMemory(generation);
+            rememberTurn('assistant', assistantTranscriptBuffer);
+            assistantTranscriptBuffer = '';
         }
         const emitted = emit({
             ...payload,
@@ -1901,6 +1905,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
 
     function startInput(payload = {}) {
         applyPendingLanguageSwitchBeforeInput();
+        assistantTranscriptBuffer = '';
         const cancelledActiveGeneration = cancelCurrent('new_input');
         if (cancelledActiveGeneration && shouldRotateProviderOnInterrupt()) {
             rotateProviderSession('new_input_after_cancel');

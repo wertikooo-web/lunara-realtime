@@ -1188,6 +1188,17 @@
     let batchLastAnswer = '';
     let modelTranscriptBuffer = '';
     let modelRefusalTriggered = false;
+    let batchCompleteTimeout = null;
+    let batchWaitingForReconnect = false;
+
+    function triggerBatchIdleCheck() {
+      if (batchCompleteTimeout) clearTimeout(batchCompleteTimeout);
+      batchCompleteTimeout = setTimeout(() => {
+        if (playbackQueue.length === 0 && activeSources.length === 0) {
+          setState(STATES.IDLE);
+        }
+      }, 500);
+    }
 
     function updatePageLanguage(lang) {
       if (!TRANSLATIONS[lang]) return;
@@ -1464,6 +1475,10 @@
       modelTranscript.textContent = 'Model transcript: -';
       modelTranscriptBuffer = ''; // Clear accumulated response buffer
       modelRefusalTriggered = false;
+      if (batchCompleteTimeout) {
+        clearTimeout(batchCompleteTimeout);
+        batchCompleteTimeout = null;
+      }
       metrics.firstAudio.textContent = '-';
       metrics.response.textContent = '-';
       updateIds();
@@ -1776,7 +1791,12 @@
         setStatus(false);
         setState(STATES.ERROR, 'WebSocket closed. Reconnect to continue.');
         logLine('connect.close');
-        if (typeof stopBatchTest === 'function') stopBatchTest('Подключение разорвано');
+        if (isBatchTesting) {
+          batchWaitingForReconnect = true;
+          logLine('batch.waiting_reconnect', { index: batchCurrentIndex });
+        } else {
+          if (typeof stopBatchTest === 'function') stopBatchTest('Подключение разорвано');
+        }
       });
 
       ws.addEventListener('error', () => {
@@ -1785,7 +1805,12 @@
         setStatus(false);
         setError('WebSocket error.');
         logLine('connect.error');
-        if (typeof stopBatchTest === 'function') stopBatchTest('Ошибка сети');
+        if (isBatchTesting) {
+          batchWaitingForReconnect = true;
+          logLine('batch.waiting_reconnect', { index: batchCurrentIndex });
+        } else {
+          if (typeof stopBatchTest === 'function') stopBatchTest('Ошибка сети');
+        }
       });
     }
 
@@ -2106,12 +2131,7 @@
         }
         
         if (isBatchTesting && batchMuteAudio) {
-          // Introduce a 200ms delay in fast evaluation mode to allow any late-arriving text chunks to be processed
-          setTimeout(() => {
-            if (playbackQueue.length === 0 && activeSources.length === 0) {
-              setState(STATES.IDLE);
-            }
-          }, 200);
+          triggerBatchIdleCheck();
         } else {
           if (playbackQueue.length === 0 && activeSources.length === 0) {
             setState(STATES.IDLE);
@@ -2154,6 +2174,19 @@
         }
         promptStatus.textContent = `Prompt config: applied (${payload.prompt_source || 'default'})`;
         renderTextTestControls();
+        
+        // Resume batch test if waiting for reconnect
+        if (isBatchTesting && batchWaitingForReconnect) {
+          batchWaitingForReconnect = false;
+          logLine('batch.resuming', { index: batchCurrentIndex });
+          setState(STATES.IDLE);
+          const currentQuestion = batchQuestions[batchCurrentIndex];
+          textTestInput.value = currentQuestion;
+          autoGrowInput();
+          setTimeout(() => {
+            submitTextTurn();
+          }, 1000); // 1-second delay to let the session stabilize
+        }
       } else if (payload.type === 'transcript.model') {
         if (isLateEvent(payload)) {
           dropProviderEvent(payload, 'late_model_transcript_after_cancellation');
@@ -2179,6 +2212,9 @@
           
           if (isBatchTesting) {
             batchLastAnswer = modelTranscriptBuffer;
+            if (batchMuteAudio) {
+              triggerBatchIdleCheck();
+            }
           }
         }
       } else if (payload.type === 'error') {
