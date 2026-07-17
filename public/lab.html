@@ -1190,8 +1190,10 @@
     let modelRefusalTriggered = false;
     let batchCompleteTimeout = null;
     let batchWaitingForReconnect = false;
+    let audioEndReceived = false;
 
     function triggerBatchIdleCheck() {
+      if (!audioEndReceived) return; // Wait until audio.end is received!
       if (batchCompleteTimeout) clearTimeout(batchCompleteTimeout);
       batchCompleteTimeout = setTimeout(() => {
         if (playbackQueue.length === 0 && activeSources.length === 0) {
@@ -1475,6 +1477,7 @@
       modelTranscript.textContent = 'Model transcript: -';
       modelTranscriptBuffer = ''; // Clear accumulated response buffer
       modelRefusalTriggered = false;
+      audioEndReceived = false;
       if (batchCompleteTimeout) {
         clearTimeout(batchCompleteTimeout);
         batchCompleteTimeout = null;
@@ -2131,6 +2134,7 @@
         }
         
         if (isBatchTesting && batchMuteAudio) {
+          audioEndReceived = true;
           triggerBatchIdleCheck();
         } else {
           if (playbackQueue.length === 0 && activeSources.length === 0) {
