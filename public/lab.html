@@ -286,6 +286,45 @@
     .send-text-button { width: 100%; min-height: 44px; }
     .text-test-note { color: var(--muted); font-size: 12px; line-height: 1.45; }
 
+    .realtime-lab-accordion {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(21, 27, 49, 0.92);
+      overflow: hidden;
+    }
+    .realtime-lab-accordion summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 58px;
+      padding: 0 18px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 800;
+      list-style: none;
+      user-select: none;
+    }
+    .realtime-lab-accordion summary::-webkit-details-marker { display: none; }
+    .realtime-lab-accordion summary::after {
+      content: '›';
+      color: var(--muted);
+      font-size: 32px;
+      line-height: 1;
+      transform: rotate(0deg);
+      transition: transform 160ms ease, color 160ms ease;
+    }
+    .realtime-lab-accordion summary:hover::after { color: var(--text); }
+    .realtime-lab-accordion[open] summary {
+      border-bottom: 1px solid var(--line);
+    }
+    .realtime-lab-accordion[open] summary::after { transform: rotate(90deg); }
+    .realtime-lab-content {
+      display: grid;
+      gap: 16px;
+      padding: 16px;
+    }
+
     @media (max-width: 820px) {
       .grid,
       .ids,
@@ -339,6 +378,9 @@
         <div id="trackInfo" hidden aria-live="polite"></div>
       </div>
 
+      <details class="realtime-lab-accordion wide">
+        <summary>Realtime LAB</summary>
+        <div class="realtime-lab-content">
       <div class="panel wide">
         <h2>Realtime Prompt Lab</h2>
         <div id="promptStatus" class="pill">Prompt config: loading</div>
@@ -399,6 +441,8 @@
         <h2>Events</h2>
         <div id="log" class="log"></div>
       </div>
+        </div>
+      </details>
     </section>
   </main>
 
@@ -842,6 +886,12 @@
           codec: 'pcm16',
           sampleRate: 16000,
           config: buildPromptConfigPayload(),
+          // Full prompt text in session.ready/session.config.applied is
+          // only sent when explicitly requested — needed here to populate
+          // the CORE/CHILD/PARENT textareas below, but skipped by default
+          // for every other client (ESP32's WS buffer can't take a ~23KB
+          // frame). See realtimeServer.js's promptDebugRequested.
+          include_prompt_debug: true,
         });
         logLine('connect.open');
       });
