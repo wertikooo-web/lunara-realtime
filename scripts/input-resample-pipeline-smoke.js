@@ -105,6 +105,18 @@ function connectWs() {
                 }
                 connected = true;
                 clearTimeout(timer);
+                // The server can write session.ready in the same TCP segment
+                // as the HTTP upgrade response (both go out synchronously on
+                // connect) — any bytes after the \r\n\r\n marker are already a
+                // WS frame, not a fresh chunk, and must be parsed here or
+                // session.ready is silently lost. (Pre-existing gap in this
+                // harness, only surfaced once a test actually waited on
+                // session.ready — scripts/ptt-lifecycle-regression.js's
+                // connectWs() already has this handling.)
+                const rest = handshake.subarray(marker + 4);
+                if (rest.length > 0) {
+                    parseServerFrames(parserState, rest, (text) => events.push(JSON.parse(text)));
+                }
                 resolve({
                     events,
                     sendJson(payload) {
@@ -360,6 +372,38 @@ async function main() {
                 const samples = totalBytes(session) / 2;
                 assert.ok(samples >= 3980 && samples <= 4020, `turn ${turn}: unexpected sample count ${samples}`);
             }
+            client.close();
+        }
+
+        // --- 8. session.ready is ALWAYS lightweight (no lab_prompt.defaults),
+        //        include_prompt_debug or not — it fires before session.start
+        //        even arrives, so the flag can't be known yet at that point.
+        //        session.config.applied without include_prompt_debug is also
+        //        lightweight (no applied_blocks). This is the actual root
+        //        cause found in production: a ~23KB default payload silently
+        //        exceeded an ESP32 WebSocket client's receive buffer, so only
+        //        the tiny provider.rotated event ever arrived.
+        {
+            const client = await connectWs();
+            const ready = await client.waitFor('session.ready');
+            assert.strictEqual(ready.lab_prompt.defaults, undefined, 'session.ready must never include lab_prompt.defaults');
+            client.sendJson({ type: 'session.start', deviceId: 'pipeline-no-debug', sampleRate: 24000 });
+            const applied = await client.waitFor('session.config.applied');
+            assert.strictEqual(applied.lab_prompt.applied_blocks, undefined, 'session.config.applied must omit lab_prompt.applied_blocks by default');
+            const appliedBytes = Buffer.byteLength(JSON.stringify(applied), 'utf8');
+            assert.ok(appliedBytes < 2000, `default session.config.applied should be small, got ${appliedBytes} bytes`);
+            client.close();
+        }
+
+        // --- 9. include_prompt_debug: true (what lab.html now sends explicitly)
+        //        restores the full prompt text in session.config.applied only —
+        //        session.ready stays lightweight even here (see case 8's comment).
+        {
+            const client = await connectWs();
+            await client.waitFor('session.ready');
+            client.sendJson({ type: 'session.start', deviceId: 'pipeline-with-debug', sampleRate: 24000, include_prompt_debug: true });
+            const applied = await client.waitFor('session.config.applied');
+            assert.ok(typeof applied.lab_prompt.applied_blocks?.core_prompt === 'string' && applied.lab_prompt.applied_blocks.core_prompt.length > 1000, 'session.config.applied must include full applied_blocks.core_prompt when requested');
             client.close();
         }
 

@@ -360,6 +360,19 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     // null means "no device settings fetched yet / memory disabled" — content
     // tools are not gated in that case, matching pre-memory behavior.
     let allowedContentSettings = null;
+    // Full prompt text (core_prompt/child_context/parent_rules, tens of KB
+    // combined — up to LAB_PROMPT_MAX_CHARS per block) is only useful for
+    // Browser Lab's debug text boxes. Embedded clients (ESP32) never need
+    // it and their WebSocket libraries commonly have receive buffers far
+    // smaller than a ~23KB JSON frame, which silently drops the whole
+    // message — verified against real device_settings-sized payloads: a
+    // typical session.config.applied was ~23.8KB against provider.rotated's
+    // ~640 bytes. Read from session.start (see the handler below), so it
+    // only ever affects session.config.applied's applied_blocks — session.
+    // ready fires before session.start even arrives and is unconditionally
+    // lightweight regardless of this flag (see safePromptPayload()).
+    // Defaults to false; lab.html sends include_prompt_debug: true.
+    let promptDebugRequested = false;
     // Live date/time/weather for the [CURRENT CONTEXT] prompt block, refreshed
     // on every session.start from device_settings.timezone/city (see below).
     let cachedLocalDateTime = null;
@@ -1171,7 +1184,17 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             allow_custom_prompt: LAB_ALLOW_CUSTOM_PROMPT,
             max_chars: LAB_PROMPT_MAX_CHARS,
             source: promptSource,
-            defaults: defaultPromptBlocks(),
+            // `defaults` (full core/child/parent prompt text, tens of KB) is
+            // UNCONDITIONALLY omitted here — this function only feeds
+            // session.ready, which is emitted once right after the socket
+            // connects, before the client has sent session.start at all. So
+            // promptDebugRequested (read from session.start) can never be
+            // true yet at this point in the connection's life; making this
+            // conditional on it would be dead code that looks configurable
+            // but never actually is. lab.html gets full defaults from
+            // GET /lab-config on page load instead (see lab.html's
+            // loadDefaultCorePrompt/config.defaults) and keeps that value on
+            // session.ready via `|| labPrompt.defaults`.
             current_context: prompt.blocks.currentContext,
             meta: prompt.meta,
         };
@@ -1208,11 +1231,16 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 // device_settings/child_profiles in Postgres, not just the
                 // client-sent config or hardcoded defaults) — lets the Lab UI
                 // show what's really driving the model instead of only hashes.
-                applied_blocks: {
+                // Tens of KB combined — only sent when the client explicitly
+                // asked for it (promptDebugRequested). This is what made
+                // session.config.applied ~23.8KB by default and silently
+                // exceed embedded WebSocket client receive buffers (measured
+                // against provider.rotated's ~640 bytes for comparison).
+                ...(promptDebugRequested ? { applied_blocks: {
                     core_prompt: prompt.blocks.corePrompt,
                     child_context: prompt.blocks.childContext,
                     parent_rules: prompt.blocks.parentRules,
-                },
+                } } : {}),
             },
         });
         log('prompt_config_applied', {
@@ -2149,6 +2177,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     registerConnection(deviceId, sessionId, connectionInfo);
                 }
             }
+            // Explicit opt-in only — see the promptDebugRequested declaration
+            // above for why this must never be silently assumed true.
+            promptDebugRequested = payload.include_prompt_debug === true;
             (async () => {
                 try {
                     // Working-hours enforcement gate: refuse the session.start
