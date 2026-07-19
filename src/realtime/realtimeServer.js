@@ -82,15 +82,42 @@ function normalizeRotationMode(value) {
     return DEFAULT_ROTATION_MODE;
 }
 
+function checkExplicitLanguageRequest(text) {
+    const lower = String(text || '').toLowerCase();
+    
+    // Russian requests
+    if (lower.includes('говори') || lower.includes('перейди') || lower.includes('давай') || lower.includes('включи')) {
+        if (lower.includes('английск') || lower.includes('english')) return 'en';
+        if (lower.includes('румынск') || lower.includes('romana') || lower.includes('молдавск') || lower.includes('роман')) return 'ro';
+        if (lower.includes('русск') || lower.includes('russian')) return 'ru';
+    }
+    
+    // English requests
+    if (lower.includes('speak') || lower.includes('switch to') || lower.includes('change to') || lower.includes('talk in')) {
+        if (lower.includes('english')) return 'en';
+        if (lower.includes('russian') || lower.includes('rus')) return 'ru';
+        if (lower.includes('romanian') || lower.includes('romana')) return 'ro';
+    }
+    
+    // Romanian requests
+    if (lower.includes('vorbeste') || lower.includes('treci pe') || lower.includes('schimba pe')) {
+        if (lower.includes('engleza') || lower.includes('english')) return 'en';
+        if (lower.includes('rusa') || lower.includes('russian') || lower.includes('rus')) return 'ru';
+        if (lower.includes('romana') || lower.includes('română')) return 'ro';
+    }
+    
+    return null;
+}
+
 const LANGUAGE_PATTERNS = [
     { language: 'uk', pattern: /[\u0404\u0406\u0407\u0490\u0454\u0456\u0457\u0491]/u, weight: 5 },
     { language: 'ru', pattern: /[\u0400-\u04FF]/u, weight: 3 },
     { language: 'ro', pattern: /[\u0103\u00E2\u00EE\u0219\u021B\u0102\u00C2\u00CE\u0218\u021A]/u, weight: 4 },
-    { language: 'en', pattern: /\b(the|and|you|hello|please|story|game|speak|english|what|why|how)\b/i, weight: 2 },
-    { language: 'ro', pattern: /\b(spune|vreau|buna|salut|joc|poveste|romana|vorbeste)\b/i, weight: 3 },
+    { language: 'en', pattern: /\b(the|and|you|hello|hi|please|story|game|speak|english|what|why|how|yes|ok|okay|play|tell|riddle|song)\b/i, weight: 2 },
+    { language: 'ro', pattern: /\b(spune|vreau|buna|salut|joc|poveste|romana|vorbeste|da|nu|ce|de ce|cum|te rog|ghicitoare)\b/i, weight: 3 },
 ];
-const MIN_LANGUAGE_SWITCH_SIGNIFICANT_WORDS = Number(process.env.LANGUAGE_SWITCH_MIN_WORDS || 3);
-const LANGUAGE_SWITCH_CONFIRMATIONS = Number(process.env.LANGUAGE_SWITCH_CONFIRMATIONS || 2);
+const MIN_LANGUAGE_SWITCH_SIGNIFICANT_WORDS = 1;
+const LANGUAGE_SWITCH_CONFIRMATIONS = 1;
 const LANGUAGE_NOISE_WORDS = new Set([
     'ok', 'okay', 'yes', 'yeah', 'no', 'not', 'the', 'and', 'you', 'please',
     '\u0434\u0430', '\u043d\u0435\u0442', '\u0430\u0433\u0430', '\u0443\u0433\u0443', '\u043d\u0443', '\u043e\u0439', '\u044d\u0439', '\u0430\u043b\u043b\u043e',
@@ -104,12 +131,12 @@ const CONVERSATION_LANGUAGE_LABELS = {
 
 function languageSignificantWords(text) {
     return (String(text || '').toLowerCase().match(/[\p{L}]+/gu) || [])
-        .filter((word) => word.length >= 3 && !LANGUAGE_NOISE_WORDS.has(word));
+        .filter((word) => word.length >= 2 && !LANGUAGE_NOISE_WORDS.has(word));
 }
 
 function detectLikelyLanguage(text) {
     const sample = String(text || '').trim();
-    if (sample.length < 4) return null;
+    if (sample.length < 2) return null;
     const scores = new Map();
     for (const { language, pattern, weight } of LANGUAGE_PATTERNS) {
         if (pattern.test(sample)) {
@@ -118,12 +145,12 @@ function detectLikelyLanguage(text) {
     }
     const asciiLetters = sample.match(/[a-z]/gi)?.length || 0;
     const cyrillicLetters = sample.match(/[\u0400-\u04FF]/gu)?.length || 0;
-    if (asciiLetters >= 8 && asciiLetters > cyrillicLetters * 2) {
+    if (asciiLetters >= 4 && asciiLetters > cyrillicLetters * 2) {
         scores.set('en', (scores.get('en') || 0) + 2);
     }
     const ranked = Array.from(scores.entries()).sort((a, b) => b[1] - a[1]);
-    if (ranked.length === 0 || ranked[0][1] < 3) return null;
-    if (ranked[1] && ranked[0][1] - ranked[1][1] < 2) return null;
+    if (ranked.length === 0 || ranked[0][1] < 2) return null;
+    if (ranked[1] && ranked[0][1] - ranked[1][1] < 1) return null;
     return ranked[0][0];
 }
 
@@ -134,7 +161,7 @@ function detectLanguageSignal(text) {
     return {
         language,
         significantWordCount,
-        confident: significantWordCount >= MIN_LANGUAGE_SWITCH_SIGNIFICANT_WORDS,
+        confident: true,
     };
 }
 
@@ -671,9 +698,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         const text = String(generation.userTranscriptBuffer || '').trim();
         if (!text) return;
         rememberTurn('user', text);
-        if (configuredConversationLanguage === 'auto') {
-            noteUserLanguage(text, generation);
-        }
+        noteUserLanguage(text, generation);
         log('user_transcript_finalized', {
             generationId: generation.generationId,
             turnId: generation.turnId,
@@ -688,10 +713,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             currentContext: {
                 mode: currentMode,
                 sessionLanguage: sessionLanguage || 'auto',
-                languageInstruction: configuredConversationLanguage !== 'auto'
-                    ? `Always understand and reply in the parent-selected conversation language: ${CONVERSATION_LANGUAGE_LABELS[configuredConversationLanguage]}. Do not switch to another language because of an uncertain transcription or accent. Keep the same voice identity.`
-                    : sessionLanguage
+                languageInstruction: sessionLanguage
                     ? `Continue in the last clearly understood child language: ${sessionLanguage}. Keep the same voice identity.`
+                    : configuredConversationLanguage !== 'auto'
+                    ? `Always understand and reply in the parent-selected conversation language: ${CONVERSATION_LANGUAGE_LABELS[configuredConversationLanguage]}. Do not switch to another language because of an uncertain transcription or accent. Keep the same voice identity.`
                     : 'No stable child language has been established yet. Follow the last clearly understood child utterance.',
                 recentTurns,
                 localDateTime: cachedLocalDateTime,
@@ -1399,70 +1424,55 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function noteUserLanguage(text, generation) {
-        if (configuredConversationLanguage !== 'auto') return;
+        // 1. Explicit language request (high priority)
+        const explicitLang = checkExplicitLanguageRequest(text);
+        if (explicitLang) {
+            const previousLanguage = sessionLanguage;
+            if (previousLanguage !== explicitLang) {
+                scheduleLanguageSwitch(
+                    previousLanguage || 'auto',
+                    explicitLang,
+                    generation,
+                    { language: explicitLang, significantWordCount: 3, confident: true },
+                    'explicit_request',
+                    1
+                );
+            }
+            return;
+        }
+
+        // 2. Regular language detection
         const signal = detectLanguageSignal(text);
         if (!signal) return;
         const detectedLanguage = signal.language;
         const previousLanguage = sessionLanguage;
+
         if (!previousLanguage) {
-            if (!signal.confident) {
-                pendingLanguageCandidate = pendingLanguageCandidate?.language === detectedLanguage
-                    ? { language: detectedLanguage, count: pendingLanguageCandidate.count + 1 }
-                    : { language: detectedLanguage, count: 1 };
-                if (pendingLanguageCandidate.count < LANGUAGE_SWITCH_CONFIRMATIONS) {
-                    log('language_candidate_waiting', {
-                        generationId: generation?.generationId || 'none',
-                        turnId: generation?.turnId || 'none',
-                        language: detectedLanguage,
-                        significantWordCount: signal.significantWordCount,
-                        confirmationCount: pendingLanguageCandidate.count,
-                        action: 'wait_for_confirmation',
-                    });
-                    return;
-                }
-            }
             sessionLanguage = detectedLanguage;
-            pendingLanguageCandidate = null;
             log('language_detected', {
                 generationId: generation?.generationId || 'none',
                 turnId: generation?.turnId || 'none',
                 language: detectedLanguage,
                 significantWordCount: signal.significantWordCount,
-                confirmationCount: signal.confident ? 1 : LANGUAGE_SWITCH_CONFIRMATIONS,
-                action: signal.confident ? 'set_initial' : 'set_initial_confirmed',
+                confirmationCount: 1,
+                action: 'set_initial',
             });
             return;
         }
+
         if (previousLanguage === detectedLanguage) {
-            pendingLanguageCandidate = null;
             return;
         }
-        if (signal.confident) {
-            scheduleLanguageSwitch(previousLanguage, detectedLanguage, generation, signal, 'confident_transcript', 1);
-            return;
-        }
-        pendingLanguageCandidate = pendingLanguageCandidate?.from === previousLanguage && pendingLanguageCandidate?.to === detectedLanguage
-            ? { from: previousLanguage, to: detectedLanguage, count: pendingLanguageCandidate.count + 1 }
-            : { from: previousLanguage, to: detectedLanguage, count: 1 };
-        log('language_switch_candidate', {
-            generationId: generation?.generationId || 'none',
-            turnId: generation?.turnId || 'none',
-            from: previousLanguage,
-            to: detectedLanguage,
-            significantWordCount: signal.significantWordCount,
-            confirmationCount: pendingLanguageCandidate.count,
-            action: 'wait_for_confirmation',
-        });
-        if (pendingLanguageCandidate.count >= LANGUAGE_SWITCH_CONFIRMATIONS) {
-            scheduleLanguageSwitch(
-                previousLanguage,
-                detectedLanguage,
-                generation,
-                signal,
-                'consecutive_confirmation',
-                pendingLanguageCandidate.count,
-            );
-        }
+
+        // Switch immediately on the first phrase!
+        scheduleLanguageSwitch(
+            previousLanguage,
+            detectedLanguage,
+            generation,
+            signal,
+            'immediate_switch_first_phrase',
+            1
+        );
     }
 
     function applyPendingLanguageSwitchBeforeInput() {
