@@ -386,6 +386,8 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let currentMode = 'push_to_talk';
     let turnCounter = 0;
     let socketClosed = false;
+    let clientCloseFrame = null;
+    let socketErrorMessage = '';
     let providerClosed = false;
     let readySent = false;
     const rotationMode = normalizeRotationMode(providerMetadata.rotationMode);
@@ -2516,11 +2518,27 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         onPing(payload) {
             sendPong(socket, payload);
         },
-        onClose() {
+        onClose(details = {}) {
+            clientCloseFrame = {
+                code: Number.isInteger(details.code) ? details.code : null,
+                reason: String(details.reason || '').replace(/[\r\n\t]/g, ' ').slice(0, 123),
+            };
+            log('ws_close_frame_received', {
+                closeCode: clientCloseFrame.code ?? 'none',
+                closeReason: clientCloseFrame.reason || 'none',
+                turnId: currentTurnId || 'none',
+                generationId: currentGeneration?.generationId || 'none',
+                providerInstanceId: providerSession?.instanceId || 'none',
+            });
             closeProvider('client_close');
             sendClose(socket);
         },
         onError(error) {
+            log('ws_parse_error', {
+                message: error.message,
+                turnId: currentTurnId || 'none',
+                generationId: currentGeneration?.generationId || 'none',
+            });
             emit({
                 type: 'error',
                 code: 'ws_parse_error',
@@ -2531,16 +2549,35 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
 
     socket.on('data', (chunk) => parser.push(chunk));
     socket.on('error', (error) => {
+        socketErrorMessage = String(error.message || error.code || 'socket_error').slice(0, 200);
         closeProvider('socket_error');
-        log('socket_error', { message: error.message });
+        log('socket_error', {
+            message: socketErrorMessage,
+            code: error.code || 'none',
+            turnId: currentTurnId || 'none',
+            generationId: currentGeneration?.generationId || 'none',
+        });
     });
-    socket.on('close', () => {
+    socket.on('close', (hadError) => {
         socketClosed = true;
         closeProvider('disconnect');
         unregisterConnection(deviceId, sessionId);
         if (usageTickTimer) clearInterval(usageTickTimer);
         flushUsageTicks(true).catch((error) => log('usage_final_flush_error', { message: error.message }));
-        log('disconnect', { connectedMs: Date.now() - connectedAt });
+        log('disconnect', {
+            connectedMs: Date.now() - connectedAt,
+            source: clientCloseFrame ? 'client_close_frame' : (hadError || socketErrorMessage ? 'transport_error' : 'transport_end'),
+            closeCode: clientCloseFrame?.code ?? 'none',
+            closeReason: clientCloseFrame?.reason || 'none',
+            hadError: Boolean(hadError),
+            socketError: socketErrorMessage || 'none',
+            bytesRead: socket.bytesRead || 0,
+            bytesWritten: socket.bytesWritten || 0,
+            turnId: currentTurnId || 'none',
+            generationId: currentGeneration?.generationId || 'none',
+            generationStatus: currentGeneration?.status || 'none',
+            providerInstanceId: providerSession?.instanceId || 'none',
+        });
     });
 
     emit({

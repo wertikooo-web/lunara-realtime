@@ -95,7 +95,13 @@ function createFrameParser(handlers) {
             } else if (opcode === 0x2) {
                 handlers.onBinary?.(payload);
             } else if (opcode === 0x8) {
-                handlers.onClose?.();
+                if (payload.length === 1) {
+                    handlers.onError?.(new Error('Invalid WebSocket close payload'));
+                    return;
+                }
+                const code = payload.length >= 2 ? payload.readUInt16BE(0) : null;
+                const reason = payload.length > 2 ? payload.subarray(2).toString('utf8') : '';
+                handlers.onClose?.({ code, reason });
                 return;
             } else if (opcode === 0x9) {
                 handlers.onPing?.(payload);
@@ -145,4 +151,3 @@ module.exports = {
     sendPong,
     sendClose,
 };
-
