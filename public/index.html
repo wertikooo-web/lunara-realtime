@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f1020">
+  <title>Lunara Realtime</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      font-family: Inter, Arial, sans-serif;
+      color: #f7f3ff;
+      background: radial-gradient(circle at top, #2b1b52 0, #0f1020 48%, #090a14 100%);
+    }
+    main { width: min(760px, 100%); }
+    .brand { margin-bottom: 22px; }
+    h1 { margin: 0 0 8px; font-size: clamp(30px, 6vw, 48px); }
+    p { margin: 0; color: #bcaee6; line-height: 1.5; }
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card {
+      display: flex;
+      min-height: 150px;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+      color: inherit;
+      text-decoration: none;
+      border: 1px solid #49337d;
+      border-radius: 16px;
+      background: rgba(25, 20, 46, .92);
+      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .card:hover, .card:focus-visible {
+      transform: translateY(-3px);
+      border-color: #a78bfa;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, .28);
+      outline: none;
+    }
+    .icon { font-size: 30px; }
+    strong { display: block; margin: 12px 0 5px; font-size: 18px; }
+    small { color: #a999d6; line-height: 1.4; }
+    footer { margin-top: 18px; color: #75679e; font-size: 12px; }
+    @media (max-width: 650px) { .cards { grid-template-columns: 1fr; } .card { min-height: 118px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <h1>Lunara Realtime</h1>
+      <p>Выберите нужный раздел.</p>
+    </div>
+    <nav class="cards" aria-label="Разделы Lunara Realtime">
+      <a class="card" href="/parent">
+        <span class="icon" aria-hidden="true">⚙️</span>
+        <span><strong>Панель родителей</strong><small>Настройки игрушки, языка, профиля и безопасности.</small></span>
+      </a>
+      <a class="card" href="/lab">
+        <span class="icon" aria-hidden="true">🎙️</span>
+        <span><strong>Realtime Lab</strong><small>Тестирование диалогов и realtime-протокола.</small></span>
+      </a>
+      <a class="card" href="/health">
+        <span class="icon" aria-hidden="true">●</span>
+        <span><strong>Статус сервера</strong><small>Техническое состояние сервиса и список endpoints.</small></span>
+      </a>
+    </nav>
+    <footer>Lunara Realtime Service</footer>
+  </main>
+</body>
+</html>

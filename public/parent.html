@@ -158,7 +158,7 @@
     <label for="deviceIdInput" data-i18n="deviceIdLabel">ID устройства</label>
     <div class="device-selector-row">
       <input id="deviceIdInput" maxlength="128" autocomplete="off" spellcheck="false" data-i18n-placeholder="deviceIdPlaceholder" placeholder="Серийный номер устройства">
-      <button type="button" data-i18n="deviceIdOpen" onclick="openDeviceProfile()">Открыть</button>
+      <button id="deviceIdSelectButton" type="button" onclick="selectDeviceProfile()">Загрузить настройки</button>
     </div>
     <div id="deviceIdStatus" class="small" data-i18n="deviceIdHint">Настройки сохраняются только для указанного устройства.</div>
   </section>
@@ -665,10 +665,28 @@ const DEVICE_ID = /^[A-Za-z0-9_-]{1,128}$/.test(requestedDeviceId)
 let baseRestrictionsText = '';
 let serverReachable = false;
 
-function openDeviceProfile() {
+function updateDeviceSelectorState() {
+  const input = document.getElementById('deviceIdInput');
+  const button = document.getElementById('deviceIdSelectButton');
+  const status = document.getElementById('deviceIdStatus');
+  if (!input || !button || !status) return;
+  const isCurrent = input.value.trim() === DEVICE_ID;
+  button.disabled = isCurrent;
+  button.textContent = translate(isCurrent ? 'deviceIdSelected' : 'deviceIdLoad');
+  if (isCurrent) {
+    status.classList.remove('error');
+    status.textContent = translate('deviceIdCurrentHint');
+  }
+}
+
+function selectDeviceProfile() {
   const input = document.getElementById('deviceIdInput');
   const status = document.getElementById('deviceIdStatus');
   const value = String(input?.value || '').trim();
+  if (value === DEVICE_ID) {
+    updateDeviceSelectorState();
+    return;
+  }
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
     status.classList.add('error');
     status.textContent = translate('deviceIdInvalid');
@@ -1679,7 +1697,7 @@ function downloadTranscript(format) {
 // --- i18n ---------------------------------------------------------------
 const I18N = {
   ru: {
-    deviceIdLabel: 'ID устройства', deviceIdPlaceholder: 'Серийный номер устройства', deviceIdOpen: 'Открыть', deviceIdHint: 'Настройки сохраняются только для указанного устройства.', deviceIdInvalid: 'Введите корректный ID: латинские буквы, цифры, дефис или подчёркивание.',
+    deviceIdLabel: 'ID устройства', deviceIdPlaceholder: 'Серийный номер устройства', deviceIdLoad: 'Загрузить настройки', deviceIdSelected: 'Выбрано', deviceIdHint: 'Настройки сохраняются только для указанного устройства.', deviceIdCurrentHint: 'Открыты настройки указанного устройства.', deviceIdInvalid: 'Введите корректный ID: латинские буквы, цифры, дефис или подчёркивание.',
     title: 'Родительский контроль: ЛУМИ', heroTitle: 'Луми под вашим контролем',
     heroText: 'Настройте характер, память, профили детей, разрешённый контент и время работы игрушки.',
     profilesTitle: 'Профили', profilesHint: 'Можно сохранить текущие настройки как отдельный профиль ребёнка и быстро переключаться между ними.',
@@ -1784,7 +1802,7 @@ const I18N = {
     resetAllOk: 'Все данные удалены',
   },
   ro: {
-    deviceIdLabel: 'ID dispozitiv', deviceIdPlaceholder: 'Numărul de serie al dispozitivului', deviceIdOpen: 'Deschide', deviceIdHint: 'Setările sunt salvate numai pentru dispozitivul specificat.', deviceIdInvalid: 'Introduceți un ID valid: litere latine, cifre, cratimă sau underscore.',
+    deviceIdLabel: 'ID dispozitiv', deviceIdPlaceholder: 'Numărul de serie al dispozitivului', deviceIdLoad: 'Încarcă setările', deviceIdSelected: 'Selectat', deviceIdHint: 'Setările sunt salvate numai pentru dispozitivul specificat.', deviceIdCurrentHint: 'Sunt deschise setările dispozitivului indicat.', deviceIdInvalid: 'Introduceți un ID valid: litere latine, cifre, cratimă sau underscore.',
     title: 'Control parental: LUMI', heroTitle: 'Lumi sub controlul tău',
     heroText: 'Configurează caracterul, memoria, profilurile copiilor, conținutul permis și programul jucăriei.',
     profilesTitle: 'Profiluri', profilesHint: 'Poți salva setările curente ca profil separat de copil și comuta rapid între ele.',
@@ -1889,7 +1907,7 @@ const I18N = {
     resetAllOk: 'Toate datele au fost șterse',
   },
   en: {
-    deviceIdLabel: 'Device ID', deviceIdPlaceholder: 'Device serial number', deviceIdOpen: 'Open', deviceIdHint: 'Settings are saved only for the specified device.', deviceIdInvalid: 'Enter a valid ID using letters, numbers, hyphen, or underscore.',
+    deviceIdLabel: 'Device ID', deviceIdPlaceholder: 'Device serial number', deviceIdLoad: 'Load settings', deviceIdSelected: 'Selected', deviceIdHint: 'Settings are saved only for the specified device.', deviceIdCurrentHint: 'Settings for this device are open.', deviceIdInvalid: 'Enter a valid ID using letters, numbers, hyphen, or underscore.',
     title: 'Parent control: LUMI', heroTitle: 'Lumi under your control',
     heroText: 'Configure character, memory, child profiles, allowed content, and the toy’s working hours.',
     profilesTitle: 'Profiles', profilesHint: 'You can save the current settings as a separate child profile and switch between them quickly.',
@@ -2020,6 +2038,7 @@ function setUiLanguage(lang) {
   uiLang = I18N[lang] ? lang : 'ru';
   localStorage.setItem(UI_LANG_KEY, uiLang);
   applyTranslations();
+  updateDeviceSelectorState();
 }
 
 // --- init -----------------------------------------------------------------
@@ -2159,8 +2178,9 @@ async function init() {
   document.getElementById('uiLanguage').value = uiLang;
   document.getElementById('deviceIdInput').value = DEVICE_ID;
   document.getElementById('deviceIdInput').addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') openDeviceProfile();
+    if (event.key === 'Enter') selectDeviceProfile();
   });
+  document.getElementById('deviceIdInput').addEventListener('input', updateDeviceSelectorState);
   populateVoiceSelect();
   refreshProfilesSelect();
 
@@ -2175,6 +2195,7 @@ async function init() {
   applyCurrentToForm();
   initLearningMasterCheckboxLogic();
   applyTranslations();
+  updateDeviceSelectorState();
   renderMemoryList();
 
   document.querySelectorAll('main input, main select, main textarea').forEach((el) => {

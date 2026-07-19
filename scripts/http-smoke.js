@@ -37,6 +37,20 @@ function get(pathname) {
     });
 }
 
+async function waitForServer() {
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+        try {
+            const response = await get('/health');
+            if (response.statusCode === 200) return response;
+        } catch (error) {
+            // The child process may still be starting; retry until deadline.
+        }
+        await sleep(100);
+    }
+    throw new Error('server_start_timeout');
+}
+
 async function main() {
     const child = spawn(process.execPath, ['src/server.js'], {
         cwd: process.cwd(),
@@ -51,10 +65,14 @@ async function main() {
     child.stderr.on('data', (chunk) => process.stderr.write(chunk));
 
     try {
-        await sleep(250);
-        const health = await get('/health');
+        const health = await waitForServer();
         if (health.statusCode !== 200 || !health.body.includes('lunara-realtime-lab')) {
             throw new Error(`Bad /health response: ${health.statusCode}`);
+        }
+
+        const home = await get('/');
+        if (home.statusCode !== 200 || !home.body.includes('Панель родителей') || !home.body.includes('Realtime Lab')) {
+            throw new Error(`Bad / response: ${home.statusCode}`);
         }
 
         const lab = await get('/lab');

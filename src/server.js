@@ -125,15 +125,18 @@ const server = http.createServer(async (req, res) => {
         });
     }
 
-    if (req.method === 'GET' && req.url === '/') {
-        return sendJson(res, 200, {
-            name: 'Lunara Realtime Lab',
-            status: 'realtime-ready',
-            provider,
-            model: providerFactory.metadata.model,
-            endpoints: KNOWN_ENDPOINTS,
-            next: 'Open /lab in a browser and test streaming.',
-        });
+    if (req.method === 'GET' && pathname === '/') {
+        const filePath = path.join(publicDir, 'index.html');
+        fs.createReadStream(filePath)
+            .on('error', () => sendJson(res, 500, { ok: false, error: 'home_not_available' }))
+            .once('open', () => {
+                res.writeHead(200, {
+                    'content-type': 'text/html; charset=utf-8',
+                    'cache-control': 'no-store',
+                });
+            })
+            .pipe(res);
+        return undefined;
     }
 
     if (req.method === 'GET' && req.url === '/lab-config') {
