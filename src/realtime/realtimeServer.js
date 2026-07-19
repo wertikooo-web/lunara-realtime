@@ -715,10 +715,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             currentContext: {
                 mode: currentMode,
                 sessionLanguage: sessionLanguage || 'auto',
-                languageInstruction: sessionLanguage
-                    ? `Continue in the last clearly understood child language: ${sessionLanguage}. Keep the same voice identity.`
-                    : configuredConversationLanguage !== 'auto'
+                languageInstruction: configuredConversationLanguage !== 'auto'
                     ? `Always understand and reply in the parent-selected conversation language: ${CONVERSATION_LANGUAGE_LABELS[configuredConversationLanguage]}. Do not switch to another language because of an uncertain transcription or accent. Keep the same voice identity.`
+                    : sessionLanguage
+                    ? `Continue in the last clearly understood child language: ${sessionLanguage}. Keep the same voice identity.`
                     : 'No stable child language has been established yet. Follow the last clearly understood child utterance.',
                 recentTurns,
                 localDateTime: cachedLocalDateTime,
@@ -1426,6 +1426,10 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function noteUserLanguage(text, generation) {
+        // A parent-selected language is authoritative for the whole session.
+        // Transcription mistakes must never override it or rotate the provider.
+        if (configuredConversationLanguage !== 'auto') return;
+
         // 1. Explicit language request (high priority)
         const explicitLang = checkExplicitLanguageRequest(text);
         if (explicitLang) {
@@ -1478,6 +1482,11 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function applyPendingLanguageSwitchBeforeInput() {
+        if (configuredConversationLanguage !== 'auto') {
+            pendingLanguageSwitch = null;
+            pendingLanguageCandidate = null;
+            return;
+        }
         if (!pendingLanguageSwitch) return;
         const languageSwitch = pendingLanguageSwitch;
         pendingLanguageSwitch = null;
