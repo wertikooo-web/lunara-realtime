@@ -8,6 +8,7 @@ const INPUT_MIME_TYPE = 'audio/pcm;rate=16000';
 const INPUT_SAMPLE_RATE = 16000;
 const BYTES_PER_PCM16_SAMPLE = 2;
 const MIN_VALID_PCM_BYTES = 4;
+const MAX_OUTBOUND_PCM_CHUNK_BYTES = 4096;
 const DEFAULT_TAIL_FRAME_MS = 20;
 const STALE_TURN_COMPLETE_GRACE_MS = Math.max(0, Number(process.env.GEMINI_STALE_TURN_COMPLETE_GRACE_MS || 15000));
 const INVALID_PCM_LOG_EVERY = Math.max(1, Number(process.env.GEMINI_INVALID_PCM_LOG_EVERY || 20));
@@ -1063,18 +1064,22 @@ class GeminiLiveProviderSession {
                 });
             }
 
-            const chunkIndex = this.active.chunkIndex;
-            this.active.chunkIndex += 1;
-            this.active.onAudioChunk({
-                type: 'audio.chunk',
-                response_id: this.active.responseId,
-                turn_id: this.active.turnId,
-                chunk_index: chunkIndex,
-                mime_type: 'audio/pcm',
-                sample_rate: 24000,
-                audio_base64: audioBase64,
-                elapsed_ms: Date.now() - this.active.startedAt,
-            });
+            const pcm = Buffer.from(audioBase64, 'base64');
+            for (let offset = 0; offset < pcm.length; offset += MAX_OUTBOUND_PCM_CHUNK_BYTES) {
+                if (this.active.signal.cancelled) break;
+                const chunkIndex = this.active.chunkIndex;
+                this.active.chunkIndex += 1;
+                this.active.onAudioChunk({
+                    type: 'audio.chunk',
+                    response_id: this.active.responseId,
+                    turn_id: this.active.turnId,
+                    chunk_index: chunkIndex,
+                    mime_type: 'audio/pcm',
+                    sample_rate: 24000,
+                    audio_base64: pcm.subarray(offset, offset + MAX_OUTBOUND_PCM_CHUNK_BYTES).toString('base64'),
+                    elapsed_ms: Date.now() - this.active.startedAt,
+                });
+            }
         }
 
         if (content.generationComplete) {
@@ -1221,4 +1226,5 @@ module.exports = {
     describeSpeechConfigShape,
     normalizeRotationMode,
     MIN_VALID_PCM_BYTES,
+    MAX_OUTBOUND_PCM_CHUNK_BYTES,
 };

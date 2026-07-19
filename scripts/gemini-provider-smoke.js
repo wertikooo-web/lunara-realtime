@@ -3,6 +3,7 @@
 const {
     GeminiLiveProvider,
     MIN_VALID_PCM_BYTES,
+    MAX_OUTBOUND_PCM_CHUNK_BYTES,
     MODEL_ID,
     DEFAULT_GEMINI_LIVE_VOICE,
     areContentToolsEnabled,
@@ -156,6 +157,29 @@ async function main() {
     });
     if (!emitted.find((event) => event.type === 'audio.start')) {
         throw new Error('Valid PCM chunk must emit audio.start');
+    }
+    const largePcm = Buffer.alloc((MAX_OUTBOUND_PCM_CHUNK_BYTES * 2) + 2);
+    const splitEvents = [];
+    first.active.onAudioChunk = (event) => splitEvents.push(event);
+    first.handleMessage({
+        serverContent: {
+            modelTurn: {
+                parts: [{ inlineData: { data: largePcm.toString('base64') } }],
+            },
+        },
+    });
+    if (splitEvents.length !== 3) {
+        throw new Error(`Large PCM must be split into 3 audio chunks, got ${splitEvents.length}`);
+    }
+    const reconstructedPcm = Buffer.concat(splitEvents.map((event) => Buffer.from(event.audio_base64, 'base64')));
+    if (!reconstructedPcm.equals(largePcm)) {
+        throw new Error('Split audio chunks must preserve the exact PCM byte sequence');
+    }
+    if (splitEvents.some((event) => Buffer.byteLength(event.audio_base64, 'base64') > MAX_OUTBOUND_PCM_CHUNK_BYTES)) {
+        throw new Error('Split audio chunk exceeded the outbound PCM size limit');
+    }
+    if (!splitEvents.every((event, index) => event.chunk_index === index + 1)) {
+        throw new Error('Split audio chunks must keep a continuous chunk_index sequence');
     }
     first.handleMessage({
         serverContent: {
