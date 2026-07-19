@@ -872,6 +872,12 @@
       <!-- Bottom panel with status, text input composer and PTT microphone -->
       <div class="bottom">
         <!-- Connection button centered -->
+        <!-- Device ID Input -->
+        <div class="device-id-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+          <label for="deviceIdInput" style="font-size: 0.65rem; color: #a999d6; font-family: 'Comfortaa', sans-serif;">Device ID:</label>
+          <input id="deviceIdInput" type="text" value="synthetic-lab-device" style="background: rgba(16, 12, 32, 0.6); border: 1.5px solid #2f2258; border-radius: 12px; color: #fff; padding: 4px 8px; font-size: 0.65rem; font-family: 'Comfortaa', sans-serif; width: 140px; text-align: center;">
+        </div>
+
         <button id="connectBtn" class="btn-connect-mockup" type="button">Connect</button>
 
         <!-- Status and route -->
@@ -1817,7 +1823,7 @@
         textConfigReady = false;
         sendJson({
           type: 'session.start',
-          deviceId: 'synthetic-lab-device',
+          deviceId: document.getElementById('deviceIdInput')?.value?.trim() || 'synthetic-lab-device',
           lang: 'ru-RU',
           codec: 'pcm16',
           sampleRate: 16000,
