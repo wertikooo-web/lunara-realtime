@@ -1120,7 +1120,8 @@
     let reconnectCount = 0;
     let playbackQueue = [];
     let activeSources = [];
-    let playing = false;
+    let nextPlaybackTime = 0;
+    let isScheduling = false;
     let recordingTimer = null;
     let pttTimeoutTimer = null;
     let interruptStartedAt = 0;
@@ -2125,7 +2126,7 @@
       }
       activeSources = [];
       playbackQueue = [];
-      playing = false;
+      nextPlaybackTime = 0;
       if (reason === 'manual_interrupt' && droppedFromQueue > 0) {
         chunksDropped += droppedFromQueue;
         updateMetricCounters();
@@ -2499,28 +2500,42 @@
     }
 
     function playNext() {
-      if (playing || playbackQueue.length === 0 || !audioContext) return;
-      playing = true;
-      const buffer = playbackQueue.shift();
-      const node = audioContext.createBufferSource();
-      node.buffer = buffer;
-      node.connect(audioContext.destination);
-      activeSources.push(node);
-      node.onended = () => {
-        activeSources = activeSources.filter((item) => item !== node);
-        chunksPlayed += 1;
-        updateMetricCounters();
-        playing = false;
-        if (playbackQueue.length === 0 && activeSources.length === 0) {
-          if (isBatchTesting) {
-            advanceBatchTest();
-          } else if (lifecycleState === STATES.PLAYING) {
-            setState(STATES.IDLE);
+      if (isScheduling || !audioContext) return;
+      isScheduling = true;
+      try {
+        while (playbackQueue.length > 0) {
+          const buffer = playbackQueue.shift();
+          const node = audioContext.createBufferSource();
+          node.buffer = buffer;
+          node.connect(audioContext.destination);
+          activeSources.push(node);
+
+          if (nextPlaybackTime < audioContext.currentTime) {
+            // Add 20ms lookahead to prevent underruns
+            nextPlaybackTime = audioContext.currentTime + 0.02;
           }
+
+          const playTime = nextPlaybackTime;
+          nextPlaybackTime += buffer.duration;
+
+          node.onended = () => {
+            activeSources = activeSources.filter((item) => item !== node);
+            chunksPlayed += 1;
+            updateMetricCounters();
+            if (playbackQueue.length === 0 && activeSources.length === 0) {
+              if (isBatchTesting) {
+                advanceBatchTest();
+              } else if (lifecycleState === STATES.PLAYING) {
+                setState(STATES.IDLE);
+              }
+            }
+          };
+
+          node.start(playTime);
         }
-        playNext();
-      };
-      node.start();
+      } finally {
+        isScheduling = false;
+      }
     }
 
     function capturePointer(event) {
