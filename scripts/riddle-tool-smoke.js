@@ -160,11 +160,12 @@ class RiddleToolProviderSession {
             wrong_answer: '\u043a\u0430\u043c\u0435\u043d\u044c',
             correct_answer: '\u043b\u044f\u0433\u0443\u0448\u043a\u0430',
             ask_after_complete: '\u0417\u0430\u0433\u0430\u0434\u0430\u0439 \u0437\u0430\u0433\u0430\u0434\u043a\u0443',
+            greeting_misfire: '\u041b\u0443\u043d\u0430\u0440\u0430, \u043f\u0440\u0438\u0432\u0435\u0442',
         };
         if (context.turnId !== 'ask_again_active') {
             context.onEvent({ type: 'transcript.user', response_id: context.responseId, turn_id: context.turnId, text: textByTurn[context.turnId] || 'test' });
         }
-        if (context.turnId === 'ask_riddle' || context.turnId === 'ask_again_active' || context.turnId === 'ask_after_complete') {
+        if (context.turnId === 'ask_riddle' || context.turnId === 'ask_again_active' || context.turnId === 'ask_after_complete' || context.turnId === 'greeting_misfire') {
             const result = await this.toolHandlers.get_riddle({
                 args: context.turnId === 'ask_riddle' ? { topic: '\u043b\u044f\u0433\u0443\u0448\u043a\u0430', language: 'ru' } : { language: 'ru' },
                 generationId: context.generationId,
@@ -230,6 +231,8 @@ async function main() {
         await runTurn(client, 'ask_after_complete');
         await client.waitFor('activity.started', (event) => event.turn_id === 'ask_after_complete');
         assert.strictEqual(provider.sessions[0].toolResults.length, 3, 'new riddle should be allowed after completion');
+        await runTurn(client, 'greeting_misfire');
+        assert.strictEqual(provider.sessions[0].toolResults[3].error, 'riddle_not_requested', 'greeting must not start a riddle');
 
         client.close();
         console.log('[riddle-tool-smoke] ok');

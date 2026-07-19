@@ -26,14 +26,14 @@ const SETTINGS_TEXT_FIELDS = [
     'character_style', 'address_style', 'reply_length', 'energy_level',
     'humor_level', 'initiative_level', 'custom_character_notes',
     'content_mode', 'preferred_themes', 'blocked_themes', 'sensitive_themes',
-    'story_length', 'scary_elements', 'timezone', 'city',
+    'story_length', 'scary_elements', 'conversation_language', 'timezone', 'city',
 ];
 const SETTINGS_TEXT_LIMITS = {
     toy_name: 40, toy_type: 40, custom_toy_type: 40, toy_gender: 12, voice_name: 40, voice_speed: 12,
     character_style: 40, address_style: 20, reply_length: 20, energy_level: 20,
     humor_level: 20, initiative_level: 20, custom_character_notes: 500,
     content_mode: 30, preferred_themes: 200, blocked_themes: 200, sensitive_themes: 200,
-    story_length: 20, scary_elements: 20, timezone: 60, city: 80,
+    story_length: 20, scary_elements: 20, conversation_language: 8, timezone: 60, city: 80,
 };
 const DEFAULT_TIMEZONE = 'Europe/Chisinau';
 
@@ -150,6 +150,7 @@ async function init() {
             sensitive_themes TEXT DEFAULT '',
             story_length TEXT DEFAULT 'up_to_1min',
             scary_elements TEXT DEFAULT 'off',
+            conversation_language TEXT DEFAULT 'auto',
             daily_limit_enabled BOOLEAN DEFAULT false,
             daily_limit_minutes INTEGER DEFAULT 0,
             night_mode_enabled BOOLEAN DEFAULT false,
@@ -174,6 +175,7 @@ async function init() {
             ADD COLUMN IF NOT EXISTS custom_prompt_enabled BOOLEAN DEFAULT false,
             ADD COLUMN IF NOT EXISTS custom_prompt_text TEXT DEFAULT '',
             ADD COLUMN IF NOT EXISTS custom_toy_type TEXT DEFAULT '',
+            ADD COLUMN IF NOT EXISTS conversation_language TEXT DEFAULT 'auto',
             ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'Europe/Chisinau',
             ADD COLUMN IF NOT EXISTS city TEXT DEFAULT '';
     `);

@@ -243,6 +243,15 @@
         <div id="voicePreviewStatus" class="status"></div>
       </div>
       <div class="grid-full">
+        <label data-i18n="conversationLanguage">Язык общения игрушки</label>
+        <select id="conversationLanguage">
+          <option value="auto" data-i18n="conversationLanguageAuto">Автоматически по речи ребёнка</option>
+          <option value="ru" data-i18n="conversationLanguageRu">Русский</option>
+          <option value="ro" data-i18n="conversationLanguageRo">Română</option>
+          <option value="en" data-i18n="conversationLanguageEn">English</option>
+        </select>
+      </div>
+      <div class="grid-full">
         <label id="volumeLabel" data-i18n="volumeLabel">Громкость голоса</label>
         <div class="range-row">
           <input id="volumeLevel" type="range" min="2" max="10" step="1" value="7" oninput="document.getElementById('volumeLevelValue').textContent=this.value">
@@ -631,9 +640,13 @@ function voiceNames() { return GEMINI_VOICES.map((v) => v.name); }
 
 const STORAGE_KEY = 'lunara_parent_profiles_v1';
 const UI_LANG_KEY = 'lunara_parent_ui_lang';
-// Matches the deviceId lab.html already sends in session.start (see
-// public/lab.html) — this lab build only supports one live profile for now.
-const DEVICE_ID = 'browser-lab';
+// Parent settings and the realtime session must use the same deviceId. A
+// physical toy opens this page with ?deviceId=<serial>; Browser Lab keeps its
+// own isolated synthetic profile when the query parameter is absent.
+const requestedDeviceId = new URLSearchParams(location.search).get('deviceId') || '';
+const DEVICE_ID = /^[A-Za-z0-9_-]{1,128}$/.test(requestedDeviceId)
+  ? requestedDeviceId
+  : 'synthetic-lab-device';
 let baseRestrictionsText = '';
 let serverReachable = false;
 
@@ -643,6 +656,7 @@ const BASE_SETTINGS = {
   customToyType: '',
   toyGender: 'female',
   voiceName: DEFAULT_VOICE,
+  conversationLanguage: 'auto',
   voiceSpeed: 'normal',
   volumeLevel: 7,
   childName: '',
@@ -883,6 +897,7 @@ function readFormIntoCurrent() {
   current.customToyType = document.getElementById('customToyType').value.trim();
   current.toyGender = document.getElementById('toyGender').value;
   current.voiceName = document.getElementById('voiceName').value || DEFAULT_VOICE;
+  current.conversationLanguage = document.getElementById('conversationLanguage').value || 'auto';
   current.voiceSpeed = document.getElementById('voiceSpeed').value;
   current.volumeLevel = Number(document.getElementById('volumeLevel').value);
 
@@ -950,6 +965,7 @@ function applyCurrentToForm() {
   toggleCustomToyType();
   document.getElementById('toyGender').value = current.toyGender;
   document.getElementById('voiceName').value = voiceNames().includes(current.voiceName) ? current.voiceName : DEFAULT_VOICE;
+  document.getElementById('conversationLanguage').value = ['auto', 'ru', 'ro', 'en'].includes(current.conversationLanguage) ? current.conversationLanguage : 'auto';
   document.getElementById('voiceSpeed').value = current.voiceSpeed;
   document.getElementById('volumeLevel').value = current.volumeLevel;
   document.getElementById('volumeLevelValue').textContent = current.volumeLevel;
@@ -1023,8 +1039,9 @@ function applyCurrentToForm() {
 
 // Строит текст блока [PARENT SETTINGS / RESTRICTIONS] в формате, совместимом
 // с buildRealtimeSystemInstruction() из src/realtime/realtimePrompt.js.
-// LANGUAGE-секция сюда не добавляется: CORE PROMPT уже определяет
-// follow-the-child-language поведение, дублировать его здесь нельзя.
+// Conversation language is applied separately by realtimeServer from the
+// structured conversation_language setting; this generated restrictions
+// preview intentionally does not duplicate that system-level instruction.
 // Client-side mirror of src/memory/store.js formatParentRulesAddition() —
 // used as an offline fallback default for the editable restrictionsAddition
 // field when the server can't be reached. CHILD PROFILE and MEMORY are
@@ -1641,6 +1658,7 @@ const I18N = {
     toyTitle: 'Игрушка', toyName: 'Имя игрушки', toyType: 'Тип персонажа', toyTypeCustom: 'Свой тип персонажа',
     toyGender: 'Пол Луми', genderFemale: 'Женский', genderMale: 'Мужской', voiceSpeed: 'Скорость речи',
     speedSlow: 'Медленно', speedNormal: 'Нормально', speedFast: 'Быстро', voiceLabel: 'Голос Gemini Live',
+    conversationLanguage: 'Язык общения игрушки', conversationLanguageAuto: 'Автоматически по речи ребёнка', conversationLanguageRu: 'Русский', conversationLanguageRo: 'Română', conversationLanguageEn: 'English',
     voicePreviewButton: 'Прослушать голос', voicePreviewTitle: 'Предпросмотр голоса будет подключён на следующем этапе',
     volumeLabel: 'Громкость голоса',
     childTitle: 'Ребёнок', childName: 'Имя ребёнка', ageGroup: 'Возрастная группа', childGender: 'Пол ребёнка (необязательно)',
@@ -1744,6 +1762,7 @@ const I18N = {
     toyTitle: 'Jucărie', toyName: 'Numele jucăriei', toyType: 'Tip personaj', toyTypeCustom: 'Tip personaj personalizat',
     toyGender: 'Genul lui Lumi', genderFemale: 'Feminin', genderMale: 'Masculin', voiceSpeed: 'Viteza vorbirii',
     speedSlow: 'Încet', speedNormal: 'Normal', speedFast: 'Rapid', voiceLabel: 'Voce Gemini Live',
+    conversationLanguage: 'Limba de comunicare a jucăriei', conversationLanguageAuto: 'Automat după vorbirea copilului', conversationLanguageRu: 'Русский', conversationLanguageRo: 'Română', conversationLanguageEn: 'English',
     voicePreviewButton: 'Ascultă vocea', voicePreviewTitle: 'Previzualizarea vocii va fi adăugată în etapa următoare',
     volumeLabel: 'Volumul vocii',
     childTitle: 'Copil', childName: 'Numele copilului', ageGroup: 'Grupa de vârstă', childGender: 'Genul copilului (opțional)',
@@ -1847,6 +1866,7 @@ const I18N = {
     toyTitle: 'Toy', toyName: 'Toy name', toyType: 'Character type', toyTypeCustom: 'Custom character type',
     toyGender: 'Lumi’s gender', genderFemale: 'Female', genderMale: 'Male', voiceSpeed: 'Speech speed',
     speedSlow: 'Slow', speedNormal: 'Normal', speedFast: 'Fast', voiceLabel: 'Gemini Live voice',
+    conversationLanguage: 'Toy conversation language', conversationLanguageAuto: "Automatically follow the child's speech", conversationLanguageRu: 'Русский', conversationLanguageRo: 'Română', conversationLanguageEn: 'English',
     voicePreviewButton: 'Preview voice', voicePreviewTitle: 'Voice preview will be added in the next stage',
     volumeLabel: 'Voice volume',
     childTitle: 'Child', childName: 'Child name', ageGroup: 'Age group', childGender: 'Child gender (optional)',
@@ -1973,7 +1993,7 @@ function setUiLanguage(lang) {
 // device_settings (server, snake_case) -> current (client, camelCase).
 const SETTINGS_FIELD_MAP = {
   toy_name: 'toyName', toy_type: 'toyType', custom_toy_type: 'customToyType', toy_gender: 'toyGender',
-  voice_name: 'voiceName', voice_speed: 'voiceSpeed', volume_level: 'volumeLevel',
+  voice_name: 'voiceName', voice_speed: 'voiceSpeed', volume_level: 'volumeLevel', conversation_language: 'conversationLanguage',
   character_style: 'characterStyle', address_style: 'addressStyle', reply_length: 'replyLength',
   energy_level: 'energyLevel', humor_level: 'humorLevel', initiative_level: 'initiativeLevel',
   custom_character_notes: 'customCharacterNotes', content_mode: 'contentMode',

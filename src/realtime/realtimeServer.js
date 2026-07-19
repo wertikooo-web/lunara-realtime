@@ -96,6 +96,11 @@ const LANGUAGE_NOISE_WORDS = new Set([
     '\u0434\u0430', '\u043d\u0435\u0442', '\u0430\u0433\u0430', '\u0443\u0433\u0443', '\u043d\u0443', '\u043e\u0439', '\u044d\u0439', '\u0430\u043b\u043b\u043e',
     'lumi', 'lunara', 'google', 'gemini',
 ]);
+const CONVERSATION_LANGUAGE_LABELS = {
+    ru: 'Russian (ru-RU)',
+    ro: 'Romanian (ro-RO)',
+    en: 'English (en-US)',
+};
 
 function languageSignificantWords(text) {
     return (String(text || '').toLowerCase().match(/[\p{L}]+/gu) || [])
@@ -269,6 +274,7 @@ function createGeneration({ turnId }) {
         firstModelEventAt: 0,
         firstValidAudioAt: 0,
         userTranscriptBuffer: '',
+        userTranscriptFinalized: false,
         memoryExtractionStarted: false,
         safetyCheckStarted: false,
     };
@@ -361,6 +367,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let promptApplyCount = 0;
     let lateProviderEventsDropped = 0;
     let sessionLanguage = null;
+    let configuredConversationLanguage = 'auto';
     let pendingLanguageSwitch = null;
     let pendingLanguageCandidate = null;
     const contentToolsEnabled = areContentToolsEnabled(providerMetadata.contentToolsEnabled);
@@ -658,13 +665,32 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         }
     }
 
+    function finalizeUserTranscript(generation) {
+        if (!generation || generation.userTranscriptFinalized) return;
+        generation.userTranscriptFinalized = true;
+        const text = String(generation.userTranscriptBuffer || '').trim();
+        if (!text) return;
+        rememberTurn('user', text);
+        if (configuredConversationLanguage === 'auto') {
+            noteUserLanguage(text, generation);
+        }
+        log('user_transcript_finalized', {
+            generationId: generation.generationId,
+            turnId: generation.turnId,
+            chars: text.length,
+            languageMode: configuredConversationLanguage,
+        });
+    }
+
     function buildPromptBundle() {
         return buildRealtimeSystemInstruction({
             ...promptBlocks,
             currentContext: {
                 mode: currentMode,
                 sessionLanguage: sessionLanguage || 'auto',
-                languageInstruction: sessionLanguage
+                languageInstruction: configuredConversationLanguage !== 'auto'
+                    ? `Always understand and reply in the parent-selected conversation language: ${CONVERSATION_LANGUAGE_LABELS[configuredConversationLanguage]}. Do not switch to another language because of an uncertain transcription or accent. Keep the same voice identity.`
+                    : sessionLanguage
                     ? `Continue in the last clearly understood child language: ${sessionLanguage}. Keep the same voice identity.`
                     : 'No stable child language has been established yet. Follow the last clearly understood child utterance.',
                 recentTurns,
@@ -715,6 +741,21 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 providerInstanceId: providerInstanceId || 'unknown',
             });
             return { error: 'stale_generation' };
+        }
+        const userText = String(currentGeneration.userTranscriptBuffer || '').trim();
+        const explicitRiddleRequest = /\b(riddle|riddles)\b|загад|ghicitoare|ghicitori/iu.test(userText);
+        if (userText && !explicitRiddleRequest) {
+            log('riddle_tool_rejected', {
+                reason: 'no_explicit_user_request',
+                generationId,
+                turnId,
+                transcriptChars: userText.length,
+                providerInstanceId: providerInstanceId || 'unknown',
+            });
+            return {
+                error: 'riddle_not_requested',
+                message: 'The child did not explicitly ask for a riddle. Answer the actual utterance without starting a riddle.',
+            };
         }
         if (activeActivity?.type === 'riddle') {
             log('riddle_tool_rejected', {
@@ -1358,6 +1399,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     }
 
     function noteUserLanguage(text, generation) {
+        if (configuredConversationLanguage !== 'auto') return;
         const signal = detectLanguageSignal(text);
         if (!signal) return;
         const detectedLanguage = signal.language;
@@ -1768,8 +1810,6 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
             generation.userTranscriptBuffer += String(payload.text || '');
         }
         if (eventType === 'transcript.user' && generation.inputEndedAt && !generation.firstInputTranscriptionAt) {
-            rememberTurn('user', payload.text);
-            noteUserLanguage(payload.text, generation);
             generation.firstInputTranscriptionAt = Date.now();
             log('provider_input_transcription_received', {
                 generationId: generation.generationId,
@@ -1810,6 +1850,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         if (eventType === 'audio.end') {
             generation.status = 'completed';
             clearGenerationTimeout(generation);
+            finalizeUserTranscript(generation);
             maybeExtractMemory(generation);
             maybeCheckOutputSafety(generation, assistantTranscriptBuffer);
             rememberTurn('assistant', assistantTranscriptBuffer);
@@ -2298,6 +2339,18 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                             promptBlocks = { ...promptBlocks, childContext: dbChildContext };
                         }
                         if (dbSettings) {
+                            configuredConversationLanguage = ['ru', 'ro', 'en'].includes(dbSettings.conversation_language)
+                                ? dbSettings.conversation_language
+                                : 'auto';
+                            sessionLanguage = configuredConversationLanguage === 'auto'
+                                ? null
+                                : configuredConversationLanguage;
+                            pendingLanguageSwitch = null;
+                            pendingLanguageCandidate = null;
+                            log('session_language_applied', {
+                                deviceId,
+                                mode: configuredConversationLanguage,
+                            });
                             // Rebuilt fresh from current device_settings columns on every
                             // session.start (not a frozen snapshot) — this is what makes
                             // character/content/time dropdowns in the parent panel take
