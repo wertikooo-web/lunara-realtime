@@ -181,6 +181,15 @@ async function main() {
     if (!splitEvents.every((event, index) => event.chunk_index === index + 1)) {
         throw new Error('Split audio chunks must keep a continuous chunk_index sequence');
     }
+    const largestOutboundJson = JSON.stringify({
+        session_id: 'session_0123456789abcdef',
+        server_time_ms: Date.now(),
+        ...splitEvents[0],
+        generation_id: 'generation_0123456789abcdef',
+    });
+    if (Buffer.byteLength(largestOutboundJson) >= 4096) {
+        throw new Error(`Outbound audio.chunk JSON must fit a 4 KiB receive buffer, got ${Buffer.byteLength(largestOutboundJson)} bytes`);
+    }
     first.handleMessage({
         serverContent: {
             generationComplete: true,
