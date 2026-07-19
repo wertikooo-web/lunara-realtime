@@ -62,6 +62,11 @@ async function main() {
             throw new Error(`Bad /lab response: ${lab.statusCode}`);
         }
 
+        const parentForDevice = await get('/parent?deviceId=smoke-device-123');
+        if (parentForDevice.statusCode !== 200 || !parentForDevice.body.includes('deviceIdInput')) {
+            throw new Error(`Bad /parent?deviceId response: ${parentForDevice.statusCode}`);
+        }
+
         console.log('[HttpSmoke] ok');
     } finally {
         child.kill();

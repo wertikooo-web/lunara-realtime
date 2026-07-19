@@ -16,6 +16,10 @@
   section { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; }
   .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
   .top-language-select { width: auto; padding: 8px 11px; background: #8b5cf6; border-color: #c4a7ff; font-weight: 700; color: #fff; }
+  .device-selector { margin-top: 0; }
+  .device-selector-row { display: flex; gap: 10px; align-items: end; }
+  .device-selector-row input { flex: 1; font-family: Consolas, monospace; }
+  .device-selector-row button { margin: 0; white-space: nowrap; }
   label { display: block; font-size: 13px; color: #c9b8ff; margin: 12px 0 5px; }
   input, select, textarea {
     width: 100%; box-sizing: border-box; border: 1px solid #57408f; border-radius: 8px;
@@ -37,6 +41,7 @@
   .range-row input { margin: 0; }
   .range-row span { color: #f7f3ff; font-weight: 700; text-align: center; }
   .small { color: #a999d6; font-size: 12px; line-height: 1.35; }
+  .small.error { color: #fecaca; }
   .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
   .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: #f7f3ff; }
   .checks input { width: auto; }
@@ -132,6 +137,7 @@
   section.collapsed > *:not(h2) { display: none !important; }
   @media (max-width: 700px) {
     .grid, .checks, .runtime-grid { grid-template-columns: 1fr; }
+    .device-selector-row { align-items: stretch; flex-direction: column; }
     .hero { grid-template-columns: 72px 1fr; }
     .hero .badge { width: 72px; height: 72px; }
   }
@@ -147,6 +153,15 @@
       <option value="en">ENG — English</option>
     </select>
   </div>
+
+  <section class="device-selector">
+    <label for="deviceIdInput" data-i18n="deviceIdLabel">ID устройства</label>
+    <div class="device-selector-row">
+      <input id="deviceIdInput" maxlength="128" autocomplete="off" spellcheck="false" data-i18n-placeholder="deviceIdPlaceholder" placeholder="Серийный номер устройства">
+      <button type="button" data-i18n="deviceIdOpen" onclick="openDeviceProfile()">Открыть</button>
+    </div>
+    <div id="deviceIdStatus" class="small" data-i18n="deviceIdHint">Настройки сохраняются только для указанного устройства.</div>
+  </section>
 
   <section class="hero">
     <div class="badge"></div>
@@ -649,6 +664,21 @@ const DEVICE_ID = /^[A-Za-z0-9_-]{1,128}$/.test(requestedDeviceId)
   : 'synthetic-lab-device';
 let baseRestrictionsText = '';
 let serverReachable = false;
+
+function openDeviceProfile() {
+  const input = document.getElementById('deviceIdInput');
+  const status = document.getElementById('deviceIdStatus');
+  const value = String(input?.value || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
+    status.classList.add('error');
+    status.textContent = translate('deviceIdInvalid');
+    input?.focus();
+    return;
+  }
+  const url = new URL(location.href);
+  url.searchParams.set('deviceId', value);
+  location.assign(url.toString());
+}
 
 const BASE_SETTINGS = {
   toyName: 'Луми',
@@ -1649,6 +1679,7 @@ function downloadTranscript(format) {
 // --- i18n ---------------------------------------------------------------
 const I18N = {
   ru: {
+    deviceIdLabel: 'ID устройства', deviceIdPlaceholder: 'Серийный номер устройства', deviceIdOpen: 'Открыть', deviceIdHint: 'Настройки сохраняются только для указанного устройства.', deviceIdInvalid: 'Введите корректный ID: латинские буквы, цифры, дефис или подчёркивание.',
     title: 'Родительский контроль: ЛУМИ', heroTitle: 'Луми под вашим контролем',
     heroText: 'Настройте характер, память, профили детей, разрешённый контент и время работы игрушки.',
     profilesTitle: 'Профили', profilesHint: 'Можно сохранить текущие настройки как отдельный профиль ребёнка и быстро переключаться между ними.',
@@ -1753,6 +1784,7 @@ const I18N = {
     resetAllOk: 'Все данные удалены',
   },
   ro: {
+    deviceIdLabel: 'ID dispozitiv', deviceIdPlaceholder: 'Numărul de serie al dispozitivului', deviceIdOpen: 'Deschide', deviceIdHint: 'Setările sunt salvate numai pentru dispozitivul specificat.', deviceIdInvalid: 'Introduceți un ID valid: litere latine, cifre, cratimă sau underscore.',
     title: 'Control parental: LUMI', heroTitle: 'Lumi sub controlul tău',
     heroText: 'Configurează caracterul, memoria, profilurile copiilor, conținutul permis și programul jucăriei.',
     profilesTitle: 'Profiluri', profilesHint: 'Poți salva setările curente ca profil separat de copil și comuta rapid între ele.',
@@ -1857,6 +1889,7 @@ const I18N = {
     resetAllOk: 'Toate datele au fost șterse',
   },
   en: {
+    deviceIdLabel: 'Device ID', deviceIdPlaceholder: 'Device serial number', deviceIdOpen: 'Open', deviceIdHint: 'Settings are saved only for the specified device.', deviceIdInvalid: 'Enter a valid ID using letters, numbers, hyphen, or underscore.',
     title: 'Parent control: LUMI', heroTitle: 'Lumi under your control',
     heroText: 'Configure character, memory, child profiles, allowed content, and the toy’s working hours.',
     profilesTitle: 'Profiles', profilesHint: 'You can save the current settings as a separate child profile and switch between them quickly.',
@@ -2124,6 +2157,10 @@ function initLearningMasterCheckboxLogic() {
 
 async function init() {
   document.getElementById('uiLanguage').value = uiLang;
+  document.getElementById('deviceIdInput').value = DEVICE_ID;
+  document.getElementById('deviceIdInput').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') openDeviceProfile();
+  });
   populateVoiceSelect();
   refreshProfilesSelect();
 
@@ -2141,7 +2178,7 @@ async function init() {
   renderMemoryList();
 
   document.querySelectorAll('main input, main select, main textarea').forEach((el) => {
-    if (el.id === 'customPromptText' || el.id === 'masterLearningCheckbox') return; // считается отдельно
+    if (el.id === 'customPromptText' || el.id === 'masterLearningCheckbox' || el.id === 'deviceIdInput') return; // считается отдельно
     el.addEventListener('input', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirtyFromElement(el); });
     el.addEventListener('change', () => { readFormIntoCurrent(); renderPreview(); renderStatusOverview(); markBlockDirtyFromElement(el); });
   });

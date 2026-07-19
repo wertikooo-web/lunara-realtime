@@ -169,7 +169,7 @@ const server = http.createServer(async (req, res) => {
         return undefined;
     }
 
-    if (req.method === 'GET' && req.url === '/parent') {
+    if (req.method === 'GET' && pathname === '/parent') {
         const filePath = path.join(publicDir, 'parent.html');
         fs.createReadStream(filePath)
             .on('error', () => sendJson(res, 500, { ok: false, error: 'parent_not_available' }))
