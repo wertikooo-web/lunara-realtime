@@ -187,8 +187,9 @@ async function main() {
         ...splitEvents[0],
         generation_id: 'generation_0123456789abcdef',
     });
-    if (Buffer.byteLength(largestOutboundJson) >= 4096) {
-        throw new Error(`Outbound audio.chunk JSON must fit a 4 KiB receive buffer, got ${Buffer.byteLength(largestOutboundJson)} bytes`);
+    const maxAllowedJsonBytes = MAX_OUTBOUND_PCM_CHUNK_BYTES > 2048 ? 8192 : 4096;
+    if (Buffer.byteLength(largestOutboundJson) >= maxAllowedJsonBytes) {
+        throw new Error(`Outbound audio.chunk JSON must fit a ${maxAllowedJsonBytes / 1024} KiB receive buffer, got ${Buffer.byteLength(largestOutboundJson)} bytes`);
     }
     first.handleMessage({
         serverContent: {
