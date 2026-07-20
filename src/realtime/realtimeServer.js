@@ -39,6 +39,7 @@ const memoryGuard = require('../memory/guard');
 const { extractMemoryActions } = require('../memory/extractor');
 const safetyGuard = require('../memory/safetyGuard');
 const { classifySafetyRisk } = require('../memory/safetyClassifier');
+const { classifyLanguage } = require('./languageClassifier');
 
 function memoryEnabledFromEnv() {
     return /^(1|true|yes|on|enabled)$/i.test(String(process.env.REALTIME_MEMORY_ENABLED || ''));
@@ -116,8 +117,9 @@ const LANGUAGE_PATTERNS = [
     { language: 'en', pattern: /\b(the|and|you|hello|hi|please|story|game|speak|english|what|why|how|yes|ok|okay|play|tell|riddle|song)\b/i, weight: 2 },
     { language: 'ro', pattern: /\b(spune|vreau|buna|salut|joc|poveste|romana|vorbeste|da|nu|ce|de ce|cum|te rog|ghicitoare)\b/i, weight: 3 },
 ];
-const MIN_LANGUAGE_SWITCH_SIGNIFICANT_WORDS = 1;
-const LANGUAGE_SWITCH_CONFIRMATIONS = 1;
+const MIN_LANGUAGE_SWITCH_SIGNIFICANT_WORDS = Math.max(1, Number(process.env.LANGUAGE_SWITCH_MIN_WORDS) || 3);
+const LANGUAGE_SWITCH_CONFIRMATIONS = Math.max(1, Number(process.env.LANGUAGE_SWITCH_CONFIRMATIONS) || 2);
+const LANGUAGE_SWITCH_MIN_CONFIDENCE = Math.max(0, Math.min(1, Number(process.env.LANGUAGE_SWITCH_MIN_CONFIDENCE) || 0.85));
 const LANGUAGE_NOISE_WORDS = new Set([
     'ok', 'okay', 'yes', 'yeah', 'no', 'not', 'the', 'and', 'you', 'please',
     '\u0434\u0430', '\u043d\u0435\u0442', '\u0430\u0433\u0430', '\u0443\u0433\u0443', '\u043d\u0443', '\u043e\u0439', '\u044d\u0439', '\u0430\u043b\u043b\u043e',
@@ -360,11 +362,11 @@ function attachRealtimeServer(server, options = {}) {
         }
 
         if (!acceptWebSocket(req, socket)) return;
-        createRealtimeSession(socket, providerFactory, providerMetadata);
+        createRealtimeSession(socket, providerFactory, providerMetadata, options.languageClassifier || classifyLanguage);
     });
 }
 
-function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
+function createRealtimeSession(socket, providerFactory, providerMetadata = {}, languageClassifier = classifyLanguage) {
     const sessionId = id('session');
     const connectedAt = Date.now();
     let sessionVoiceName = normalizeProviderVoiceName(providerMetadata.defaultVoiceName || providerMetadata.voiceName);
@@ -380,6 +382,15 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let inputStartedAt = 0;
     let inputEndedAt = 0;
     let inputBytes = 0;
+    let rawInputBytes = 0;
+    let rawInputFrames = 0;
+    let firstRawFrameAt = 0;
+    let lastRawFrameAt = 0;
+    let maxRawFrameGapMs = 0;
+    let pcmSampleCount = 0;
+    let pcmSilentSampleCount = 0;
+    let pcmClippedSampleCount = 0;
+    let pcmSquareSum = 0;
     let currentInputChunks = [];
     let currentInputBufferedBytes = 0;
     let sessionInputBytes = 0;
@@ -396,9 +407,11 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
     let promptApplyCount = 0;
     let lateProviderEventsDropped = 0;
     let sessionLanguage = null;
+    let sessionLanguageName = '';
     let configuredConversationLanguage = 'auto';
     let pendingLanguageSwitch = null;
     let pendingLanguageCandidate = null;
+    let languageClassificationQueue = Promise.resolve();
     const contentToolsEnabled = areContentToolsEnabled(providerMetadata.contentToolsEnabled);
     const contentLibrary = providerMetadata.contentLibrary || createContentLibrary(providerMetadata.contentLibraryOptions || {});
     const learningLibrary = providerMetadata.learningLibrary || createLearningLibrary(providerMetadata.learningLibraryOptions || {});
@@ -718,7 +731,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                 languageInstruction: configuredConversationLanguage !== 'auto'
                     ? `Always understand and reply in the parent-selected conversation language: ${CONVERSATION_LANGUAGE_LABELS[configuredConversationLanguage]}. Do not switch to another language because of an uncertain transcription or accent. Keep the same voice identity.`
                     : sessionLanguage
-                    ? `Continue in the last clearly understood child language: ${sessionLanguage}. Keep the same voice identity.`
+                    ? `Continue in the last clearly understood child language: ${sessionLanguageName || sessionLanguage} (${sessionLanguage}). Keep the same voice identity.`
                     : 'No stable child language has been established yet. Follow the last clearly understood child utterance.',
                 recentTurns,
                 localDateTime: cachedLocalDateTime,
@@ -1392,8 +1405,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         });
     }
 
-    function scheduleLanguageSwitch(previousLanguage, nextLanguage, generation, signal, reason, confirmationCount) {
+    function scheduleLanguageSwitch(previousLanguage, nextLanguage, generation, signal, reason, confirmationCount, nextLanguageName = '') {
         sessionLanguage = nextLanguage;
+        sessionLanguageName = nextLanguageName || nextLanguage;
         pendingLanguageSwitch = {
             from: previousLanguage,
             to: nextLanguage,
@@ -1430,55 +1444,72 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         // Transcription mistakes must never override it or rotate the provider.
         if (configuredConversationLanguage !== 'auto') return;
 
-        // 1. Explicit language request (high priority)
-        const explicitLang = checkExplicitLanguageRequest(text);
-        if (explicitLang) {
-            const previousLanguage = sessionLanguage;
-            if (previousLanguage !== explicitLang) {
-                scheduleLanguageSwitch(
-                    previousLanguage || 'auto',
-                    explicitLang,
-                    generation,
-                    { language: explicitLang, significantWordCount: 3, confident: true },
-                    'explicit_request',
-                    1
-                );
-            }
-            return;
-        }
-
-        // 2. Regular language detection
-        const signal = detectLanguageSignal(text);
-        if (!signal) return;
-        const detectedLanguage = signal.language;
-        const previousLanguage = sessionLanguage;
-
-        if (!previousLanguage) {
-            sessionLanguage = detectedLanguage;
-            log('language_detected', {
+        const significantWordCount = languageSignificantWords(text).length;
+        languageClassificationQueue = languageClassificationQueue.then(async () => {
+            const result = await languageClassifier({ text });
+            if (socketClosed) return;
+            log('language_classification_result', {
                 generationId: generation?.generationId || 'none',
                 turnId: generation?.turnId || 'none',
-                language: detectedLanguage,
-                significantWordCount: signal.significantWordCount,
-                confirmationCount: 1,
-                action: 'set_initial',
+                language: result.language || 'unknown',
+                languageName: String(result.languageName || 'unknown').replace(/\s+/g, '_'),
+                confidence: Number(result.confidence || 0).toFixed(3),
+                reliable: Boolean(result.reliable),
+                explicitSwitchRequest: Boolean(result.explicitSwitchRequest),
+                requestedLanguage: result.requestedLanguage || 'none',
+                significantWordCount,
             });
-            return;
-        }
 
-        if (previousLanguage === detectedLanguage) {
-            return;
-        }
-
-        // Switch immediately on the first phrase!
-        scheduleLanguageSwitch(
-            previousLanguage,
-            detectedLanguage,
-            generation,
-            signal,
-            'immediate_switch_first_phrase',
-            1
-        );
+            const targetLanguage = result.explicitSwitchRequest ? result.requestedLanguage : result.language;
+            const targetLanguageName = result.explicitSwitchRequest ? result.requestedLanguageName : result.languageName;
+            if (!targetLanguage) return;
+            if (result.explicitSwitchRequest) {
+                if (sessionLanguage !== targetLanguage) {
+                    scheduleLanguageSwitch(sessionLanguage || 'auto', targetLanguage, generation,
+                        { significantWordCount }, 'explicit_request', 1, targetLanguageName);
+                }
+                return;
+            }
+            if (!result.reliable || result.confidence < LANGUAGE_SWITCH_MIN_CONFIDENCE || significantWordCount < MIN_LANGUAGE_SWITCH_SIGNIFICANT_WORDS) {
+                log('language_candidate_rejected', {
+                    language: targetLanguage,
+                    confidence: Number(result.confidence || 0).toFixed(3),
+                    significantWordCount,
+                    reason: !result.reliable ? 'unreliable' : result.confidence < LANGUAGE_SWITCH_MIN_CONFIDENCE ? 'low_confidence' : 'too_short',
+                });
+                return;
+            }
+            if (!sessionLanguage) {
+                sessionLanguage = targetLanguage;
+                sessionLanguageName = targetLanguageName || targetLanguage;
+                pendingLanguageCandidate = null;
+                log('language_detected', { language: targetLanguage, confidence: result.confidence, action: 'set_initial' });
+                return;
+            }
+            if (sessionLanguage === targetLanguage) {
+                pendingLanguageCandidate = null;
+                return;
+            }
+            const confirmationCount = pendingLanguageCandidate?.language === targetLanguage
+                ? pendingLanguageCandidate.confirmationCount + 1 : 1;
+            pendingLanguageCandidate = { language: targetLanguage, languageName: targetLanguageName, confirmationCount };
+            if (confirmationCount < LANGUAGE_SWITCH_CONFIRMATIONS) {
+                log('language_switch_candidate', {
+                    from: sessionLanguage, to: targetLanguage, confirmationCount,
+                    requiredConfirmations: LANGUAGE_SWITCH_CONFIRMATIONS,
+                });
+                return;
+            }
+            scheduleLanguageSwitch(sessionLanguage, targetLanguage, generation,
+                { significantWordCount }, 'confirmed_language_change', confirmationCount, targetLanguageName);
+        }).catch((error) => {
+            log('language_classification_error', {
+                generationId: generation?.generationId || 'none',
+                turnId: generation?.turnId || 'none',
+                message: String(error.message || error).replace(/\s+/g, '_').slice(0, 160),
+                action: 'preserve_current_language',
+            });
+        });
     }
 
     function applyPendingLanguageSwitchBeforeInput() {
@@ -2044,6 +2075,15 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
         inputStartedAt = Date.now();
         inputEndedAt = 0;
         inputBytes = 0;
+        rawInputBytes = 0;
+        rawInputFrames = 0;
+        firstRawFrameAt = 0;
+        lastRawFrameAt = 0;
+        maxRawFrameGapMs = 0;
+        pcmSampleCount = 0;
+        pcmSilentSampleCount = 0;
+        pcmClippedSampleCount = 0;
+        pcmSquareSum = 0;
         currentInputChunks = [];
         currentInputBufferedBytes = 0;
         // Fresh resampler state for this turn — filter history/interpolation
@@ -2133,6 +2173,26 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
 
         inputEndedAt = Date.now();
         const recordingDurationMs = inputEndedAt - inputStartedAt;
+        const expectedRawBytes = Math.round(recordingDurationMs * inputSampleRate * 2 / 1000);
+        const deliveryRatio = expectedRawBytes > 0 ? rawInputBytes / expectedRawBytes : 0;
+        const effectiveSampleRate = recordingDurationMs > 0 ? Math.round(rawInputBytes / 2 * 1000 / recordingDurationMs) : 0;
+        const rms = pcmSampleCount > 0 ? Math.sqrt(pcmSquareSum / pcmSampleCount) : 0;
+        const rmsDbfs = rms > 0 ? 20 * Math.log10(rms / 32768) : -Infinity;
+        log('input_audio_quality', {
+            turnId: currentTurnId,
+            durationMs: recordingDurationMs,
+            declaredSampleRate: inputSampleRate,
+            expectedRawBytes,
+            receivedRawBytes: rawInputBytes,
+            deliveryRatio: deliveryRatio.toFixed(3),
+            effectiveSampleRate,
+            frameCount: rawInputFrames,
+            maxFrameGapMs: maxRawFrameGapMs,
+            rmsDbfs: Number.isFinite(rmsDbfs) ? rmsDbfs.toFixed(1) : '-inf',
+            silenceRatio: pcmSampleCount ? (pcmSilentSampleCount / pcmSampleCount).toFixed(3) : '0.000',
+            clippingRatio: pcmSampleCount ? (pcmClippedSampleCount / pcmSampleCount).toFixed(5) : '0.00000',
+            quality: deliveryRatio < 0.85 ? 'insufficient_audio_throughput' : maxRawFrameGapMs > 120 ? 'network_gaps' : 'stream_ok',
+        });
         if (!currentGeneration) {
             currentGeneration = createGeneration({ turnId: currentTurnId });
         }
@@ -2469,6 +2529,20 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}) {
                     providerInstanceId: providerSession?.instanceId || 'unknown',
                 });
                 return;
+            }
+            const now = Date.now();
+            if (!firstRawFrameAt) firstRawFrameAt = now;
+            if (lastRawFrameAt) maxRawFrameGapMs = Math.max(maxRawFrameGapMs, now - lastRawFrameAt);
+            lastRawFrameAt = now;
+            rawInputFrames += 1;
+            rawInputBytes += payload.length;
+            for (let offset = 0; offset + 1 < payload.length; offset += 2) {
+                const sample = payload.readInt16LE(offset);
+                const absolute = Math.abs(sample);
+                pcmSampleCount += 1;
+                pcmSquareSum += sample * sample;
+                if (absolute <= 164) pcmSilentSampleCount += 1;
+                if (absolute >= 32700) pcmClippedSampleCount += 1;
             }
             // Resample 24000Hz ESP32 input down to Gemini's 16000Hz before
             // anything downstream sees it (byte counters, the replay buffer

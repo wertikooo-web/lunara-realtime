@@ -243,8 +243,8 @@ class RegressionProviderSession {
         const transcriptByTurn = {
             language_ru_ptt: '\u041f\u0440\u0438\u0432\u0435\u0442, \u0434\u0430\u0432\u0430\u0439 \u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c \u043f\u043e-\u0440\u0443\u0441\u0441\u043a\u0438',
             language_en_ptt: 'hello please speak english now',
-            language_en_short_ptt: 'speak english',
-            language_en_short_confirm_ptt: 'speak english',
+            language_en_short_ptt: 'hello friendly world',
+            language_en_short_confirm_ptt: 'hello friendly world',
         };
         if (context.turnId === 'late_completion_target_ptt') {
             context.onEvent({
@@ -391,6 +391,14 @@ async function main() {
     attachRealtimeServer(server, {
         providerFactory: (sessionOptions) => provider.createSession(sessionOptions),
         providerMetadata: { provider: 'regression', model: 'regression', defaultVoiceName: 'RegressionFemale' },
+        languageClassifier: async ({ text }) => {
+            if (/hello friendly world/i.test(text)) {
+                return { language: 'en', languageName: 'English', confidence: 0.99, reliable: true,
+                    explicitSwitchRequest: false, requestedLanguage: '', requestedLanguageName: '' };
+            }
+            return { language: 'ru', languageName: 'Russian', confidence: 0.99, reliable: true,
+                explicitSwitchRequest: false, requestedLanguage: '', requestedLanguageName: '' };
+        },
     });
 
     await new Promise((resolve) => server.listen(PORT, HOST, resolve));
@@ -708,7 +716,7 @@ async function main() {
 
         const shortLanguageSwitchCandidate = await runTurn(errorsOnlyClient, 'language_en_short_ptt', 1500, { waitForEnd: true });
         expectedAudioBytes += 1500;
-        if (!shortLanguageSwitchCandidate.userTranscript.text.includes('english')) {
+        if (!shortLanguageSwitchCandidate.userTranscript.text.includes('hello')) {
             throw new Error('Short Language EN fixture did not emit the expected transcript');
         }
         if (errorsOnlyClient.events.some((event) => event.type === 'language.switch_detected' && event.from_language === 'ru' && event.to_language === 'en')) {
@@ -723,7 +731,7 @@ async function main() {
 
         const languageEn = await runTurn(errorsOnlyClient, 'language_en_short_confirm_ptt', 1500, { waitForEnd: true });
         expectedAudioBytes += 1500;
-        if (!languageEn.userTranscript.text.includes('english')) {
+        if (!languageEn.userTranscript.text.includes('hello')) {
             throw new Error('Confirmed Language EN fixture did not emit the expected transcript');
         }
         const languageSwitchEvent = await errorsOnlyClient.waitFor(
@@ -731,7 +739,7 @@ async function main() {
             (event) => event.from_language === 'ru' && event.to_language === 'en',
             2000,
         );
-        if (languageSwitchEvent.reason !== 'consecutive_confirmation' || languageSwitchEvent.confirmation_count !== 2) {
+        if (languageSwitchEvent.reason !== 'confirmed_language_change' || languageSwitchEvent.confirmation_count !== 2) {
             throw new Error('Short language switch must require two consecutive confirmations');
         }
         if (languageSwitchEvent.action !== 'rotate_before_next_turn') {
