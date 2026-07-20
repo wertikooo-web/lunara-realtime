@@ -48,6 +48,28 @@ Realtime endpoint:
 ws://localhost:3100/realtime
 ```
 
+## Diagnostic audio capture
+
+Opt-in capture writes two WAV files for each selected device turn: the exact
+PCM received from the device and the 16 kHz PCM produced by the server
+resampler. It is disabled unless every required variable is configured.
+
+```text
+AUDIO_DEBUG_CAPTURE_ENABLED=true
+AUDIO_DEBUG_DEVICE_ID=<exact-device-id>
+AUDIO_DEBUG_TOKEN=<random-secret-with-at-least-24-characters>
+AUDIO_DEBUG_MAX_TURNS=20
+AUDIO_DEBUG_MAX_TURN_SECONDS=30
+AUDIO_DEBUG_RETENTION_HOURS=24
+AUDIO_DEBUG_CAPTURE_DIR=tmp/audio-debug
+```
+
+Send the secret only in the `X-Audio-Debug-Token` header. Never put it in a
+URL. List captures with `GET /api/audio-debug/:deviceId`, download
+`/:captureId/raw` or `/:captureId/resampled`, and delete a capture with
+`DELETE /api/audio-debug/:deviceId/:captureId`. Capture files are local to the
+running container and may disappear on a restart or deployment.
+
 ## Project Shape
 
 - `src/server.js` - minimal lab server with health and status endpoints.

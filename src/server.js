@@ -15,6 +15,7 @@ const {
 const { GEMINI_VOICES, DEFAULT_VOICE_NAME } = require('./geminiVoices');
 const { synthesizeVoicePreview, MAX_PREVIEW_TEXT_CHARS } = require('./voicePreview');
 const memoryStore = require('./memory/store');
+const { AudioDebugStore } = require('./realtime/audioDebugStore');
 
 const MEMORY_ENABLED = /^(1|true|yes|on|enabled)$/i.test(String(process.env.REALTIME_MEMORY_ENABLED || ''));
 let memoryReadyPromise = null;
@@ -29,6 +30,7 @@ function ensureMemoryReady() {
 const PORT = Number(process.env.PORT || 3100);
 const provider = process.env.REALTIME_PROVIDER || 'mock';
 const publicDir = path.join(__dirname, '..', 'public');
+const audioDebugStore = new AudioDebugStore();
 
 function createProviderFactory() {
     if (provider === 'gemini') {
@@ -98,7 +100,7 @@ function readJsonBody(req) {
     });
 }
 
-const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/icons/:filename', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/api/transcripts/:deviceId', '/api/transcripts/:deviceId/export', '/api/session-status/:deviceId', '/realtime'];
+const KNOWN_ENDPOINTS = ['/health', '/', '/lab', '/lab-config', '/parent', '/icons/:filename', '/api/voices', '/api/voice-preview', '/api/memory/:deviceId', '/api/settings/:deviceId', '/api/profiles/:deviceId', '/api/analytics/:deviceId', '/api/transcripts/:deviceId', '/api/transcripts/:deviceId/export', '/api/session-status/:deviceId', '/api/audio-debug/:deviceId', '/realtime'];
 
 const server = http.createServer(async (req, res) => {
     // req.url includes the query string (e.g. "/api/analytics/browser-lab?period=today").
@@ -114,6 +116,45 @@ const server = http.createServer(async (req, res) => {
     // the parsed pathname only; query params are still read from
     // `url.searchParams` exactly as before in each handler.
     const pathname = new URL(req.url, 'http://localhost').pathname;
+
+    const audioDebugMatch = /^\/api\/audio-debug\/([^/]+)(?:\/([^/]+)(?:\/(raw|resampled))?)?\/?$/.exec(pathname);
+    if (audioDebugMatch) {
+        if (!audioDebugStore.isConfigured()) {
+            return sendJson(res, 503, { ok: false, error: 'audio_debug_not_configured' });
+        }
+        if (!audioDebugStore.authorize(req)) {
+            res.setHeader('www-authenticate', 'AudioDebugToken');
+            return sendJson(res, 401, { ok: false, error: 'unauthorized' });
+        }
+        const deviceId = decodeURIComponent(audioDebugMatch[1]);
+        const captureId = audioDebugMatch[2] ? decodeURIComponent(audioDebugMatch[2]) : '';
+        const kind = audioDebugMatch[3] || '';
+        try {
+            if (req.method === 'GET' && !captureId) {
+                return sendJson(res, 200, { ok: true, captures: await audioDebugStore.list(deviceId) });
+            }
+            if (req.method === 'GET' && captureId && kind) {
+                const filePath = audioDebugStore.filePath(deviceId, captureId, kind);
+                if (!filePath || !fs.existsSync(filePath)) return sendJson(res, 404, { ok: false, error: 'not_found' });
+                const stat = await fs.promises.stat(filePath);
+                res.writeHead(200, {
+                    'content-type': 'audio/wav',
+                    'content-length': stat.size,
+                    'content-disposition': `attachment; filename="${kind}-${captureId.replace(/[^a-zA-Z0-9_-]/g, '_')}.wav"`,
+                    'cache-control': 'no-store',
+                });
+                return fs.createReadStream(filePath).pipe(res);
+            }
+            if (req.method === 'DELETE' && captureId && !kind) {
+                const removed = await audioDebugStore.remove(deviceId, captureId);
+                return sendJson(res, removed ? 200 : 404, { ok: removed, ...(removed ? {} : { error: 'not_found' }) });
+            }
+            return sendJson(res, 404, { ok: false, error: 'not_found' });
+        } catch (error) {
+            console.error(`[AudioDebug] request_failed message=${String(error.message || error).replace(/\s+/g, '_')}`);
+            return sendJson(res, 500, { ok: false, error: 'audio_debug_request_failed' });
+        }
+    }
 
     if (req.method === 'GET' && req.url === '/health') {
         return sendJson(res, 200, {
@@ -520,7 +561,7 @@ const server = http.createServer(async (req, res) => {
 
 attachRealtimeServer(server, {
     providerFactory: providerFactory.createSession,
-    providerMetadata: providerFactory.metadata,
+    providerMetadata: { ...providerFactory.metadata, audioDebugStore },
 });
 
 server.listen(PORT, () => {

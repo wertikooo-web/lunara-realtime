@@ -391,6 +391,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
     let pcmSilentSampleCount = 0;
     let pcmClippedSampleCount = 0;
     let pcmSquareSum = 0;
+    let audioDebugCaptureId = null;
     let currentInputChunks = [];
     let currentInputBufferedBytes = 0;
     let sessionInputBytes = 0;
@@ -413,6 +414,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
     let pendingLanguageCandidate = null;
     let languageClassificationQueue = Promise.resolve();
     const contentToolsEnabled = areContentToolsEnabled(providerMetadata.contentToolsEnabled);
+    const audioDebugStore = providerMetadata.audioDebugStore || null;
     const contentLibrary = providerMetadata.contentLibrary || createContentLibrary(providerMetadata.contentLibraryOptions || {});
     const learningLibrary = providerMetadata.learningLibrary || createLearningLibrary(providerMetadata.learningLibraryOptions || {});
     let activeActivity = null;
@@ -2084,6 +2086,9 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
         pcmSilentSampleCount = 0;
         pcmClippedSampleCount = 0;
         pcmSquareSum = 0;
+        audioDebugCaptureId = audioDebugStore?.begin({
+            deviceId, sessionId, turnId: currentTurnId, inputSampleRate,
+        }) || null;
         currentInputChunks = [];
         currentInputBufferedBytes = 0;
         // Fresh resampler state for this turn — filter history/interpolation
@@ -2147,6 +2152,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
         try {
             const tail = inputResampler.flush();
             if (tail.length > 0) {
+                audioDebugStore?.appendResampled(audioDebugCaptureId, tail);
                 inputBytes += tail.length;
                 sessionInputBytes += tail.length;
                 if (currentInputBufferedBytes + tail.length <= MAX_TURN_REPLAY_BYTES) {
@@ -2193,6 +2199,32 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
             clippingRatio: pcmSampleCount ? (pcmClippedSampleCount / pcmSampleCount).toFixed(5) : '0.00000',
             quality: deliveryRatio < 0.85 ? 'insufficient_audio_throughput' : maxRawFrameGapMs > 120 ? 'network_gaps' : 'stream_ok',
         });
+        if (audioDebugCaptureId) {
+            const captureId = audioDebugCaptureId;
+            audioDebugCaptureId = null;
+            audioDebugStore.finish(captureId, {
+                durationMs: recordingDurationMs,
+                declaredSampleRate: inputSampleRate,
+                expectedRawBytes,
+                receivedRawBytes: rawInputBytes,
+                resampledBytes: inputBytes,
+                deliveryRatio: Number(deliveryRatio.toFixed(3)),
+                effectiveSampleRate,
+                frameCount: rawInputFrames,
+                maxFrameGapMs: maxRawFrameGapMs,
+                rmsDbfs: Number.isFinite(rmsDbfs) ? Number(rmsDbfs.toFixed(1)) : null,
+                silenceRatio: pcmSampleCount ? Number((pcmSilentSampleCount / pcmSampleCount).toFixed(3)) : 0,
+                clippingRatio: pcmSampleCount ? Number((pcmClippedSampleCount / pcmSampleCount).toFixed(5)) : 0,
+            }).then((metadata) => {
+                log('input_audio_debug_saved', {
+                    turnId: metadata?.turnId || 'unknown', captureId: metadata?.captureId || captureId,
+                    rawPcmBytes: metadata?.rawPcmBytes || 0, resampledPcmBytes: metadata?.resampledPcmBytes || 0,
+                    truncated: metadata?.truncated || false,
+                });
+            }).catch((error) => log('input_audio_debug_save_error', {
+                captureId, message: String(error.message || error).replace(/\s+/g, '_'),
+            }));
+        }
         if (!currentGeneration) {
             currentGeneration = createGeneration({ turnId: currentTurnId });
         }
@@ -2536,6 +2568,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
             lastRawFrameAt = now;
             rawInputFrames += 1;
             rawInputBytes += payload.length;
+            audioDebugStore?.appendRaw(audioDebugCaptureId, payload);
             for (let offset = 0; offset + 1 < payload.length; offset += 2) {
                 const sample = payload.readInt16LE(offset);
                 const absolute = Math.abs(sample);
@@ -2571,6 +2604,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
                 return;
             }
             if (resampled.length === 0) return; // buffered internally, nothing to forward yet
+            audioDebugStore?.appendResampled(audioDebugCaptureId, resampled);
             inputBytes += resampled.length;
             sessionInputBytes += resampled.length;
             if (currentInputBufferedBytes + resampled.length <= MAX_TURN_REPLAY_BYTES) {

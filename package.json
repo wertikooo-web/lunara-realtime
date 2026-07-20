@@ -19,6 +19,7 @@
     "smoke:memory-guard": "node scripts/smoke-memory-guard.js",
     "smoke:pcm-resampler": "node scripts/pcm-resampler-smoke.js",
     "smoke:input-resample-pipeline": "node scripts/input-resample-pipeline-smoke.js",
+    "smoke:audio-debug": "node scripts/audio-debug-smoke.js",
     "smoke:learning": "node scripts/learning-smoke.js",
     "smoke:safety-guard": "node scripts/safety-guard-smoke.js"
   },
