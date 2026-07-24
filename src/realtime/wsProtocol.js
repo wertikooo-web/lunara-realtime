@@ -45,13 +45,42 @@ function encodeFrame(opcode, payload) {
     return Buffer.concat([header, data]);
 }
 
+// A fragmented message (FIN=0 first frame, opcode 0x0 continuation frames,
+// FIN=1 final frame) previously fell through every branch below silently:
+// opcode 0x0 matched nothing and its payload was dropped, and the FIN bit
+// was never even read, so a FIN=0 text/binary frame was dispatched
+// immediately as if it were the whole message. A constrained WebSocket
+// client (embedded devices, small TX buffers) fragmenting a message would
+// therefore have it silently lost or truncated, with zero error on either
+// side. Found while investigating a report that session.interrupt sometimes
+// doesn't appear to reach the server from real ESP32 hardware.
+const MAX_FRAGMENTED_MESSAGE_BYTES = 8 * 1024 * 1024;
+
 function createFrameParser(handlers) {
     let buffer = Buffer.alloc(0);
+    let fragmentedOpcode = null;
+    let fragmentedChunks = [];
+    let fragmentedBytes = 0;
+
+    function resetFragmentation() {
+        fragmentedOpcode = null;
+        fragmentedChunks = [];
+        fragmentedBytes = 0;
+    }
+
+    function dispatch(opcode, payload) {
+        if (opcode === 0x1) {
+            handlers.onText?.(payload.toString('utf8'));
+        } else if (opcode === 0x2) {
+            handlers.onBinary?.(payload);
+        }
+    }
 
     function parse() {
         while (buffer.length >= 2) {
             const first = buffer[0];
             const second = buffer[1];
+            const fin = (first & 0x80) !== 0;
             const opcode = first & 0x0f;
             const masked = (second & 0x80) !== 0;
             let length = second & 0x7f;
@@ -90,11 +119,42 @@ function createFrameParser(handlers) {
                 }
             }
 
-            if (opcode === 0x1) {
-                handlers.onText?.(payload.toString('utf8'));
-            } else if (opcode === 0x2) {
-                handlers.onBinary?.(payload);
-            } else if (opcode === 0x8) {
+            handlers.onFrame?.({ opcode, fin, length: payload.length });
+
+            if (opcode === 0x1 || opcode === 0x2) {
+                if (fin) {
+                    dispatch(opcode, payload);
+                } else {
+                    resetFragmentation();
+                    fragmentedOpcode = opcode;
+                    fragmentedChunks.push(payload);
+                    fragmentedBytes += payload.length;
+                }
+                continue;
+            }
+
+            if (opcode === 0x0) {
+                if (fragmentedOpcode === null) {
+                    handlers.onError?.(new Error('Unexpected continuation frame'));
+                    continue;
+                }
+                fragmentedChunks.push(payload);
+                fragmentedBytes += payload.length;
+                if (fragmentedBytes > MAX_FRAGMENTED_MESSAGE_BYTES) {
+                    handlers.onError?.(new Error('Fragmented message too large'));
+                    resetFragmentation();
+                    continue;
+                }
+                if (fin) {
+                    const complete = Buffer.concat(fragmentedChunks, fragmentedBytes);
+                    const finishedOpcode = fragmentedOpcode;
+                    resetFragmentation();
+                    dispatch(finishedOpcode, complete);
+                }
+                continue;
+            }
+
+            if (opcode === 0x8) {
                 if (payload.length === 1) {
                     handlers.onError?.(new Error('Invalid WebSocket close payload'));
                     return;

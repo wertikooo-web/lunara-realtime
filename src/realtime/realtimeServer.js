@@ -2543,6 +2543,17 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
     }
 
     const parser = createFrameParser({
+        // Only fires for fragmented frames (FIN=0, or opcode 0x0 continuation) —
+        // normal single-frame text/binary traffic is already covered by the
+        // handleCommand/onBinary logs below, so this stays silent in the
+        // common case and only lights up if a client's WS library actually
+        // splits a message across frames (the previously-unhandled case that
+        // could silently drop commands like session.interrupt).
+        onFrame({ opcode, fin, length }) {
+            if (opcode === 0x0 || !fin) {
+                log('ws_fragmented_frame', { opcode, fin, bytes: length });
+            }
+        },
         onText: handleCommand,
         onBinary(payload) {
             if (
