@@ -1657,8 +1657,6 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
             return;
         }
         generation.timeoutLogged = true;
-        generation.status = 'failed';
-        generation.cancel.cancel('provider_timeout');
         clearGenerationTimeout(generation);
         log('ptt_turn_timeout', {
             generationId: generation.generationId,
@@ -1667,7 +1665,23 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
             timeoutMs,
             turnInputBytes: inputBytes,
             sessionInputBytes,
+            providerRetryAttempted: generation.providerRetryAttempted,
         });
+
+        // A timeout after a complete audio turn is still recoverable while the
+        // original PCM replay buffer is available. Retry once on a fresh
+        // provider before exposing a terminal failure to the client.
+        if (currentMode !== 'text' && await retryGenerationOnFreshProvider(generation, 'provider_timeout')) {
+            log('turn_timeout_retry_dispatched', {
+                generationId: generation.generationId,
+                turnId: generation.turnId,
+                timeoutMs,
+            });
+            return;
+        }
+
+        generation.status = 'failed';
+        generation.cancel.cancel('provider_timeout');
         emit({
             type: 'response.failed',
             generation_id: generation.generationId,
@@ -1745,6 +1759,7 @@ function createRealtimeSession(socket, providerFactory, providerMetadata = {}, l
         const retryableReasons = new Set([
             'provider_turn_closed_before_output',
             'provider_turn_closed_during_input',
+            'provider_timeout',
         ]);
         if (!retryableReasons.has(reason)) return false;
         if (generation.providerRetryAttempted) return false;
