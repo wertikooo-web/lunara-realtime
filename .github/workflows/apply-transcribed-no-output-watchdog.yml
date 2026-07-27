@@ -34,3 +34,5 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "Recover quickly when Gemini transcribes but produces no output"
           git push origin HEAD:fix/transcribed-no-output-watchdog
+
+# Triggered after workflow creation so GitHub Actions sees the workflow on the branch.
